@@ -1,0 +1,259 @@
+// Prisma schema for AZZUNIQE CRM & ERP - Super Admin & Hierarchy Architecture
+// Based on Super Admin & Service -> Module -> Sub-Module specification
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum AccessMode {
+  FULL
+  CUSTOM
+}
+
+// 7.8 Super Admin (Platform Owner)
+model SuperAdmin {
+  id            BigInt    @id @default(autoincrement())
+  name          String    @db.VarChar(150)
+  email         String    @unique @db.VarChar(180)
+  passwordHash  String    @map("password_hash") @db.VarChar(255)
+  status        Status    @default(ACTIVE)
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  createdServices     Service[]
+  createdModules      Module[]
+  createdSubModules   SubModule[]
+  createdClients      ClientAdmin[]
+  auditLogs           AuditLog[]
+
+  @@map("super_admins")
+}
+
+// 7.1 Services (e.g. CRM & Sales, Purchase & Vendor, Inventory, Accounts)
+model Service {
+  id          BigInt      @id @default(autoincrement())
+  name        String      @db.VarChar(150)
+  code        String      @unique @db.VarChar(80)
+  description String?     @db.Text
+  status      Status      @default(ACTIVE)
+  orderNo     Int         @default(0) @map("order_no")
+  createdBy   BigInt?     @map("created_by")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  superAdmin  SuperAdmin? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  modules     Module[]
+  subModules  SubModule[]
+
+  clientServiceAccess    ClientServiceAccess[]
+  clientModuleAccess     ClientModuleAccess[]
+  clientSubModuleAccess  ClientSubModuleAccess[]
+  departments            Department[]
+
+  @@map("services")
+}
+
+// 7.2 Main Modules (e.g. CRM, Product, Sales under CRM & Sales)
+model Module {
+  id          BigInt      @id @default(autoincrement())
+  serviceId   BigInt      @map("service_id")
+  name        String      @db.VarChar(150)
+  code        String      @unique @db.VarChar(80)
+  description String?     @db.Text
+  icon        String?     @db.VarChar(120)
+  orderNo     Int         @default(0) @map("order_no")
+  status      Status      @default(ACTIVE)
+  createdBy   BigInt?     @map("created_by")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  superAdmin  SuperAdmin? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  subModules  SubModule[]
+
+  clientModuleAccess    ClientModuleAccess[]
+  clientSubModuleAccess ClientSubModuleAccess[]
+
+  @@map("modules")
+}
+
+// 7.3 Sub-Modules (Feature / Screen level, e.g. Leads, Quotation, PI, Sales Order)
+model SubModule {
+  id          BigInt      @id @default(autoincrement())
+  moduleId    BigInt      @map("module_id")
+  serviceId   BigInt      @map("service_id")
+  name        String      @db.VarChar(150)
+  code        String      @unique @db.VarChar(80)
+  route       String?     @db.VarChar(255)
+  icon        String?     @db.VarChar(120)
+  orderNo     Int         @default(0) @map("order_no")
+  status      Status      @default(ACTIVE)
+  createdBy   BigInt?     @map("created_by")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  module      Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  superAdmin  SuperAdmin? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  clientSubModuleAccess ClientSubModuleAccess[]
+
+  @@map("sub_modules")
+}
+
+// 7.4 Client / Admin / Company (PDF's Super Admin - Tenant Provisioned by Platform Super Admin)
+model ClientAdmin {
+  id               BigInt      @id @default(autoincrement())
+  name             String      @db.VarChar(150)
+  email            String      @unique @db.VarChar(180)
+  mobile           String?     @db.VarChar(30)
+  organizationName String      @map("organization_name") @db.VarChar(180)
+  passwordHash     String      @map("password_hash") @db.VarChar(255)
+  status           Status      @default(ACTIVE)
+  createdBy        BigInt?     @map("created_by")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  deletedAt        DateTime?   @map("deleted_at")
+
+  superAdmin  SuperAdmin? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  serviceAccess     ClientServiceAccess[]
+  moduleAccess      ClientModuleAccess[]
+  subModuleAccess   ClientSubModuleAccess[]
+  departments       Department[]
+  employees         CompanyEmployee[]
+
+  @@map("client_admins")
+}
+
+// 7.5 Client Service Access Mapping
+model ClientServiceAccess {
+  id             BigInt      @id @default(autoincrement())
+  clientAdminId  BigInt      @map("client_admin_id")
+  serviceId      BigInt      @map("service_id")
+  isFullService  Boolean     @default(false) @map("is_full_service")
+  isAllowed      Boolean     @default(true) @map("is_allowed")
+  assignedBy     BigInt?     @map("assigned_by")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [clientAdminId], references: [id], onDelete: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([clientAdminId, serviceId])
+  @@map("client_service_access")
+}
+
+// 7.6 Client Module Access Mapping
+model ClientModuleAccess {
+  id             BigInt      @id @default(autoincrement())
+  clientAdminId  BigInt      @map("client_admin_id")
+  serviceId      BigInt      @map("service_id")
+  moduleId       BigInt      @map("module_id")
+  accessMode     AccessMode  @default(FULL) @map("access_mode")
+  isAllowed      Boolean     @default(true) @map("is_allowed")
+  assignedBy     BigInt?     @map("assigned_by")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [clientAdminId], references: [id], onDelete: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  module      Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([clientAdminId, serviceId, moduleId])
+  @@map("client_module_access")
+}
+
+// 7.7 Client Sub-Module Access Mapping
+model ClientSubModuleAccess {
+  id             BigInt      @id @default(autoincrement())
+  clientAdminId  BigInt      @map("client_admin_id")
+  serviceId      BigInt      @map("service_id")
+  moduleId       BigInt      @map("module_id")
+  subModuleId    BigInt      @map("sub_module_id")
+  isAllowed      Boolean     @default(true) @map("is_allowed")
+  assignedBy     BigInt?     @map("assigned_by")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [clientAdminId], references: [id], onDelete: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  module      Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  subModule   SubModule   @relation(fields: [subModuleId], references: [id], onDelete: Cascade)
+
+  @@unique([clientAdminId, serviceId, moduleId, subModuleId])
+  @@map("client_sub_module_access")
+}
+
+// 7.10 Audit Logs
+model AuditLog {
+  id          BigInt      @id @default(autoincrement())
+  actorId     BigInt?     @map("actor_id")
+  action      String      @db.VarChar(100) // CREATE, UPDATE, STATUS, ACCESS
+  entityType  String      @map("entity_type") @db.VarChar(100) // SERVICE, MODULE, SUB_MODULE, CLIENT_ADMIN, ACCESS
+  entityId    BigInt?     @map("entity_id")
+  oldValue    String?     @map("old_value") @db.Text
+  newValue    String?     @map("new_value") @db.Text
+  reason      String?     @db.Text
+  ipAddress   String?     @map("ip_address") @db.VarChar(64)
+  userAgent   String?     @map("user_agent") @db.VarChar(255)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  superAdmin  SuperAdmin? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+// 7.11 Service-Based Departments (Enforces company and assigned-service isolation)
+model Department {
+  id          BigInt      @id @default(autoincrement())
+  companyId   BigInt      @map("company_id")
+  serviceId   BigInt      @map("service_id")
+  name        String      @db.VarChar(150)
+  code        String      @db.VarChar(80)
+  description String?     @db.Text
+  headId      BigInt?     @map("head_id")
+  status      Status      @default(ACTIVE)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  service     Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  head        CompanyEmployee? @relation("DepartmentHead", fields: [headId], references: [id], onDelete: SetNull)
+  employees   CompanyEmployee[] @relation("DepartmentEmployees")
+
+  @@unique([companyId, serviceId, code])
+  @@map("departments")
+}
+
+// 7.12 Company Employees & Internal Staff Members
+model CompanyEmployee {
+  id           BigInt      @id @default(autoincrement())
+  companyId    BigInt      @map("company_id")
+  departmentId BigInt?     @map("department_id")
+  name         String      @db.VarChar(150)
+  email        String      @db.VarChar(180)
+  role         String      @db.VarChar(100)
+  status       Status      @default(ACTIVE)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin       ClientAdmin  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department        Department?  @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
+  headedDepartments Department[] @relation("DepartmentHead")
+
+  @@unique([companyId, email])
+  @@map("company_employees")
+}
+
