@@ -520,15 +520,12 @@ export const CatalogStore = {
   _saveAccessInternal: (tx, clientAdminId, services) => companyService._saveAccessInternal(tx, clientAdminId, services),
   getCompanyAssignedServices: (companyId) => companyService.getCompanyAssignedServices(companyId),
 
-  // Employees & Departments
+  // Employees & Service Teams
   getCompanyEmployees: (companyId) => departmentService.getCompanyEmployees(companyId),
   createCompanyEmployee: (companyId, data, meta) => departmentService.createCompanyEmployee(companyId, data, meta),
-  getDepartmentsByService: (companyId, serviceCodeOrId) => departmentService.getDepartmentsByService(companyId, serviceCodeOrId),
-  getAllDepartmentsForCompany: (companyId) => departmentService.getAllDepartmentsForCompany(companyId),
-  createDepartment: (companyId, serviceCodeOrId, data, meta) => departmentService.createDepartment(companyId, serviceCodeOrId, data, meta),
-  updateDepartment: (companyId, departmentId, data, meta) => departmentService.updateDepartment(companyId, departmentId, data, meta),
-  deleteDepartment: (companyId, departmentId, meta) => departmentService.deleteDepartment(companyId, departmentId, meta),
-  assignDepartmentEmployees: (companyId, departmentId, employeeIds, meta) => departmentService.assignDepartmentEmployees(companyId, departmentId, employeeIds, meta),
+  assignCompanyEmployee: (companyId, employeeId, data, meta) => departmentService.assignCompanyEmployee(companyId, employeeId, data, meta),
+  getServiceTeam: (companyId, serviceCodeOrId) => departmentService.getServiceTeam(companyId, serviceCodeOrId),
+  setServiceTeamHead: (companyId, serviceCodeOrId, headId, meta) => departmentService.setServiceTeamHead(companyId, serviceCodeOrId, headId, meta),
 
   // Audit Logs
   getAuditLogs: (limit) => auditService.getAuditLogs(limit),

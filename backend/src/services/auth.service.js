@@ -13,9 +13,27 @@ const RESET_TOKENS = new Map();
 
 // In-memory password override cache to immediately support resets for both DB & bootstrap fallback accounts
 const PASSWORD_OVERRIDES = new Map();
+const COMPANY_STAFF_ROLES = ['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
 
 function hashResetToken(rawToken) {
   return crypto.createHash('sha256').update(rawToken).digest('hex');
+}
+
+function getEmployeeAccessRole(employee) {
+  if (employee.team?.headEmployeeId === employee.id) return 'SERVICE_HEAD';
+  if (employee.accessRole === 'TEAM_LEADER') return 'TEAM_LEADER';
+  return 'EMPLOYEE';
+}
+
+function scopeAccessToEmployeeService(access, service) {
+  if (!service) return { ...(access || {}), services: [] };
+  const serviceId = String(service.id);
+  return {
+    ...(access || {}),
+    services: (access?.services || []).filter(
+      (entry) => String(entry.serviceId || entry.service_id || entry.id) === serviceId
+    ),
+  };
 }
 
 
@@ -350,10 +368,14 @@ export const authService = {
           clientAdmin: {
             include: clientAccessInclude,
           },
-          department: {
-            include: { service: true },
-          },
+          department: { include: { service: true } },
           headedDepartments: true,
+          team: {
+            include: {
+              service: true,
+              head: true,
+            },
+          },
         },
       });
     } catch (err) {
@@ -367,24 +389,21 @@ export const authService = {
         throw error;
       }
 
-      // Employees authenticate using updated password override, company password, or standard employee password
+      // Existing migrated accounts without an individual password retain the legacy company-password login.
       let isEmployeeValid = false;
       if (PASSWORD_OVERRIDES.has(cleanEmail)) {
         isEmployeeValid = comparePassword(password, PASSWORD_OVERRIDES.get(cleanEmail));
+      } else if (employee.passwordHash) {
+        isEmployeeValid = comparePassword(password, employee.passwordHash);
       } else {
-        const isCompanyPass = comparePassword(password, employee.clientAdmin.passwordHash);
-        const isDefaultPass = password === 'Employee@2026!' || password === 'Tenant@2026!';
-        isEmployeeValid = isCompanyPass || isDefaultPass;
+        isEmployeeValid = comparePassword(password, employee.clientAdmin.passwordHash);
       }
 
       if (isEmployeeValid) {
-        // Resolve whether this employee is a Department Head
-        const isHead =
-          (employee.headedDepartments && employee.headedDepartments.length > 0) ||
-          (employee.role && employee.role.toLowerCase().includes('head'));
-
-        const resolvedRole = isHead ? 'DEPARTMENT_HEAD' : 'EMPLOYEE';
+        const resolvedRole = getEmployeeAccessRole(employee);
+        const service = employee.team?.service || employee.department?.service;
         const formattedCompany = formatClient(employee.clientAdmin);
+        const scopedAccess = scopeAccessToEmployeeService(formattedCompany.access, service);
 
         const userObj = {
           id: employee.id.toString(),
@@ -392,14 +411,19 @@ export const authService = {
           email: employee.email,
           role: resolvedRole,
           rawRole: employee.role,
+          accessRole: employee.accessRole,
           companyId: employee.companyId.toString(),
           departmentId: employee.departmentId ? employee.departmentId.toString() : null,
-          departmentName: employee.department?.name || null,
+          teamId: employee.teamId ? employee.teamId.toString() : null,
+          serviceId: service?.id.toString() || null,
+          serviceName: service?.name || employee.department?.name || null,
+          serviceCode: service?.code || null,
+          departmentName: service?.name || employee.department?.name || null,
           departmentServiceCode: employee.department?.service?.code || null,
           organizationName: employee.clientAdmin.organizationName,
           themeColor: employee.clientAdmin?.themeColor || '#7f22fe',
           theme_color: employee.clientAdmin?.themeColor || '#7f22fe',
-          access: formattedCompany.access,
+          access: scopedAccess,
         };
 
         const token = signToken({
@@ -409,6 +433,9 @@ export const authService = {
           role: resolvedRole,
           companyId: userObj.companyId,
           departmentId: userObj.departmentId,
+          teamId: userObj.teamId,
+          serviceId: userObj.serviceId,
+          serviceCode: userObj.serviceCode,
           organizationName: userObj.organizationName,
           type: 'COMPANY_USER',
         });
@@ -423,10 +450,7 @@ export const authService = {
         });
 
         // Determine destination based on role
-        let redirectUrl = '/dashboard';
-        if (isHead && employee.department?.service?.code) {
-          redirectUrl = `/services/${employee.department.service.code}/departments`;
-        }
+        const redirectUrl = '/dashboard';
 
         return {
           token,
@@ -447,7 +471,7 @@ export const authService = {
       if (PASSWORD_OVERRIDES.has(cleanEmail)) {
         isFallbackValid = comparePassword(password, PASSWORD_OVERRIDES.get(cleanEmail));
       } else {
-        isFallbackValid = fallbackUser.password === password || password === 'Tenant@2026!' || password === 'Employee@2026!';
+        isFallbackValid = fallbackUser.password === password;
       }
     }
     if (fallbackUser && isFallbackValid) {
@@ -558,7 +582,7 @@ export const authService = {
       };
     }
 
-    if (userPayload.role === 'DEPARTMENT_HEAD' || userPayload.role === 'EMPLOYEE') {
+    if (COMPANY_STAFF_ROLES.includes(userPayload.role)) {
       try {
         const employee = await prisma.companyEmployee.findUnique({
           where: { id: BigInt(userPayload.userId) },
@@ -566,29 +590,34 @@ export const authService = {
             clientAdmin: { include: clientAccessInclude },
             department: { include: { service: true } },
             headedDepartments: true,
+            team: { include: { service: true, head: true } },
           },
         });
 
         if (employee) {
           const formattedCompany = formatClient(employee.clientAdmin);
-          const isHead =
-            (employee.headedDepartments && employee.headedDepartments.length > 0) ||
-            (employee.role && employee.role.toLowerCase().includes('head'));
+          const role = getEmployeeAccessRole(employee);
+          const service = employee.team?.service || employee.department?.service;
 
           return {
             id: employee.id.toString(),
             name: employee.name,
             email: employee.email,
-            role: isHead ? 'DEPARTMENT_HEAD' : 'EMPLOYEE',
+            role,
             rawRole: employee.role,
+            accessRole: employee.accessRole,
             companyId: employee.companyId.toString(),
             departmentId: employee.departmentId ? employee.departmentId.toString() : null,
-            departmentName: employee.department?.name || null,
+            teamId: employee.teamId ? employee.teamId.toString() : null,
+            serviceId: service?.id.toString() || null,
+            serviceName: service?.name || employee.department?.name || null,
+            serviceCode: service?.code || null,
+            departmentName: service?.name || employee.department?.name || null,
             departmentServiceCode: employee.department?.service?.code || null,
             organizationName: employee.clientAdmin?.organizationName || '',
             themeColor: employee.clientAdmin?.themeColor || '#7f22fe',
             theme_color: employee.clientAdmin?.themeColor || '#7f22fe',
-            access: formattedCompany.access,
+            access: scopeAccessToEmployeeService(formattedCompany.access, service),
           };
         }
       } catch {}
@@ -822,6 +851,15 @@ export const authService = {
         });
       } catch (err) {
         logger.debug('Client Admin database password update deferred:', err.message);
+      }
+    } else if (record.userType === 'COMPANY_EMPLOYEE') {
+      try {
+        await prisma.companyEmployee.update({
+          where: { id: BigInt(record.userId) },
+          data: { passwordHash: newPasswordHash },
+        });
+      } catch (err) {
+        logger.debug('Company Employee database password update deferred:', err.message);
       }
     }
 
@@ -1069,6 +1107,71 @@ export const authService = {
       entityType: 'CLIENT_ADMIN',
       entityId: existing.id,
       reason: `Company Admin password updated for "${existing.organizationName}"`,
+      ipAddress: meta.ip || '127.0.0.1',
+      userAgent: meta.userAgent || null,
+    });
+
+    return { success: true, message: 'Password updated successfully.' };
+  },
+
+  async updateCompanyEmployeePassword(userPayload, { currentPassword, newPassword } = {}, meta = {}) {
+    if (!COMPANY_STAFF_ROLES.includes(userPayload?.role)) {
+      const error = new Error('Access denied: only company staff can update their own password here.');
+      error.statusCode = 403;
+      throw error;
+    }
+    if (typeof currentPassword !== 'string' || !currentPassword) {
+      const error = new Error('Current password is required.');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (
+      typeof newPassword !== 'string' ||
+      newPassword.length < 8 ||
+      !/[A-Z]/.test(newPassword) ||
+      !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPassword)
+    ) {
+      const error = new Error('New password must be at least 8 characters and include an uppercase letter and a special character.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const employee = await prisma.companyEmployee.findFirst({
+      where: {
+        id: BigInt(userPayload.userId),
+        companyId: BigInt(userPayload.companyId),
+        status: 'ACTIVE',
+      },
+      include: { clientAdmin: true },
+    });
+    if (!employee || employee.clientAdmin?.deletedAt || employee.clientAdmin?.status !== 'ACTIVE') {
+      const error = new Error('Active company employee account not found.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const currentHash =
+      PASSWORD_OVERRIDES.get(employee.email.trim().toLowerCase()) ||
+      employee.passwordHash ||
+      employee.clientAdmin.passwordHash;
+    if (!comparePassword(currentPassword, currentHash)) {
+      const error = new Error('The current password entered is incorrect.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const passwordHash = hashPassword(newPassword);
+    await prisma.companyEmployee.update({
+      where: { id: employee.id },
+      data: { passwordHash },
+    });
+    PASSWORD_OVERRIDES.set(employee.email.trim().toLowerCase(), passwordHash);
+
+    await auditService.logAudit({
+      action: 'UPDATE_PASSWORD',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: employee.id,
+      reason: `Employee password updated for "${employee.name}"`,
       ipAddress: meta.ip || '127.0.0.1',
       userAgent: meta.userAgent || null,
     });

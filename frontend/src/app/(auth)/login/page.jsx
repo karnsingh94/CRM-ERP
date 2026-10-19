@@ -98,6 +98,8 @@ function LoginForm() {
             } else if (
               user.role === 'COMPANY_ADMIN' ||
               user.role === 'DEPARTMENT_HEAD' ||
+              user.role === 'SERVICE_HEAD' ||
+              user.role === 'TEAM_LEADER' ||
               user.role === 'EMPLOYEE'
             ) {
               const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
@@ -747,4 +749,3 @@ export default function UnifiedSuperAdminLoginPage() {
     </Suspense>
   );
 }
-

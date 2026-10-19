@@ -219,6 +219,13 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     showToast('Session Ended', 'Logged out of company workspace.', 'info');
   };
 
+  const renderAdminRestricted = (featureName) => (
+    <div role="alert" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '14px', padding: '2.5rem 1.5rem', textAlign: 'center', color: '#9a3412' }}>
+      <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem', fontWeight: 800 }}>Company Admin Access Required</h3>
+      <p style={{ margin: 0, fontSize: '0.88rem' }}>{featureName} is available only to the Company Admin.</p>
+    </div>
+  );
+
   // Render content area based on activeTab & granted access
   const renderContent = () => {
     // 1. Loading State
@@ -352,6 +359,9 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
 
     // 2. Settings View
     if (activeTab === 'settings') {
+      if (currentUser?.role !== 'COMPANY_ADMIN' && !isSuperAdminSwitched) {
+        return renderAdminRestricted('Company profile and settings');
+      }
       return (
         <SettingsModule
           activeCompany={effectiveCompany}
@@ -371,8 +381,11 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       );
     }
 
-    // 3. Service Departments View (MANDATORY REQUIREMENT: Initiated from authorized service context)
+    // 3. Service Team View (initiated from authorized service context)
     if (activeTab.startsWith('services:') && activeTab.endsWith(':departments')) {
+      if (currentUser?.role !== 'COMPANY_ADMIN' && !isSuperAdminSwitched) {
+        return renderAdminRestricted('Service team management');
+      }
       const targetServiceCode = activeTab.split(':')[1];
       const isServicePermitted = hasServiceAccess(targetServiceCode);
       if (!isServicePermitted) {
@@ -383,7 +396,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
               Service Access Restricted
             </h3>
             <p style={{ fontSize: '0.88rem', color: '#7c2d12', maxWidth: '520px', margin: '0 auto', lineHeight: 1.6 }}>
-              Department creation and management is restricted. The requested service is not assigned to <strong>{activeCompany.organizationName}</strong> by Super Admin.
+              Service team access is restricted. This service is not assigned to <strong>{activeCompany.organizationName}</strong> by Super Admin.
             </p>
             <button
               type="button"
@@ -561,6 +574,9 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         return <AccountsModule key={`acc-${initialSubTab || 'invoices'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'permission_controls':
+        if (currentUser?.role !== 'COMPANY_ADMIN' && !isSuperAdminSwitched) {
+          return renderAdminRestricted('Team and permission administration');
+        }
         if (!hasModuleAccess('team') && !hasModuleAccess('permission_controls')) return renderModuleRestricted('Team & Permissions');
         return <TeamModule key={`team-${initialSubTab || 'members'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
@@ -694,6 +710,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         activeCompany={workspaceCompany}
         permittedServices={permittedServices}
         hasSubModuleAccess={hasSubModuleAccess}
+        isCompanyAdmin={currentUser?.role === 'COMPANY_ADMIN' || isSuperAdminSwitched}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
       />

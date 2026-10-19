@@ -5,6 +5,24 @@ import { useRouter, usePathname } from 'next/navigation';
 import { api, API_BASE } from '../lib/api';
 import { useCompanyAuthContext } from '../context/CompanyAuthContext';
 
+const COMPANY_USER_ROLES = ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
+
+function scopeCompanyAccessForUser(company, user) {
+  if (!company || !user || !['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(user.role)) {
+    return company;
+  }
+  const serviceId = String(user.serviceId || '');
+  return {
+    ...company,
+    access: {
+      ...(company.access || {}),
+      services: (company.access?.services || []).filter(
+        (service) => String(service.serviceId || service.service_id || service.id) === serviceId
+      ),
+    },
+  };
+}
+
 export function useCompanyAuth() {
   const context = useCompanyAuthContext();
   if (context) {
@@ -48,7 +66,10 @@ export function useCompanyAuth() {
       case 'COMPANY_ADMIN':
         return 'Company Admin';
       case 'DEPARTMENT_HEAD':
-        return departmentName ? `Department Head (${departmentName})` : 'Department Head';
+      case 'SERVICE_HEAD':
+        return departmentName ? `Service Head (${departmentName})` : 'Service Head';
+      case 'TEAM_LEADER':
+        return departmentName ? `Team Leader (${departmentName})` : 'Team Leader';
       case 'EMPLOYEE':
         return departmentName ? `Employee (${departmentName})` : 'Employee';
       default:
@@ -86,11 +107,7 @@ export function useCompanyAuth() {
               router.replace('/super-admin');
               return;
             }
-            if (
-              userCandidate.role === 'COMPANY_ADMIN' ||
-              userCandidate.role === 'DEPARTMENT_HEAD' ||
-              userCandidate.role === 'EMPLOYEE'
-            ) {
+            if (COMPANY_USER_ROLES.includes(userCandidate.role)) {
               verifiedUser = userCandidate;
             }
           }
@@ -104,9 +121,7 @@ export function useCompanyAuth() {
         const cached = getStoredSession();
         if (
           cached &&
-          (cached.role === 'COMPANY_ADMIN' ||
-            cached.role === 'DEPARTMENT_HEAD' ||
-            cached.role === 'EMPLOYEE') &&
+          COMPANY_USER_ROLES.includes(cached.role) &&
           token
         ) {
           verifiedUser = cached;
@@ -131,7 +146,9 @@ export function useCompanyAuth() {
         ...verifiedUser,
         roleTitle,
         isCompanyAdmin: verifiedUser.role === 'COMPANY_ADMIN',
-        isDepartmentHead: verifiedUser.role === 'DEPARTMENT_HEAD',
+        isDepartmentHead: verifiedUser.role === 'DEPARTMENT_HEAD' || verifiedUser.role === 'SERVICE_HEAD',
+        isServiceHead: verifiedUser.role === 'DEPARTMENT_HEAD' || verifiedUser.role === 'SERVICE_HEAD',
+        isTeamLeader: verifiedUser.role === 'TEAM_LEADER',
         isEmployee: verifiedUser.role === 'EMPLOYEE',
       };
       setCurrentUser(userProfile);
@@ -144,10 +161,12 @@ export function useCompanyAuth() {
           const compRes = await api.get(`/clients/${targetCompanyId}`);
           const companyData = compRes?.data || null;
           if (companyData) {
-            setActiveCompany(companyData);
-            setAuthorizedCompanies([companyData]);
+            const scopedCompany = scopeCompanyAccessForUser(companyData, verifiedUser);
+            setActiveCompany(scopedCompany);
+            setAuthorizedCompanies([scopedCompany]);
             if (typeof window !== 'undefined') {
-              localStorage.setItem('active_company_id', String(companyData.id));
+              localStorage.setItem('active_company_id', String(scopedCompany.id));
+              localStorage.setItem('cached_company_data', JSON.stringify(scopedCompany));
             }
           } else {
             // Minimal company object from session
@@ -157,6 +176,7 @@ export function useCompanyAuth() {
               organizationName: verifiedUser.organizationName || verifiedUser.name,
               email: verifiedUser.email,
               status: 'ACTIVE',
+              access: verifiedUser.access || { services: [] },
             });
             setAuthorizedCompanies([]);
           }
@@ -168,6 +188,7 @@ export function useCompanyAuth() {
             organizationName: verifiedUser.organizationName || verifiedUser.name,
             email: verifiedUser.email,
             status: 'ACTIVE',
+            access: verifiedUser.access || { services: [] },
           });
           setAuthorizedCompanies([]);
         }

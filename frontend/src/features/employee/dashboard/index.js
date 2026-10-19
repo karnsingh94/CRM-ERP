@@ -1,119 +1,58 @@
 'use client';
 
-import { useState } from 'react';
 import { useCompanyAuthContext } from '@/context/CompanyAuthContext';
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import Table from '@/components/ui/Table';
-import Button from '@/components/ui/Button';
+import StaffPasswordForm from '@/components/modules/StaffPasswordForm';
 
 export default function EmployeeDashboardFeature() {
   const { currentUser, activeCompany } = useCompanyAuthContext();
-  const [punchedIn, setPunchedIn] = useState(true);
-
-  const mockAssignments = [
-    { id: 'JOB-401', service: 'CRM & Sales', title: 'Follow-up with Enterprise Lead: TechNova', priority: 'High', status: 'In Progress' },
-    { id: 'JOB-402', service: 'Inventory', title: 'Warehouse stock count verification: Bin A-12', priority: 'Normal', status: 'Pending' },
-    { id: 'JOB-403', service: 'Dispatch', title: 'Prepare packaging labels for shipment #892', priority: 'High', status: 'Completed' },
-  ];
-
-  const columns = [
-    { header: 'Job ID', key: 'id', width: '110px' },
-    { header: 'Module', key: 'service', width: '160px' },
-    { header: 'Task Description', key: 'title' },
-    {
-      header: 'Priority',
-      key: 'priority',
-      width: '110px',
-      render: (row) => (
-        <Badge variant={row.priority === 'High' ? 'warning' : 'default'}>
-          {row.priority}
-        </Badge>
-      ),
-    },
-    {
-      header: 'Status',
-      key: 'status',
-      width: '140px',
-      render: (row) => (
-        <Badge variant={row.status === 'Completed' ? 'success' : 'primary'}>
-          {row.status}
-        </Badge>
-      ),
-    },
-  ];
+  const service = activeCompany?.access?.services?.[0];
+  const modules = service?.modules || [];
+  const isTeamLeader = currentUser?.role === 'TEAM_LEADER';
+  const serviceName = currentUser?.serviceName || service?.name || 'Assigned Service';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Header Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-          borderRadius: '16px',
-          padding: '2rem',
-          color: '#ffffff',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
-            <Badge variant="primary">EMPLOYEE WORKSPACE</Badge>
-            <span style={{ fontSize: '0.85rem', color: '#c7d2fe' }}>
-              {activeCompany?.name || 'Company Workspace'}
-            </span>
-          </div>
-          <h1 style={{ fontSize: '1.65rem', fontWeight: 800, margin: 0 }}>
-            Welcome, {currentUser?.name || 'Employee'}
-          </h1>
-          <p style={{ fontSize: '0.88rem', color: '#e0e7ff', margin: '0.4rem 0 0 0' }}>
-            Department: {currentUser?.departmentName || 'General Staff'} • ID: {currentUser?.id || 'EMP-001'}
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Button
-            variant={punchedIn ? 'danger' : 'primary'}
-            onClick={() => setPunchedIn(!punchedIn)}
-          >
-            {punchedIn ? 'Punch Out' : 'Punch In (Start Shift)'}
-          </Button>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: '16px', padding: '2rem', color: '#fff' }}>
+        <span style={{ color: '#c7d2fe', fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.06em' }}>
+          {isTeamLeader ? 'TEAM LEADER' : 'EMPLOYEE'}
+        </span>
+        <h1 style={{ margin: '0.45rem 0', fontSize: '1.65rem', fontWeight: 800 }}>Welcome, {currentUser?.name || 'Employee'}</h1>
+        <p style={{ margin: 0, color: '#e0e7ff', fontSize: '0.88rem' }}>
+          {serviceName} team · Login ID: {currentUser?.email || currentUser?.id || '—'}
+        </p>
       </div>
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1rem',
-        }}
-      >
-        <Card title="Shift Status" subtitle="Today's attendance">
-          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: punchedIn ? '#10b981' : '#64748b' }}>
-            {punchedIn ? 'Active (Punched In)' : 'Off Duty'}
-          </div>
-          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>09:00 AM - 06:00 PM</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <Card title="Assigned Service" subtitle="Your team scope">
+          <strong style={{ color: '#7f22fe', fontSize: '1.05rem' }}>{serviceName}</strong>
         </Card>
-        <Card title="Assigned Jobs" subtitle="Active tasks">
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary, #7f22fe)' }}>3</div>
-          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>1 completed today</p>
+        <Card title="Accessible Modules" subtitle="Company-approved">
+          <strong style={{ color: '#7f22fe', fontSize: '1.6rem' }}>{modules.length}</strong>
         </Card>
-        <Card title="Assigned Modules" subtitle="Permitted access">
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#6366f1' }}>
-            {activeCompany?.access?.services?.length || 3}
-          </div>
-          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>Work areas</p>
+        <Card title="Team Role" subtitle="Access level">
+          <strong style={{ color: '#7f22fe', fontSize: '1.05rem' }}>{isTeamLeader ? 'Team Leader' : 'Employee'}</strong>
         </Card>
       </div>
 
-      {/* Assigned Tasks Table */}
-      <Card title="My Work Schedule & Tasks" subtitle="Direct job orders assigned to your station">
-        <Table columns={columns} data={mockAssignments} />
+      <Card title="Your Service Modules" subtitle="Your access follows the modules approved for your assigned service">
+        {modules.length ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            {modules.map((module) => (
+              <div key={module.moduleId || module.module_id || module.code} style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                <h3 style={{ margin: '0 0 0.5rem', color: '#0f172a', fontSize: '0.95rem' }}>{module.name}</h3>
+                <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>
+                  {(module.subModules || module.sub_modules || []).map((subModule) => subModule.name).join(', ') || 'No active sub-modules'}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0, color: '#64748b' }}>No active modules are currently assigned to this service.</p>
+        )}
       </Card>
+
+      <StaffPasswordForm />
     </div>
   );
 }

@@ -27,23 +27,30 @@ export const departmentController = {
     }
   },
 
-  // ==================== DEPARTMENTS ====================
-  async getAllDepartmentsForCompany(req, res, next) {
+  async assignCompanyEmployee(req, res, next) {
     try {
-      const departments = await departmentService.getAllDepartmentsForCompany(req.params.companyId);
-      res.json({ success: true, data: departments });
+      const employee = await departmentService.assignCompanyEmployee(
+        req.params.companyId,
+        req.params.employeeId,
+        req.body,
+        req.meta || {}
+      );
+      res.json({ success: true, data: employee });
     } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
       next(err);
     }
   },
 
-  async getDepartmentsByService(req, res, next) {
+  async getServiceTeam(req, res, next) {
     try {
-      const result = await departmentService.getDepartmentsByService(
+      const team = await departmentService.getServiceTeam(
         req.params.companyId,
         req.params.serviceCode
       );
-      res.json({ success: true, ...result });
+      res.json({ success: true, data: team });
     } catch (err) {
       if (err.statusCode) {
         return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
@@ -52,15 +59,15 @@ export const departmentController = {
     }
   },
 
-  async createDepartment(req, res, next) {
+  async setServiceTeamHead(req, res, next) {
     try {
-      const department = await departmentService.createDepartment(
+      const team = await departmentService.setServiceTeamHead(
         req.params.companyId,
         req.params.serviceCode,
-        req.body,
+        req.body.headId,
         req.meta || {}
       );
-      res.status(201).json({ success: true, data: department });
+      res.json({ success: true, data: team });
     } catch (err) {
       if (err.statusCode) {
         return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
@@ -69,56 +76,6 @@ export const departmentController = {
     }
   },
 
-  async updateDepartment(req, res, next) {
-    try {
-      const updated = await departmentService.updateDepartment(
-        req.params.companyId,
-        req.params.departmentId,
-        req.body,
-        req.meta || {}
-      );
-      res.json({ success: true, data: updated });
-    } catch (err) {
-      if (err.statusCode) {
-        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
-      }
-      next(err);
-    }
-  },
-
-  async deleteDepartment(req, res, next) {
-    try {
-      await departmentService.deleteDepartment(
-        req.params.companyId,
-        req.params.departmentId,
-        req.meta || {}
-      );
-      res.json({ success: true, message: 'Department removed successfully' });
-    } catch (err) {
-      if (err.statusCode) {
-        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
-      }
-      next(err);
-    }
-  },
-
-  async assignDepartmentEmployees(req, res, next) {
-    try {
-      const { employeeIds } = req.body;
-      const updated = await departmentService.assignDepartmentEmployees(
-        req.params.companyId,
-        req.params.departmentId,
-        employeeIds || [],
-        req.meta || {}
-      );
-      res.json({ success: true, data: updated });
-    } catch (err) {
-      if (err.statusCode) {
-        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
-      }
-      next(err);
-    }
-  },
 };
 
 export default departmentController;

@@ -58,7 +58,13 @@ export default function Topbar({
   const displayName = currentUser?.name || activeCompany?.name || 'Authorized User';
   const displayEmail = currentUser?.email || activeCompany?.email || '';
   const displayOrg = activeCompany?.organizationName || currentUser?.organizationName || '';
-  const displayRole = currentUser?.roleTitle || (currentUser?.role === 'DEPARTMENT_HEAD' ? 'Department Head' : currentUser?.role === 'EMPLOYEE' ? 'Employee' : 'Company Admin');
+  const roleLabels = {
+    DEPARTMENT_HEAD: 'Service Head',
+    SERVICE_HEAD: 'Service Head',
+    TEAM_LEADER: 'Team Leader',
+    EMPLOYEE: 'Employee',
+  };
+  const displayRole = currentUser?.roleTitle || roleLabels[currentUser?.role] || 'Company Admin';
   const userInitials = getInitials(displayName);
   const brandColor = activeCompany?.theme_color || activeCompany?.themeColor || currentUser?.theme_color || currentUser?.themeColor || '#7f22fe';
   const brandGlow = `${brandColor}4d`;

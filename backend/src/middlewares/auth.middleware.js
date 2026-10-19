@@ -64,7 +64,7 @@ export function requireSuperAdmin(req, res, next) {
  */
 export function requireCompanyUser(req, res, next) {
   requireAuth(req, res, () => {
-    const allowed = ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'EMPLOYEE'];
+    const allowed = ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
     if (!req.user || !allowed.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
@@ -146,6 +146,18 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
   return async (req, res, next) => {
     try {
       const { prisma } = await import('../config/prisma.js');
+      if (!req.user) {
+        const token = extractToken(req);
+        if (token) req.user = verifyToken(token);
+      }
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          code: 'UNAUTHENTICATED',
+          message: 'Authentication is required to access this feature.',
+        });
+      }
+
       const subModule = await prisma.subModule.findFirst({
         where: {
           OR: [
@@ -164,7 +176,11 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
       });
 
       if (!subModule) {
-        return next();
+        return res.status(404).json({
+          success: false,
+          code: 'SUBMODULE_NOT_FOUND',
+          message: 'The requested feature screen was not found.',
+        });
       }
 
       // Check parent service status
@@ -196,8 +212,31 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
 
       // Tenant isolation & assignment check if company context exists
       const targetCompanyId = req.params?.companyId || req.user?.companyId;
+      if (req.user.role !== 'SUPER_ADMIN' && !targetCompanyId) {
+        return res.status(403).json({
+          success: false,
+          code: 'COMPANY_CONTEXT_REQUIRED',
+          message: 'Access denied: A company workspace is required for this feature.',
+        });
+      }
       if (targetCompanyId && req.user?.role !== 'SUPER_ADMIN') {
         const companyIdBig = BigInt(targetCompanyId);
+        if (String(req.user.companyId) !== String(targetCompanyId)) {
+          return res.status(403).json({
+            success: false,
+            code: 'TENANT_ISOLATION_VIOLATION',
+            message: 'Access denied: You do not have permission to access this company.',
+          });
+        }
+
+        if (!['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(req.user.role)) {
+          return res.status(403).json({
+            success: false,
+            code: 'FORBIDDEN_COMPANY_USER_ONLY',
+            message: 'Access denied: Company user privileges are required.',
+          });
+        }
+
         const serviceAccess = await prisma.clientServiceAccess.findFirst({
           where: {
             clientAdminId: companyIdBig,
@@ -212,6 +251,61 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
             code: 'SERVICE_NOT_ASSIGNED',
             message: `Access denied: Service "${subModule.module?.service?.name}" is not assigned to this company.`,
           });
+        }
+
+        if (['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(req.user.role)) {
+          const employee = await prisma.companyEmployee.findFirst({
+            where: {
+              id: BigInt(req.user.userId),
+              companyId: companyIdBig,
+              status: 'ACTIVE',
+            },
+            include: { team: true },
+          });
+          if (!employee?.team || employee.team.serviceId !== subModule.serviceId) {
+            return res.status(403).json({
+              success: false,
+              code: 'SERVICE_SCOPE_VIOLATION',
+              message: 'Access denied: This feature is outside your assigned service team.',
+            });
+          }
+        }
+
+        if (!serviceAccess.isFullService) {
+          const moduleAccess = await prisma.clientModuleAccess.findFirst({
+            where: {
+              clientAdminId: companyIdBig,
+              serviceId: subModule.serviceId,
+              moduleId: subModule.moduleId,
+              isAllowed: true,
+            },
+          });
+          if (!moduleAccess) {
+            return res.status(403).json({
+              success: false,
+              code: 'MODULE_NOT_ASSIGNED',
+              message: `Access denied: Module "${subModule.module?.name}" is not assigned to this company.`,
+            });
+          }
+
+          if (moduleAccess.accessMode !== 'FULL') {
+            const subModuleAccess = await prisma.clientSubModuleAccess.findFirst({
+              where: {
+                clientAdminId: companyIdBig,
+                serviceId: subModule.serviceId,
+                moduleId: subModule.moduleId,
+                subModuleId: subModule.id,
+                isAllowed: true,
+              },
+            });
+            if (!subModuleAccess) {
+              return res.status(403).json({
+                success: false,
+                code: 'SUBMODULE_NOT_ASSIGNED',
+                message: `Access denied: Feature screen "${subModule.name}" is not assigned to this company.`,
+              });
+            }
+          }
         }
       }
 

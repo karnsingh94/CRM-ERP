@@ -503,7 +503,7 @@ export const COMPANY_ADMIN_ROUTES = [
     path: '/team',
     label: 'Company Employees',
     title: 'Company Staff & Users Directory',
-    description: 'Internal employees, department allocations, and login credential management',
+    description: 'Employees, service team assignments, team roles, and login credentials',
     parent: '/team',
     serviceCode: 'permission_controls',
     moduleCode: 'permission_controls',
@@ -513,7 +513,7 @@ export const COMPANY_ADMIN_ROUTES = [
   },
   {
     path: '/team/roles',
-    label: 'Department Roles',
+    label: 'Team Roles',
     title: 'Role-Based Access Control (RBAC)',
     description: 'Custom internal permission templates and feature privilege sets',
     parent: '/team',
@@ -574,7 +574,7 @@ export function getCompanyAdminRoute(pathname) {
     return COMPANY_ADMIN_ROUTES[0];
   }
 
-  // Dynamic Service-Based Department Routes & Landing
+  // Dynamic service landing and service-team routes
   const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/departments)?$/);
   if (serviceMatch) {
     const rawSlug = serviceMatch[1];
@@ -583,9 +583,11 @@ export function getCompanyAdminRoute(pathname) {
     const serviceName = SERVICE_TITLES[serviceCode] || serviceCode;
     return {
       path: pathname,
-      label: isDeptSubpath ? 'Departments' : serviceName,
-      title: `${serviceName} Departments`,
-      description: `Service-based department management and staff allocations for ${serviceName}`,
+      label: isDeptSubpath ? 'Service Team' : serviceName,
+      title: isDeptSubpath ? `${serviceName} Service Team` : serviceName,
+      description: isDeptSubpath
+        ? `Manage the Service Head and staff assigned to ${serviceName}`
+        : `${serviceName} service workspace`,
       serviceCode,
       moduleCode: null,
       isNav: true,
@@ -826,5 +828,4 @@ export {
   getSuperAdminRoute,
   getSuperAdminBreadcrumbs,
 } from './super-admin.routes.js';
-
 

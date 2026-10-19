@@ -179,10 +179,14 @@ export default function Sidebar({
   activeCompany,
   permittedServices = [],
   hasSubModuleAccess,
+  isCompanyAdmin = true,
   isCollapsed = false,
   onToggleCollapse,
 }) {
   const pathname = usePathname() || '/dashboard';
+  const visibleServices = isCompanyAdmin
+    ? permittedServices
+    : permittedServices.filter((service) => service.code !== 'permission_controls');
 
   // 1. Initial State Resolution from Active Route
   const initialHierarchy = getHierarchyFromPathname(pathname);
@@ -443,12 +447,12 @@ export default function Sidebar({
               margin: '0.75rem 0 0.25rem 0.5rem',
             }}
           >
-            Assigned Services ({permittedServices.length})
+            Assigned Services ({visibleServices.length})
           </div>
         )}
 
         {/* 4-Level Nested Hierarchy Accordion */}
-        {permittedServices.map((service) => {
+        {visibleServices.map((service) => {
           const serviceSlugKebab = service.code.replace(/_/g, '-');
           const isServiceActive = (
             (service.code === 'crm_sales' && (pathname.startsWith('/crm') || pathname.startsWith('/products') || pathname.startsWith('/sales'))) ||
@@ -555,8 +559,8 @@ export default function Sidebar({
                     gap: '0.2rem',
                   }}
                 >
-                  {/* Level 2: Department Grouping Link */}
-                  {(() => {
+                  {/* Level 2: Service Team Link */}
+                  {isCompanyAdmin && (() => {
                     const deptRoute = `/services/${serviceSlugKebab}/departments`;
                     const isDeptActive = (
                       pathname.startsWith(`/services/${serviceSlugKebab}/departments`) ||
@@ -580,11 +584,11 @@ export default function Sidebar({
                           transition: 'all 0.15s ease',
                           marginBottom: '0.25rem',
                         }}
-                        title={`Manage departments under ${service.name}`}
+                        title={`Manage the ${service.name} team`}
                       >
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                           <span style={{ fontSize: '0.82rem' }}>🏢</span>
-                          <span>Departments</span>
+                          <span>Service Team</span>
                         </span>
                         <span
                           style={{
@@ -752,7 +756,7 @@ export default function Sidebar({
         })}
 
         {/* Company Settings Section */}
-        {!isCollapsed && (
+        {isCompanyAdmin && !isCollapsed && (
           <div
             style={{
               fontSize: '0.68rem',
@@ -767,7 +771,7 @@ export default function Sidebar({
           </div>
         )}
 
-        {(() => {
+        {isCompanyAdmin && (() => {
           const isSettingsActive = pathname === '/settings';
           return (
             <Link

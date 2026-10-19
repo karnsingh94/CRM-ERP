@@ -2,110 +2,55 @@
 
 import { useCompanyAuthContext } from '@/context/CompanyAuthContext';
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import Table from '@/components/ui/Table';
+import StaffPasswordForm from '@/components/modules/StaffPasswordForm';
 
-export default function DepartmentHeadDashboardFeature() {
+export default function ServiceHeadDashboardFeature() {
   const { currentUser, activeCompany } = useCompanyAuthContext();
-
-  const deptName = currentUser?.departmentName || 'Operations';
-
-  const mockTasks = [
-    { id: 'TSK-101', title: 'Review incoming purchase requisitions', priority: 'High', status: 'Pending Review', due: 'Today' },
-    { id: 'TSK-102', title: 'Approve vendor invoice discrepancy', priority: 'Urgent', status: 'Action Required', due: 'Today' },
-    { id: 'TSK-103', title: 'Weekly shift schedule verification', priority: 'Medium', status: 'Completed', due: 'Yesterday' },
-  ];
-
-  const columns = [
-    { header: 'Task ID', key: 'id', width: '120px' },
-    { header: 'Task Title', key: 'title' },
-    {
-      header: 'Priority',
-      key: 'priority',
-      width: '120px',
-      render: (row) => (
-        <Badge variant={row.priority === 'Urgent' ? 'danger' : row.priority === 'High' ? 'warning' : 'info'}>
-          {row.priority}
-        </Badge>
-      ),
-    },
-    {
-      header: 'Status',
-      key: 'status',
-      width: '160px',
-      render: (row) => (
-        <Badge variant={row.status === 'Completed' ? 'success' : 'default'}>
-          {row.status}
-        </Badge>
-      ),
-    },
-    { header: 'Due', key: 'due', width: '100px' },
-  ];
+  const service = activeCompany?.access?.services?.[0];
+  const modules = service?.modules || [];
+  const subModuleCount = modules.reduce((total, module) => total + (module.subModules || module.sub_modules || []).length, 0);
+  const serviceName = currentUser?.serviceName || service?.name || 'Assigned Service';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Header Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-          borderRadius: '16px',
-          padding: '2rem',
-          color: '#ffffff',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
-            <Badge variant="primary">DEPARTMENT HEAD</Badge>
-            <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-              {activeCompany?.name || 'Company Workspace'}
-            </span>
-          </div>
-          <h1 style={{ fontSize: '1.65rem', fontWeight: 800, margin: 0 }}>
-            {deptName} Department Portal
-          </h1>
-          <p style={{ fontSize: '0.88rem', color: '#cbd5e1', margin: '0.4rem 0 0 0' }}>
-            Welcome, {currentUser?.name || 'Department Head'}. Manage departmental workflows, approvals, and team assignments.
-          </p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', borderRadius: '16px', padding: '2rem', color: '#fff' }}>
+        <span style={{ color: '#c4b5fd', fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.06em' }}>SERVICE HEAD</span>
+        <h1 style={{ margin: '0.45rem 0', fontSize: '1.65rem', fontWeight: 800 }}>{serviceName} Team</h1>
+        <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.88rem' }}>
+          Welcome, {currentUser?.name || 'Service Head'}. This workspace is limited to modules approved for your service.
+        </p>
       </div>
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1rem',
-        }}
-      >
-        <Card title="Department Staff" subtitle="Active members">
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary, #7f22fe)' }}>12</div>
-          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>All rostered</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <Card title="Assigned Service" subtitle="Your team scope">
+          <strong style={{ color: '#7f22fe', fontSize: '1.05rem' }}>{serviceName}</strong>
         </Card>
-        <Card title="Pending Approvals" subtitle="Awaiting review">
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b' }}>3</div>
-          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>2 requisitions, 1 bill</p>
+        <Card title="Accessible Modules" subtitle="Company-approved">
+          <strong style={{ color: '#7f22fe', fontSize: '1.6rem' }}>{modules.length}</strong>
         </Card>
-        <Card title="Workflow Efficiency" subtitle="Current week">
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981' }}>98.4%</div>
-          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>On schedule</p>
-        </Card>
-        <Card title="Active Modules" subtitle="Permitted access">
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#6366f1' }}>
-            {activeCompany?.access?.services?.length || 4}
-          </div>
-          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>Assigned services</p>
+        <Card title="Accessible Screens" subtitle="Active sub-modules">
+          <strong style={{ color: '#7f22fe', fontSize: '1.6rem' }}>{subModuleCount}</strong>
         </Card>
       </div>
 
-      {/* Department Tasks Table */}
-      <Card title="Departmental Action Queue" subtitle="Pending items requiring departmental head attention">
-        <Table columns={columns} data={mockTasks} />
+      <Card title="Your Service Modules" subtitle="Only modules and sub-modules assigned to this service are shown">
+        {modules.length ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            {modules.map((module) => (
+              <div key={module.moduleId || module.module_id || module.code} style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                <h3 style={{ margin: '0 0 0.5rem', color: '#0f172a', fontSize: '0.95rem' }}>{module.name}</h3>
+                <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>
+                  {(module.subModules || module.sub_modules || []).map((subModule) => subModule.name).join(', ') || 'No active sub-modules'}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0, color: '#64748b' }}>No active modules are currently assigned to this service.</p>
+        )}
       </Card>
+
+      <StaffPasswordForm />
     </div>
   );
 }
