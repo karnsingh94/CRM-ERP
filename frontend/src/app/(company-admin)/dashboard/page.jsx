@@ -88,11 +88,11 @@ export default function UnifiedRoleDashboardPage() {
     return <SuperAdminPortal initialTab="dashboard" />;
   }
 
-  if (currentUser?.role === 'DEPARTMENT_HEAD') {
+  if (currentUser?.role === 'DEPARTMENT_HEAD' || currentUser?.role === 'SERVICE_HEAD') {
     return <DepartmentHeadDashboardFeature />;
   }
 
-  if (currentUser?.role === 'EMPLOYEE') {
+  if (currentUser?.role === 'TEAM_LEADER' || currentUser?.role === 'EMPLOYEE') {
     return <EmployeeDashboardFeature />;
   }
 

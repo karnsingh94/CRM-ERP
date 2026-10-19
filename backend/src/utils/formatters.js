@@ -129,16 +129,28 @@ export function formatService(s) {
  */
 export function formatEmployee(e) {
   if (!e) return null;
+  const service = e.team?.service || e.department?.service || null;
   return {
     id: e.id.toString(),
     company_id: e.companyId.toString(),
     companyId: e.companyId.toString(),
     department_id: e.departmentId ? e.departmentId.toString() : null,
     departmentId: e.departmentId ? e.departmentId.toString() : null,
-    departmentName: e.department?.name || null,
+    team_id: e.teamId ? e.teamId.toString() : null,
+    teamId: e.teamId ? e.teamId.toString() : null,
+    serviceId: service?.id ? service.id.toString() : null,
+    serviceCode: service?.code || null,
+    serviceName: service?.name || e.department?.name || null,
+    departmentName: e.team?.service?.name || e.department?.name || null,
     name: e.name,
     email: e.email,
     role: e.role,
+    accessRole:
+      e.team?.headEmployeeId === e.id
+        ? 'SERVICE_HEAD'
+        : e.accessRole === 'SERVICE_HEAD'
+          ? 'EMPLOYEE'
+          : e.accessRole || 'EMPLOYEE',
     status: e.status,
     created_at: e.createdAt,
     updated_at: e.updatedAt,

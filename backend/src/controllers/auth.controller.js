@@ -276,6 +276,22 @@ export const authController = {
     }
   },
 
+  async updateCompanyEmployeePassword(req, res, next) {
+    try {
+      const result = await authService.updateCompanyEmployeePassword(req.user, req.body, req.meta || {});
+      res.json(result);
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({
+          success: false,
+          message: err.message,
+          code: err.code || 'PASSWORD_UPDATE_FAILED',
+        });
+      }
+      next(err);
+    }
+  },
+
   async updateCompanyAdminCompany(req, res, next) {
     try {
       const result = await authService.updateCompanyAdminCompany(req.user, req.body, req.meta || {});

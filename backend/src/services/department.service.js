@@ -1,9 +1,10 @@
 import prisma from '../config/prisma.js';
 import { formatEmployee, formatDepartment } from '../utils/formatters.js';
+import { hashPassword } from '../utils/hash.js';
 import auditService from './audit.service.js';
 
 /**
- * Service for managing Company Employees and Service-Based Departments.
+ * Service for managing Company Employees and one team per assigned service.
  * Enforces company boundary and Super Admin assigned-service isolation.
  */
 export const departmentService = {
@@ -14,7 +15,10 @@ export const departmentService = {
     const cid = BigInt(companyId);
     const employees = await prisma.companyEmployee.findMany({
       where: { companyId: cid },
-      include: { department: true },
+      include: {
+        department: { include: { service: true } },
+        team: { include: { service: true } },
+      },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -33,37 +37,112 @@ export const departmentService = {
       throw error;
     }
 
-    let deptId = null;
-    if (data.departmentId || data.department_id) {
-      const targetDeptId = BigInt(data.departmentId || data.department_id);
-      const dept = await prisma.department.findFirst({
-        where: { id: targetDeptId, companyId: cid },
-      });
-      if (!dept) {
-        const error = new Error('Department does not belong to this company');
-        error.statusCode = 400;
-        throw error;
-      }
-      deptId = dept.id;
+    const name = typeof data.name === 'string' ? data.name.trim() : '';
+    const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
+    const password = data.password;
+    const serviceCode = data.serviceCode || data.serviceId;
+    const accessRole = data.accessRole || 'EMPLOYEE';
+
+    if (!name || !email || !serviceCode || typeof password !== 'string' || password.length < 8) {
+      const error = new Error('Name, work email, assigned service, and a password of at least 8 characters are required.');
+      error.statusCode = 400;
+      throw error;
     }
 
-    const employee = await prisma.companyEmployee.create({
-      data: {
-        companyId: cid,
-        departmentId: deptId,
-        name: data.name.trim(),
-        email: data.email.trim().toLowerCase(),
-        role: data.role || 'Team Member',
-        status: data.status || 'ACTIVE',
-      },
-      include: { department: true },
+    if (!['SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(accessRole)) {
+      const error = new Error('Choose Service Head, Team Leader, or Employee as the access role.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const service = await this._resolveService(String(serviceCode));
+    if (!service || service.status !== 'ACTIVE') {
+      const error = new Error('The selected service is not available.');
+      error.statusCode = service ? 403 : 404;
+      error.code = service ? 'SERVICE_INACTIVE' : 'SERVICE_NOT_FOUND';
+      throw error;
+    }
+
+    const serviceAccess = await prisma.clientServiceAccess.findFirst({
+      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
     });
+    if (!serviceAccess) {
+      const error = new Error('The selected service is not assigned to this company by Super Admin.');
+      error.statusCode = 403;
+      error.code = 'SERVICE_NOT_ASSIGNED';
+      throw error;
+    }
+
+    const passwordHash = hashPassword(password);
+    let employee;
+    try {
+      employee = await prisma.$transaction(async (tx) => {
+        const team = await tx.companyServiceTeam.upsert({
+          where: { companyId_serviceId: { companyId: cid, serviceId: service.id } },
+          update: {},
+          create: { companyId: cid, serviceId: service.id },
+        });
+
+        if (accessRole === 'SERVICE_HEAD' && team.headEmployeeId) {
+          const error = new Error('This service already has a Service Head. Select another role or update the current head.');
+          error.statusCode = 409;
+          error.code = 'SERVICE_HEAD_EXISTS';
+          throw error;
+        }
+
+        const created = await tx.companyEmployee.create({
+          data: {
+            companyId: cid,
+            teamId: team.id,
+            name,
+            email,
+            role: typeof data.role === 'string' && data.role.trim() ? data.role.trim() : 'Team Member',
+            accessRole,
+            passwordHash,
+            status: data.status || 'ACTIVE',
+          },
+          include: {
+            department: { include: { service: true } },
+            team: { include: { service: true } },
+          },
+        });
+
+        if (accessRole === 'SERVICE_HEAD') {
+          const claimedHead = await tx.companyServiceTeam.updateMany({
+            where: { id: team.id, headEmployeeId: null },
+            data: { headEmployeeId: created.id },
+          });
+          if (claimedHead.count !== 1) {
+            const error = new Error('This service already has a Service Head. Select another role or update the current head.');
+            error.statusCode = 409;
+            error.code = 'SERVICE_HEAD_EXISTS';
+            throw error;
+          }
+        }
+        return created;
+      });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        const conflict = new Error('An employee with this Login ID / email already exists in the company.');
+        conflict.statusCode = 409;
+        conflict.code = 'EMPLOYEE_EMAIL_EXISTS';
+        throw conflict;
+      }
+      throw error;
+    }
 
     await auditService.logAudit({
       action: 'CREATE',
       entityType: 'COMPANY_EMPLOYEE',
       entityId: employee.id,
-      newValue: { name: employee.name, email: employee.email, role: employee.role, companyId: cid.toString() },
+      newValue: {
+        name: employee.name,
+        email: employee.email,
+        role: employee.role,
+        accessRole: employee.accessRole,
+        service: service.code,
+        companyId: cid.toString(),
+      },
       reason: `Created employee "${employee.name}" for company #${cid}`,
       ipAddress: meta.ip,
       userAgent: meta.userAgent,
@@ -89,6 +168,231 @@ export const departmentService = {
       });
     }
     return service;
+  },
+
+  async getServiceTeam(companyId, serviceCodeOrId) {
+    const cid = BigInt(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service) {
+      const error = new Error('Service not found in catalogue.');
+      error.statusCode = 404;
+      throw error;
+    }
+    if (service.status !== 'ACTIVE') {
+      const error = new Error(`Service "${service.name}" is currently deactivated by Super Admin.`);
+      error.statusCode = 403;
+      error.code = 'SERVICE_INACTIVE';
+      throw error;
+    }
+
+    const serviceAccess = await prisma.clientServiceAccess.findFirst({
+      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+    });
+    if (!serviceAccess) {
+      const error = new Error(`Service "${service.name}" is not assigned to this company.`);
+      error.statusCode = 403;
+      error.code = 'SERVICE_NOT_ASSIGNED';
+      throw error;
+    }
+
+    const team = await prisma.companyServiceTeam.upsert({
+      where: { companyId_serviceId: { companyId: cid, serviceId: service.id } },
+      update: {},
+      create: { companyId: cid, serviceId: service.id },
+      include: {
+        service: true,
+        head: true,
+        employees: {
+          include: {
+            department: { include: { service: true } },
+            team: { include: { service: true } },
+          },
+          orderBy: { name: 'asc' },
+        },
+      },
+    });
+
+    return {
+      id: team.id.toString(),
+      service: { id: service.id.toString(), code: service.code, name: service.name },
+      head: team.head
+        ? formatEmployee({ ...team.head, team: { service, headEmployeeId: team.headEmployeeId } })
+        : null,
+      employees: team.employees.map(formatEmployee),
+    };
+  },
+
+  async setServiceTeamHead(companyId, serviceCodeOrId, headId, meta = {}) {
+    const cid = BigInt(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service || service.status !== 'ACTIVE') {
+      const error = new Error(service ? 'The selected service is inactive.' : 'Service not found in catalogue.');
+      error.statusCode = service ? 403 : 404;
+      throw error;
+    }
+    const serviceAccess = await prisma.clientServiceAccess.findFirst({
+      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+    });
+    if (!serviceAccess) {
+      const error = new Error('This service is not assigned to the company.');
+      error.statusCode = 403;
+      error.code = 'SERVICE_NOT_ASSIGNED';
+      throw error;
+    }
+
+    const newHeadId = headId ? BigInt(headId) : null;
+    const team = await prisma.$transaction(async (tx) => {
+      const currentTeam = await tx.companyServiceTeam.upsert({
+        where: { companyId_serviceId: { companyId: cid, serviceId: service.id } },
+        update: {},
+        create: { companyId: cid, serviceId: service.id },
+      });
+      if (newHeadId) {
+        const candidate = await tx.companyEmployee.findFirst({
+          where: { id: newHeadId, companyId: cid, teamId: currentTeam.id, status: 'ACTIVE' },
+        });
+        if (!candidate) {
+          const error = new Error('The Service Head must be an active employee assigned to this service team.');
+          error.statusCode = 400;
+          throw error;
+        }
+        if (currentTeam.headEmployeeId && currentTeam.headEmployeeId !== newHeadId) {
+          await tx.companyEmployee.update({
+            where: { id: currentTeam.headEmployeeId },
+            data: { accessRole: 'EMPLOYEE' },
+          });
+        }
+        await tx.companyEmployee.update({
+          where: { id: newHeadId },
+          data: { accessRole: 'SERVICE_HEAD' },
+        });
+      } else if (currentTeam.headEmployeeId) {
+        await tx.companyEmployee.update({
+          where: { id: currentTeam.headEmployeeId },
+          data: { accessRole: 'EMPLOYEE' },
+        });
+      }
+
+      return tx.companyServiceTeam.update({
+        where: { id: currentTeam.id },
+        data: { headEmployeeId: newHeadId },
+      });
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_SERVICE_TEAM',
+      entityId: team.id,
+      newValue: { service: service.code, headId: newHeadId?.toString() || null },
+      reason: `Updated Service Head for "${service.name}" team in company #${cid}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return this.getServiceTeam(companyId, serviceCodeOrId);
+  },
+
+  async assignCompanyEmployee(companyId, employeeId, { serviceCode, accessRole = 'EMPLOYEE' } = {}, meta = {}) {
+    const cid = BigInt(companyId);
+    const eid = BigInt(employeeId);
+    if (!['SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(accessRole)) {
+      const error = new Error('Choose Service Head, Team Leader, or Employee as the access role.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const employee = await prisma.companyEmployee.findFirst({
+      where: { id: eid, companyId: cid },
+      include: { team: true },
+    });
+    if (!employee) {
+      const error = new Error('Employee not found for this company.');
+      error.statusCode = 404;
+      throw error;
+    }
+    if (accessRole === 'SERVICE_HEAD' && employee.status !== 'ACTIVE') {
+      const error = new Error('An inactive employee cannot be assigned as Service Head.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const service = await this._resolveService(String(serviceCode || ''));
+    if (!service || service.status !== 'ACTIVE') {
+      const error = new Error(service ? 'The selected service is inactive.' : 'Service not found in catalogue.');
+      error.statusCode = service ? 403 : 404;
+      throw error;
+    }
+    const serviceAccess = await prisma.clientServiceAccess.findFirst({
+      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+    });
+    if (!serviceAccess) {
+      const error = new Error('The selected service is not assigned to this company.');
+      error.statusCode = 403;
+      error.code = 'SERVICE_NOT_ASSIGNED';
+      throw error;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const targetTeam = await tx.companyServiceTeam.upsert({
+        where: { companyId_serviceId: { companyId: cid, serviceId: service.id } },
+        update: {},
+        create: { companyId: cid, serviceId: service.id },
+      });
+      const moving = employee.teamId !== targetTeam.id;
+      if (accessRole === 'SERVICE_HEAD' && targetTeam.headEmployeeId && targetTeam.headEmployeeId !== eid) {
+        const error = new Error('This service already has a Service Head.');
+        error.statusCode = 409;
+        error.code = 'SERVICE_HEAD_EXISTS';
+        throw error;
+      }
+
+      if (moving && employee.teamId) {
+        await tx.companyServiceTeam.updateMany({
+          where: { id: employee.teamId, headEmployeeId: eid },
+          data: { headEmployeeId: null },
+        });
+      }
+      if (accessRole === 'SERVICE_HEAD') {
+        if (targetTeam.headEmployeeId !== eid) {
+          const claimedHead = await tx.companyServiceTeam.updateMany({
+            where: { id: targetTeam.id, headEmployeeId: null },
+            data: { headEmployeeId: eid },
+          });
+          if (claimedHead.count !== 1) {
+            const error = new Error('This service already has a Service Head.');
+            error.statusCode = 409;
+            error.code = 'SERVICE_HEAD_EXISTS';
+            throw error;
+          }
+        }
+      } else if (targetTeam.headEmployeeId === eid) {
+        await tx.companyServiceTeam.update({
+          where: { id: targetTeam.id },
+          data: { headEmployeeId: null },
+        });
+      }
+
+      return tx.companyEmployee.update({
+        where: { id: eid },
+        data: { teamId: targetTeam.id, accessRole },
+        include: {
+          department: { include: { service: true } },
+          team: { include: { service: true } },
+        },
+      });
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: updated.id,
+      newValue: { service: service.code, accessRole },
+      reason: `Assigned employee "${updated.name}" to ${service.name} as ${accessRole}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return formatEmployee(updated);
   },
 
   /**

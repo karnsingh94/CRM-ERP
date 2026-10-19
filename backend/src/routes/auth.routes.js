@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import authController from '../controllers/auth.controller.js';
-import { authenticate, requireCompanyAdmin, requireSuperAdmin } from '../middlewares/auth.middleware.js';
+import { authenticate, requireCompanyAdmin, requireCompanyUser, requireSuperAdmin } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -15,6 +15,7 @@ router.put('/auth/super-admin/password', requireSuperAdmin, authController.updat
 router.put('/auth/company-admin/profile', requireCompanyAdmin, authController.updateCompanyAdminProfile);
 router.put('/auth/company-admin/password', requireCompanyAdmin, authController.updateCompanyAdminPassword);
 router.put('/auth/company-admin/company', requireCompanyAdmin, authController.updateCompanyAdminCompany);
+router.put('/auth/user/password', requireCompanyUser, authController.updateCompanyEmployeePassword);
 
 // Common company user login (Company Admin, Department Head, Employee)
 router.post('/auth/login', authController.loginCompanyUser);

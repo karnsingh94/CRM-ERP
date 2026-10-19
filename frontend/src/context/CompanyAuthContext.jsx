@@ -5,6 +5,23 @@ import { useRouter, usePathname } from 'next/navigation';
 import { api, API_BASE } from '../lib/api';
 
 const CompanyAuthContext = createContext(null);
+const COMPANY_USER_ROLES = ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
+
+function scopeCompanyAccessForUser(company, user) {
+  if (!company || !user || !['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(user.role)) {
+    return company;
+  }
+  const serviceId = String(user.serviceId || '');
+  return {
+    ...company,
+    access: {
+      ...(company.access || {}),
+      services: (company.access?.services || []).filter(
+        (service) => String(service.serviceId || service.service_id || service.id) === serviceId
+      ),
+    },
+  };
+}
 
 let globalActiveCompany = null;
 let globalAuthorizedCompanies = [];
@@ -71,7 +88,10 @@ export function CompanyAuthProvider({ children }) {
       case 'COMPANY_ADMIN':
         return 'Company Admin';
       case 'DEPARTMENT_HEAD':
-        return departmentName ? `Department Head (${departmentName})` : 'Department Head';
+      case 'SERVICE_HEAD':
+        return departmentName ? `Service Head (${departmentName})` : 'Service Head';
+      case 'TEAM_LEADER':
+        return departmentName ? `Team Leader (${departmentName})` : 'Team Leader';
       case 'EMPLOYEE':
         return departmentName ? `Employee (${departmentName})` : 'Employee';
       default:
@@ -88,7 +108,9 @@ export function CompanyAuthProvider({ children }) {
         ...session,
         roleTitle: formatRoleTitle(session.role, session.departmentName),
         isCompanyAdmin: session.role === 'COMPANY_ADMIN',
-        isDepartmentHead: session.role === 'DEPARTMENT_HEAD',
+        isDepartmentHead: session.role === 'DEPARTMENT_HEAD' || session.role === 'SERVICE_HEAD',
+        isServiceHead: session.role === 'SERVICE_HEAD' || session.role === 'DEPARTMENT_HEAD',
+        isTeamLeader: session.role === 'TEAM_LEADER',
         isEmployee: session.role === 'EMPLOYEE',
       };
     }
@@ -152,11 +174,7 @@ export function CompanyAuthProvider({ children }) {
                 router.replace('/super-admin');
                 return;
               }
-              if (
-                userCandidate.role === 'COMPANY_ADMIN' ||
-                userCandidate.role === 'DEPARTMENT_HEAD' ||
-                userCandidate.role === 'EMPLOYEE'
-              ) {
+              if (COMPANY_USER_ROLES.includes(userCandidate.role)) {
                 verifiedUser = userCandidate;
               }
             }
@@ -171,9 +189,7 @@ export function CompanyAuthProvider({ children }) {
         const cached = getStoredSession();
         if (
           cached &&
-          (cached.role === 'COMPANY_ADMIN' ||
-            cached.role === 'DEPARTMENT_HEAD' ||
-            cached.role === 'EMPLOYEE') &&
+          COMPANY_USER_ROLES.includes(cached.role) &&
           token
         ) {
           verifiedUser = cached;
@@ -199,7 +215,9 @@ export function CompanyAuthProvider({ children }) {
         ...verifiedUser,
         roleTitle,
         isCompanyAdmin: verifiedUser.role === 'COMPANY_ADMIN',
-        isDepartmentHead: verifiedUser.role === 'DEPARTMENT_HEAD',
+        isDepartmentHead: verifiedUser.role === 'DEPARTMENT_HEAD' || verifiedUser.role === 'SERVICE_HEAD',
+        isServiceHead: verifiedUser.role === 'SERVICE_HEAD' || verifiedUser.role === 'DEPARTMENT_HEAD',
+        isTeamLeader: verifiedUser.role === 'TEAM_LEADER',
         isEmployee: verifiedUser.role === 'EMPLOYEE',
       };
       setCurrentUser(userProfile);
@@ -217,6 +235,7 @@ export function CompanyAuthProvider({ children }) {
         theme_color: verifiedUser.theme_color || verifiedUser.themeColor || '#7f22fe',
         access: verifiedUser.access || { services: [] },
       };
+      finalCompany = scopeCompanyAccessForUser(finalCompany, verifiedUser);
 
       let finalAuthorizedList = [finalCompany];
 
@@ -233,13 +252,16 @@ export function CompanyAuthProvider({ children }) {
         api.get(`/clients/${targetCompanyId}`).then(compRes => {
           const companyData = compRes?.data || null;
           if (companyData) {
-            setActiveCompany(prev => ({
+            setActiveCompany(prev => scopeCompanyAccessForUser({
               ...prev,
               ...companyData,
               access: companyData.access || prev?.access,
-            }));
+            }, verifiedUser));
             if (typeof window !== 'undefined') {
-              localStorage.setItem('cached_company_data', JSON.stringify(companyData));
+              localStorage.setItem(
+                'cached_company_data',
+                JSON.stringify(scopeCompanyAccessForUser(companyData, verifiedUser))
+              );
             }
           }
         }).catch(() => {});
@@ -274,7 +296,9 @@ export function CompanyAuthProvider({ children }) {
           ...cached,
           roleTitle,
           isCompanyAdmin: cached.role === 'COMPANY_ADMIN',
-          isDepartmentHead: cached.role === 'DEPARTMENT_HEAD',
+          isDepartmentHead: cached.role === 'DEPARTMENT_HEAD' || cached.role === 'SERVICE_HEAD',
+          isServiceHead: cached.role === 'SERVICE_HEAD' || cached.role === 'DEPARTMENT_HEAD',
+          isTeamLeader: cached.role === 'TEAM_LEADER',
           isEmployee: cached.role === 'EMPLOYEE',
         };
         setCurrentUser(profile);
