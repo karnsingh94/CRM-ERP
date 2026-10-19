@@ -243,6 +243,54 @@ export const authController = {
       next(err);
     }
   },
+
+  async updateCompanyAdminProfile(req, res, next) {
+    try {
+      const result = await authService.updateCompanyAdminProfile(req.user, req.body, req.meta || {});
+      res.json(result);
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({
+          success: false,
+          message: err.message,
+          code: err.code || 'PROFILE_UPDATE_FAILED',
+        });
+      }
+      next(err);
+    }
+  },
+
+  async updateCompanyAdminPassword(req, res, next) {
+    try {
+      const result = await authService.updateCompanyAdminPassword(req.user, req.body, req.meta || {});
+      res.json(result);
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({
+          success: false,
+          message: err.message,
+          code: err.code || 'PASSWORD_UPDATE_FAILED',
+        });
+      }
+      next(err);
+    }
+  },
+
+  async updateCompanyAdminCompany(req, res, next) {
+    try {
+      const result = await authService.updateCompanyAdminCompany(req.user, req.body, req.meta || {});
+      res.json(result);
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({
+          success: false,
+          message: err.message,
+          code: err.code || 'COMPANY_PROFILE_UPDATE_FAILED',
+        });
+      }
+      next(err);
+    }
+  },
 };
 
 export default authController;

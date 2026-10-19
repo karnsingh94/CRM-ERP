@@ -1622,6 +1622,47 @@
   gap: 1.15rem;
 }
 
+.passwordRules {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.clientThemePanel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.themeSelectedColor,
+.themeSwatch,
+.themePreviewPanel {
+  background: #ffffff;
+}
+
+.themeSelectedColor {
+  border: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.themeSwatchName,
+.themePreviewNavItem {
+  color: #0f172a;
+}
+
+.themeSwatchHex,
+.themePreviewLabel {
+  color: #64748b;
+}
+
+.themePreviewPanel {
+  border: 1px dashed #cbd5e1;
+}
+
+.themeHexInput {
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  background: #ffffff;
+}
+
 /* Permission Assignment Tree (PDF Section 5.1 & 5.2) */
 .permTreeContainer {
   border: 1px solid #cbd5e1;
@@ -1905,6 +1946,16 @@
   border-bottom: 1px solid #1e202e;
 }
 
+.appLayout[data-theme="dark"] .profileTrigger {
+  background-color: #181926;
+  border-color: #26283b;
+}
+
+.appLayout[data-theme="dark"] .profileTrigger:hover {
+  background-color: #222436;
+  border-color: #34364c;
+}
+
 .appLayout[data-theme="dark"] .pageTitle {
   color: #f8fafc;
 }
@@ -1918,13 +1969,24 @@
   color: #f8fafc;
 }
 
-.appLayout[data-theme="dark"] .searchInput::placeholder {
-  color: #64748b;
+.appLayout[data-theme="dark"] .searchBox input {
+  color: #f8fafc;
 }
 
-.appLayout[data-theme="dark"] .profileBtn {
-  background-color: #181926;
-  border-color: #26283b;
+.appLayout[data-theme="dark"] input:focus,
+.appLayout[data-theme="dark"] select:focus,
+.appLayout[data-theme="dark"] textarea:focus {
+  background-color: #181926 !important;
+  color: #f8fafc;
+}
+
+.appLayout[data-theme="dark"] .searchIcon,
+.appLayout[data-theme="dark"] .profileChevron {
+  color: #94a3b8;
+}
+
+.appLayout[data-theme="dark"] .searchInput::placeholder {
+  color: #64748b;
 }
 
 .appLayout[data-theme="dark"] .profileName {
@@ -1955,19 +2017,76 @@
 }
 
 .appLayout[data-theme="dark"] .tableCard,
+.appLayout[data-theme="dark"] .kpiCard,
+.appLayout[data-theme="dark"] .serviceCard,
 .appLayout[data-theme="dark"] .statCard,
 .appLayout[data-theme="dark"] .catalogCard,
 .appLayout[data-theme="dark"] .serviceDetailCard,
-.appLayout[data-theme="dark"] .card {
+.appLayout[data-theme="dark"] .card,
+.appLayout[data-theme="dark"] .detailHeader,
+.appLayout[data-theme="dark"] .moduleAccordion {
   background-color: #12131c;
   border-color: #1e202e;
   color: #f8fafc;
 }
 
+.appLayout[data-theme="dark"] .serviceCard:hover,
+.appLayout[data-theme="dark"] .moduleAccordion:hover {
+  border-color: #34364c;
+}
+
+.appLayout[data-theme="dark"] .serviceCode {
+  background-color: #202235;
+  border-color: #34364c;
+  color: #cbd5e1;
+}
+
+.appLayout[data-theme="dark"] .serviceName,
+.appLayout[data-theme="dark"] .metricVal,
+.appLayout[data-theme="dark"] .detailTitle,
+.appLayout[data-theme="dark"] .moduleTitleText h4,
+.appLayout[data-theme="dark"] .subModuleName {
+  color: #f8fafc;
+}
+
+.appLayout[data-theme="dark"] .serviceDesc,
+.appLayout[data-theme="dark"] .metricLabel,
+.appLayout[data-theme="dark"] .moduleTitleText span {
+  color: #94a3b8;
+}
+
+.appLayout[data-theme="dark"] .serviceMetrics,
+.appLayout[data-theme="dark"] .subModulesContainer {
+  background-color: #181926;
+  border-color: #26283b;
+}
+
+.appLayout[data-theme="dark"] .moduleHeaderBar {
+  background-color: #12131c;
+  border-bottom-color: #1e202e;
+}
+
+.appLayout[data-theme="dark"] .subModuleChip {
+  background-color: #202235;
+  border-color: #34364c;
+}
+
 .appLayout[data-theme="dark"] .statTitle,
 .appLayout[data-theme="dark"] .catalogCardHeader h4,
-.appLayout[data-theme="dark"] .cardHeader h4 {
+.appLayout[data-theme="dark"] .cardHeader h4,
+.appLayout[data-theme="dark"] .kpiData h4,
+.appLayout[data-theme="dark"] .emptyStateTitle {
   color: #f8fafc;
+}
+
+.appLayout[data-theme="dark"] .kpiData span,
+.appLayout[data-theme="dark"] .emptyStateDesc,
+.appLayout[data-theme="dark"] .emptyStateContainerSmall {
+  color: #94a3b8;
+}
+
+.appLayout[data-theme="dark"] .tableHeader {
+  background-color: #12131c;
 }
 
 .appLayout[data-theme="dark"] .tableHeader {
@@ -2001,19 +2120,116 @@
 .appLayout[data-theme="dark"] .formInput,
 .appLayout[data-theme="dark"] .filterInput,
 .appLayout[data-theme="dark"] .formSelect,
-.appLayout[data-theme="dark"] .textarea {
+.appLayout[data-theme="dark"] .textarea,
+.appLayout[data-theme="dark"] .formTextarea {
   background-color: #181926;
   border-color: #26283b;
   color: #f8fafc;
 }
 
-.appLayout[data-theme="dark"] .formInput:focus {
+.appLayout[data-theme="dark"] .formInput:focus,
+.appLayout[data-theme="dark"] .formSelect:focus,
+.appLayout[data-theme="dark"] .formTextarea:focus {
   border-color: var(--primary, #7f22fe);
   background-color: #1c1e2e;
 }
 
+.appLayout[data-theme="dark"] .formInput::placeholder,
+.appLayout[data-theme="dark"] .formTextarea::placeholder,
+.appLayout[data-theme="dark"] .filterInput::placeholder {
+  color: #788198;
+}
+
 .appLayout[data-theme="dark"] .formLabel {
   color: #cbd5e1;
+}
+
+.appLayout[data-theme="dark"] .passwordRules {
+  --password-rule-color: #94a3b8;
+  background: #181926;
+  border-color: #26283b;
+}
+
+.appLayout[data-theme="dark"] .clientThemePanel {
+  background: #181926;
+  border-color: #26283b;
+}
+
+.appLayout[data-theme="dark"] .themeSelectedColor,
+.appLayout[data-theme="dark"] .themeSwatch,
+.appLayout[data-theme="dark"] .themePreviewPanel {
+  background: #12131c;
+  color: #e2e8f0;
+}
+
+.appLayout[data-theme="dark"] .themeSelectedColor {
+  border-color: #34364c;
+}
+
+.appLayout[data-theme="dark"] .themeSwatch {
+  border-color: #34364c !important;
+}
+
+.appLayout[data-theme="dark"] .themeSwatchName,
+.appLayout[data-theme="dark"] .themePreviewNavItem {
+  color: #e2e8f0;
+}
+
+.appLayout[data-theme="dark"] .themeSwatchHex,
+.appLayout[data-theme="dark"] .themePreviewLabel {
+  color: #94a3b8;
+}
+
+.appLayout[data-theme="dark"] .themePreviewPanel {
+  border-color: #34364c;
+}
+
+.appLayout[data-theme="dark"] .themeHexInput {
+  background: #12131c;
+  border-color: #34364c;
+  color: #f8fafc;
+}
+
+.appLayout[data-theme="dark"] .permTreeContainer {
+  background-color: #0f1018;
+  border-color: #26283b;
+}
+
+.appLayout[data-theme="dark"] .permServiceCard {
+  background-color: #12131c;
+  border-color: #26283b;
+  box-shadow: none;
+}
+
+.appLayout[data-theme="dark"] .permServiceHeader {
+  border-bottom-color: #26283b;
+}
+
+.appLayout[data-theme="dark"] .permCheckboxLabel,
+.appLayout[data-theme="dark"] .permModuleTitle,
+.appLayout[data-theme="dark"] .permSubItem {
+  color: #e2e8f0;
+}
+
+.appLayout[data-theme="dark"] .permModuleItem {
+  background-color: #181926;
+  border-color: #26283b;
+}
+
+.appLayout[data-theme="dark"] .modeBtn {
+  background-color: #12131c;
+  border-color: #34364c;
+  color: #cbd5e1;
+}
+
+.appLayout[data-theme="dark"] .modeBtnActive {
+  background: #7f22fe;
+  border-color: #7f22fe;
+  color: #ffffff;
+}
+
+.appLayout[data-theme="dark"] .permSubModulesList {
+  border-top-color: #34364c;
 }
 
 .appLayout[data-theme="dark"] .sectionHeader h3 {
@@ -2030,7 +2246,12 @@
   color: #f8fafc;
 }
 
+.appLayout[data-theme="dark"] .modalBody {
+  background-color: #12131c;
+}
+
 .appLayout[data-theme="dark"] .modalHeader {
+  background: linear-gradient(180deg, #12131c 0%, #0f1018 100%);
   border-bottom-color: #1e202e;
 }
 
@@ -2038,8 +2259,30 @@
   color: #f8fafc;
 }
 
+.appLayout[data-theme="dark"] .closeBtn {
+  color: #94a3b8;
+}
+
+.appLayout[data-theme="dark"] .closeBtn:hover {
+  background-color: #222436;
+  color: #f8fafc;
+}
+
 .appLayout[data-theme="dark"] .modalFooter {
+  background-color: #0f1018;
   border-top-color: #1e202e;
+}
+
+.appLayout[data-theme="dark"] .btnSecondary {
+  background-color: #181926;
+  border-color: #34364c;
+  color: #e2e8f0;
+}
+
+.appLayout[data-theme="dark"] .btnSecondary:hover {
+  background-color: #222436;
+  border-color: #4b4e66;
+  color: #ffffff;
 }
 
 .appLayout[data-theme="dark"] .btnCancel {
@@ -2061,6 +2304,43 @@
 
 .appLayout[data-theme="dark"] .actionBtn:hover {
   background-color: #222436;
+  color: #ffffff;
+}
+
+.appLayout[data-theme="dark"] .emptyStateContainer,
+.appLayout[data-theme="dark"] .emptyStateContainerSmall {
+  background-color: #12131c;
+}
+
+.appLayout[data-theme="dark"] .emptyFeatureItem {
+  background-color: #181926;
+  border-color: #26283b;
+  color: #cbd5e1;
+}
+
+.appLayout[data-theme="dark"] .confirmModal {
+  background-color: #12131c;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px #26283b;
+}
+
+.appLayout[data-theme="dark"] .confirmTitle,
+.appLayout[data-theme="dark"] .confirmTargetName {
+  color: #f8fafc;
+}
+
+.appLayout[data-theme="dark"] .confirmText {
+  color: #94a3b8;
+}
+
+.appLayout[data-theme="dark"] .confirmBtnCancel {
+  background-color: #181926;
+  border-color: #34364c;
+  color: #cbd5e1;
+}
+
+.appLayout[data-theme="dark"] .confirmBtnCancel:hover {
+  background-color: #222436;
+  border-color: #4b4e66;
   color: #ffffff;
 }
 
@@ -2584,5 +2864,3 @@
 .appLayout[data-theme="dark"] .securityBadgeSubtitle {
   color: #94a3b8;
 }
-
-

@@ -976,6 +976,164 @@ export const authService = {
       message: 'Password updated successfully.',
     };
   },
+
+  async updateCompanyAdminProfile(userPayload, { name } = {}, meta = {}) {
+    if (userPayload?.role !== 'COMPANY_ADMIN' || !userPayload.companyId) {
+      const error = new Error('Access denied: Company Admin privileges required.');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const cleanName = typeof name === 'string' ? name.trim() : '';
+    if (cleanName.length < 2 || cleanName.length > 150) {
+      const error = new Error('Profile name must be between 2 and 150 characters.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const companyId = BigInt(userPayload.companyId);
+    const existing = await prisma.clientAdmin.findUnique({ where: { id: companyId } });
+    if (!existing || existing.deletedAt || existing.status !== 'ACTIVE') {
+      const error = new Error('Active company admin account not found.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const updated = await prisma.clientAdmin.update({
+      where: { id: companyId },
+      data: { name: cleanName },
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE_PROFILE',
+      entityType: 'CLIENT_ADMIN',
+      entityId: updated.id,
+      oldValue: { name: existing.name },
+      newValue: { name: updated.name },
+      reason: `Company Admin profile name updated for "${updated.organizationName}"`,
+      ipAddress: meta.ip || '127.0.0.1',
+      userAgent: meta.userAgent || null,
+    });
+
+    return {
+      success: true,
+      message: 'Profile updated successfully.',
+      data: { id: updated.id.toString(), name: updated.name, email: updated.email },
+    };
+  },
+
+  async updateCompanyAdminPassword(userPayload, { currentPassword, newPassword } = {}, meta = {}) {
+    if (userPayload?.role !== 'COMPANY_ADMIN' || !userPayload.companyId) {
+      const error = new Error('Access denied: Company Admin privileges required.');
+      error.statusCode = 403;
+      throw error;
+    }
+    if (typeof currentPassword !== 'string' || !currentPassword) {
+      const error = new Error('Current password is required.');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (
+      typeof newPassword !== 'string' ||
+      newPassword.length < 8 ||
+      !/[A-Z]/.test(newPassword) ||
+      !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPassword)
+    ) {
+      const error = new Error('New password must be at least 8 characters and include an uppercase letter and a special character.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const companyId = BigInt(userPayload.companyId);
+    const existing = await prisma.clientAdmin.findUnique({ where: { id: companyId } });
+    if (!existing || existing.deletedAt || existing.status !== 'ACTIVE') {
+      const error = new Error('Active company admin account not found.');
+      error.statusCode = 404;
+      throw error;
+    }
+    if (!comparePassword(currentPassword, existing.passwordHash)) {
+      const error = new Error('The current password entered is incorrect.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const newPasswordHash = hashPassword(newPassword);
+    await prisma.clientAdmin.update({
+      where: { id: companyId },
+      data: { passwordHash: newPasswordHash },
+    });
+    PASSWORD_OVERRIDES.set(existing.email.trim().toLowerCase(), newPasswordHash);
+
+    await auditService.logAudit({
+      action: 'UPDATE_PASSWORD',
+      entityType: 'CLIENT_ADMIN',
+      entityId: existing.id,
+      reason: `Company Admin password updated for "${existing.organizationName}"`,
+      ipAddress: meta.ip || '127.0.0.1',
+      userAgent: meta.userAgent || null,
+    });
+
+    return { success: true, message: 'Password updated successfully.' };
+  },
+
+  async updateCompanyAdminCompany(userPayload, { organizationName, mobile } = {}, meta = {}) {
+    if (userPayload?.role !== 'COMPANY_ADMIN' || !userPayload.companyId) {
+      const error = new Error('Access denied: Company Admin privileges required.');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const cleanOrganizationName = typeof organizationName === 'string' ? organizationName.trim() : '';
+    if (cleanOrganizationName.length < 2 || cleanOrganizationName.length > 180) {
+      const error = new Error('Company name must be between 2 and 180 characters.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    let cleanMobile = mobile == null ? '' : String(mobile).trim().replace(/[\s\-+]/g, '');
+    if (cleanMobile.startsWith('91') && cleanMobile.length === 12) cleanMobile = cleanMobile.slice(2);
+    if (cleanMobile && !/^[6-9]\d{9}$/.test(cleanMobile)) {
+      const error = new Error('Mobile number must be 10 digits and start with 6, 7, 8, or 9.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const companyId = BigInt(userPayload.companyId);
+    const existing = await prisma.clientAdmin.findUnique({ where: { id: companyId } });
+    if (!existing || existing.deletedAt || existing.status !== 'ACTIVE') {
+      const error = new Error('Active company admin account not found.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const updated = await prisma.clientAdmin.update({
+      where: { id: companyId },
+      data: {
+        organizationName: cleanOrganizationName,
+        mobile: cleanMobile || null,
+      },
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'CLIENT_ADMIN',
+      entityId: updated.id,
+      oldValue: { organizationName: existing.organizationName, mobile: existing.mobile },
+      newValue: { organizationName: updated.organizationName, mobile: updated.mobile },
+      reason: `Company profile updated by its admin`,
+      ipAddress: meta.ip || '127.0.0.1',
+      userAgent: meta.userAgent || null,
+    });
+
+    return {
+      success: true,
+      message: 'Company profile updated successfully.',
+      data: {
+        organizationName: updated.organizationName,
+        mobile: updated.mobile,
+      },
+    };
+  },
 };
 
 export default authService;

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getCompanyAdminBreadcrumbs } from '../../config/routes.config';
+import styles from '../company-admin/CompanyAdminPortal.module.css';
 
 /**
  * Company Admin Global Breadcrumb Navigation Component
@@ -19,6 +20,7 @@ export default function CompanyAdminBreadcrumbs({ activeCompany = null }) {
   return (
     <nav
       aria-label="Breadcrumb"
+      className={styles.breadcrumbs}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -65,6 +67,7 @@ export default function CompanyAdminBreadcrumbs({ activeCompany = null }) {
               {isLast ? (
                 <span
                   aria-current="page"
+                  className={styles.breadcrumbCurrent}
                   style={{
                     fontWeight: 800,
                     color: '#0f172a',
@@ -76,6 +79,7 @@ export default function CompanyAdminBreadcrumbs({ activeCompany = null }) {
               ) : crumb.path ? (
                 <Link
                   href={crumb.path}
+                  className={styles.breadcrumbLink}
                   style={{
                     color: idx === 0 ? '#475569' : '#64748b',
                     fontWeight: 700,

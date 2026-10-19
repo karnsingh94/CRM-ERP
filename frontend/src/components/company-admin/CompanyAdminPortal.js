@@ -72,8 +72,17 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     isLoading,
     error,
     selectCompany,
+    updateCompanyAdminState,
     logout,
   } = useCompanyAuth();
+
+  const [adminPreferences, setAdminPreferences] = useState(() => ({
+    themeMode: 'system',
+    accentColor: currentUser?.themeColor || currentUser?.theme_color || '#7f22fe',
+    notifications: { success: true, info: true },
+  }));
+  const [preferencesLoadedKey, setPreferencesLoadedKey] = useState('');
+  const [systemIsDark, setSystemIsDark] = useState(false);
 
   // Instant fallback to currentUser company data so dashboard and sidebar render immediately
   const effectiveCompany = activeCompany || (currentUser?.organizationName ? {
@@ -100,6 +109,44 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState([]);
   const [isSuperAdminSwitched, setIsSuperAdminSwitched] = useState(false);
+  const preferencesKey = `azzuniqe_company_preferences_${currentUser?.id || effectiveCompany?.id || 'default'}`;
+  const resolvedTheme = adminPreferences.themeMode === 'system'
+    ? (systemIsDark ? 'dark' : 'light')
+    : adminPreferences.themeMode;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setSystemIsDark(mediaQuery.matches);
+    const handleChange = (event) => setSystemIsDark(event.matches);
+    mediaQuery.addEventListener?.('change', handleChange);
+    return () => mediaQuery.removeEventListener?.('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const savedPreferences = localStorage.getItem(preferencesKey);
+      const parsed = savedPreferences ? JSON.parse(savedPreferences) : {};
+      setAdminPreferences({
+        themeMode: ['light', 'dark', 'system'].includes(parsed.themeMode) ? parsed.themeMode : 'system',
+        accentColor: /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(parsed.accentColor || '')
+          ? parsed.accentColor
+          : (effectiveCompany?.themeColor || effectiveCompany?.theme_color || '#7f22fe'),
+        notifications: {
+          success: parsed.notifications?.success !== false,
+          info: parsed.notifications?.info !== false,
+        },
+      });
+      setPreferencesLoadedKey(preferencesKey);
+    } catch (preferenceError) {
+      console.error('Failed to load company admin preferences:', preferenceError);
+      setPreferencesLoadedKey(preferencesKey);
+    }
+  }, [preferencesKey, effectiveCompany?.themeColor, effectiveCompany?.theme_color]);
+
+  useEffect(() => {
+    if (!preferencesLoadedKey || preferencesLoadedKey !== preferencesKey) return;
+    localStorage.setItem(preferencesKey, JSON.stringify(adminPreferences));
+  }, [adminPreferences, preferencesKey, preferencesLoadedKey]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -154,6 +201,8 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
 
   // Toast notification helper
   const showToast = (title, message, type = 'success') => {
+    if (type === 'success' && !adminPreferences.notifications.success) return;
+    if (type === 'info' && !adminPreferences.notifications.info) return;
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, title, message, type }]);
     setTimeout(() => {
@@ -305,8 +354,19 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     if (activeTab === 'settings') {
       return (
         <SettingsModule
-          activeCompany={activeCompany}
+          activeCompany={effectiveCompany}
+          currentUser={currentUser}
           permittedServices={permittedServices}
+          themeMode={adminPreferences.themeMode}
+          resolvedTheme={resolvedTheme}
+          accentColor={adminPreferences.accentColor}
+          notificationPreferences={adminPreferences.notifications}
+          onThemeChange={(themeMode) => setAdminPreferences((previous) => ({ ...previous, themeMode }))}
+          onAccentChange={(accentColor) => setAdminPreferences((previous) => ({ ...previous, accentColor }))}
+          onNotificationsChange={(notifications) => setAdminPreferences((previous) => ({ ...previous, notifications }))}
+          onProfileUpdated={(profile) => updateCompanyAdminState?.({ profile })}
+          onCompanyUpdated={(company) => updateCompanyAdminState?.({ company })}
+          showToast={showToast}
         />
       );
     }
@@ -532,18 +592,25 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     currentUser?.theme_color ||
     currentUser?.themeColor ||
     '#7f22fe';
+  const workspaceAccent = adminPreferences.accentColor || companyAccent;
+  const workspaceCompany = {
+    ...effectiveCompany,
+    themeColor: workspaceAccent,
+    theme_color: workspaceAccent,
+  };
 
   return (
     <div
       className={styles.appContainer}
+      data-theme={resolvedTheme}
       style={{
-        '--primary': companyAccent,
-        '--primary-hover': companyAccent,
-        '--primary-glow': `${companyAccent}33`,
-        '--primary-light': `${companyAccent}14`,
-        '--sidebar-active-bg': companyAccent,
-        '--sidebar-active-border': companyAccent,
-        '--sidebar-active-parent': `${companyAccent}20`,
+        '--primary': workspaceAccent,
+        '--primary-hover': workspaceAccent,
+        '--primary-glow': `${workspaceAccent}33`,
+        '--primary-light': `${workspaceAccent}14`,
+        '--sidebar-active-bg': workspaceAccent,
+        '--sidebar-active-border': workspaceAccent,
+        '--sidebar-active-parent': `${workspaceAccent}20`,
         paddingTop: isSuperAdminSwitched ? '44px' : 0,
       }}
     >
@@ -624,7 +691,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       {/* Collapsible Left Navigation Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        activeCompany={effectiveCompany}
+        activeCompany={workspaceCompany}
         permittedServices={permittedServices}
         hasSubModuleAccess={hasSubModuleAccess}
         isCollapsed={isSidebarCollapsed}
@@ -636,11 +703,12 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         {/* Top Header Navbar */}
         <Topbar
           activeTab={activeTab}
-          activeCompany={effectiveCompany}
+          activeCompany={workspaceCompany}
           allCompanies={allCompanies}
           hasMultipleCompanies={hasMultipleCompanies}
           currentUser={currentUser}
           onSelectCompany={selectCompany}
+          accentColor={workspaceAccent}
           onSelectTab={handleNavigate}
           onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
           searchQuery={searchQuery}
