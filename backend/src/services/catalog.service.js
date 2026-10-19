@@ -1,9 +1,111 @@
 import prisma from '../config/prisma.js';
-import { formatService, formatModule, formatSubModule } from '../utils/formatters.js';
+import { formatService, formatServicesInDisplayOrder, formatModule, formatSubModule } from '../utils/formatters.js';
 import auditService from './audit.service.js';
 import systemService from './system.service.js';
 import companyService from './company.service.js';
 import departmentService from './department.service.js';
+
+const requestedOrder = (value, nextOrder) => {
+  const order = Number(value);
+  return Number.isInteger(order) && order > 0 ? order : nextOrder;
+};
+
+const slugifyCode = (value) =>
+  value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'item';
+
+const moduleRouteRoots = {
+  crm: '/crm',
+  product: '/products',
+  sales: '/sales',
+  vendor: '/vendors',
+  procurement: '/procurement',
+  grn: '/grn',
+  inventory_mgmt: '/inventory',
+  gate_pass: '/gate-pass',
+  bom: '/bom',
+  production: '/production',
+  dispatch: '/dispatch',
+  returns: '/returns',
+  accounts_banking: '/accounts',
+  permission_controls: '/team',
+};
+
+const subModuleRouteSuffixes = {
+  'product:product_list': '',
+  'product:price_list': '/pricing',
+  'sales:proforma_invoice': '/proforma',
+  'sales:sales_orders': '/orders',
+  'vendor:vendor_master': '',
+  'vendor:vendor_eval': '/evaluation',
+  'procurement:purchase_requests': '/requests',
+  'procurement:purchase_orders': '/orders',
+  'grn:grn_list': '',
+  'grn:quality_inspection': '/inspection',
+  'inventory_mgmt:stock_summary': '',
+  'inventory_mgmt:warehouse_locations': '/warehouses',
+  'inventory_mgmt:stock_adjustments': '/adjustments',
+  'gate_pass:inward_pass': '/inward',
+  'gate_pass:outward_pass': '/outward',
+  'gate_pass:returnable_tracking': '/returnable',
+  'bom:bom_list': '',
+  'dispatch:dispatch_orders': '',
+  'dispatch:packing_slips': '/challans',
+  'returns:sales_returns': '',
+  'returns:credit_notes': '/restock',
+  'accounts_banking:receivables_payables': '/ledger',
+  'permission_controls:team_users': '',
+  'permission_controls:role_assignment': '/roles',
+  'permission_controls:audit_trail': '/audit',
+};
+
+const SEEDED_SERVICE_CODES = new Set([
+  'crm_sales',
+  'purchase_vendor',
+  'inventory_warehouse',
+  'manufacturing_production',
+  'dispatch_returns',
+  'accounts_banking',
+  'permission_controls',
+]);
+
+const SEEDED_SERVICE_ORDER = [
+  'crm_sales',
+  'purchase_vendor',
+  'inventory_warehouse',
+  'manufacturing_production',
+  'dispatch_returns',
+  'accounts_banking',
+  'permission_controls',
+];
+
+const normalizeServiceOrders = async (tx) => {
+  const services = await tx.service.findMany({
+    select: { id: true, code: true, orderNo: true },
+    orderBy: [{ orderNo: 'asc' }, { id: 'asc' }],
+  });
+  services.sort((left, right) => {
+    const leftSeedOrder = SEEDED_SERVICE_ORDER.indexOf(left.code);
+    const rightSeedOrder = SEEDED_SERVICE_ORDER.indexOf(right.code);
+    if (leftSeedOrder !== -1 && rightSeedOrder !== -1) return leftSeedOrder - rightSeedOrder;
+    if (leftSeedOrder !== -1) return -1;
+    if (rightSeedOrder !== -1) return 1;
+    return left.orderNo - right.orderNo || Number(left.id - right.id);
+  });
+
+  for (const [index, service] of services.entries()) {
+    const orderNo = index + 1;
+    if (service.orderNo !== orderNo) {
+      await tx.service.update({ where: { id: service.id }, data: { orderNo } });
+    }
+  }
+  return services;
+};
+
+const buildSubModuleRoute = (module, code) => {
+  const root = moduleRouteRoots[module.code] || `/${module.code}`;
+  const suffix = subModuleRouteSuffixes[`${module.code}:${code}`];
+  return `${root}${suffix !== undefined ? suffix : `/${code}`}`;
+};
 
 /**
  * Service Catalogue Store & Domain Logic
@@ -29,7 +131,7 @@ export const catalogService = {
       },
       orderBy: { orderNo: 'asc' },
     });
-    return services.map(formatService);
+    return formatServicesInDisplayOrder(services);
   },
 
   async getServiceById(idOrCode) {
@@ -55,25 +157,37 @@ export const catalogService = {
   },
 
   async createService(data, meta = {}) {
-    const maxOrder = await prisma.service.aggregate({ _max: { orderNo: true } });
-    const nextOrder = (maxOrder._max.orderNo || 0) + 1;
-    const code = data.code
-      ? data.code.trim().toLowerCase().replace(/\s+/g, '_')
-      : data.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const code = data.code ? slugifyCode(data.code) : slugifyCode(data.name);
+    const service = await prisma.$transaction(async (tx) => {
+      const existingServices = await normalizeServiceOrders(tx);
+      const nextOrder = existingServices.length + 1;
+      const orderNo = Math.min(
+        nextOrder,
+        Math.max(SEEDED_SERVICE_ORDER.length + 1, requestedOrder(data.order_no, nextOrder))
+      );
 
-    const service = await prisma.service.create({
-      data: {
-        name: data.name.trim(),
-        code,
-        description: data.description || '',
-        orderNo: Number(data.order_no || nextOrder),
-        status: data.status || 'ACTIVE',
-      },
-      include: {
-        modules: {
-          include: { subModules: true },
+      await tx.service.updateMany({
+        where: {
+          code: { notIn: [...SEEDED_SERVICE_CODES] },
+          orderNo: { gte: orderNo },
         },
-      },
+        data: { orderNo: { increment: 1 } },
+      });
+
+      return tx.service.create({
+        data: {
+          name: data.name.trim(),
+          code,
+          description: data.description || '',
+          orderNo,
+          status: data.status || 'ACTIVE',
+        },
+        include: {
+          modules: {
+            include: { subModules: true },
+          },
+        },
+      });
     });
 
     await auditService.logAudit({
@@ -152,33 +266,62 @@ export const catalogService = {
     return formatService(updated);
   },
 
+  async deleteService(id, meta = {}) {
+    const existing = await prisma.service.findUnique({ where: { id: BigInt(id) } });
+    if (!existing) return null;
+    if (SEEDED_SERVICE_CODES.has(existing.code)) return false;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.service.delete({ where: { id: BigInt(id) } });
+      await normalizeServiceOrders(tx);
+    });
+
+    await auditService.logAudit({
+      action: 'DELETE',
+      entityType: 'SERVICE',
+      entityId: existing.id,
+      oldValue: JSON.stringify({ name: existing.name, code: existing.code }),
+      reason: `Deleted service: ${existing.name}`,
+      ipAddress: meta.ip || '127.0.0.1',
+      userAgent: meta.userAgent || null,
+    });
+
+    return true;
+  },
+
   // ==================== MODULES ====================
   async createModule(serviceId, data, meta = {}) {
     const parentService = await prisma.service.findUnique({ where: { id: BigInt(serviceId) } });
     if (!parentService) return null;
 
-    const maxOrder = await prisma.module.aggregate({
-      where: { serviceId: BigInt(serviceId) },
-      _max: { orderNo: true },
-    });
-    const nextOrder = (maxOrder._max.orderNo || 0) + 1;
-    const code = data.code
-      ? data.code.trim().toLowerCase().replace(/\s+/g, '_')
-      : data.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const code = data.code ? slugifyCode(data.code) : slugifyCode(data.name);
+    const module = await prisma.$transaction(async (tx) => {
+      const maxOrder = await tx.module.aggregate({
+        where: { serviceId: BigInt(serviceId) },
+        _max: { orderNo: true },
+      });
+      const nextOrder = (maxOrder._max.orderNo || 0) + 1;
+      const orderNo = requestedOrder(data.order_no, nextOrder);
 
-    const module = await prisma.module.create({
-      data: {
-        serviceId: BigInt(serviceId),
-        name: data.name.trim(),
-        code,
-        description: data.description || '',
-        icon: data.icon || 'layers',
-        orderNo: Number(data.order_no || nextOrder),
-        status: data.status || 'ACTIVE',
-      },
-      include: {
-        subModules: true,
-      },
+      await tx.module.updateMany({
+        where: { serviceId: BigInt(serviceId), orderNo: { gte: orderNo } },
+        data: { orderNo: { increment: 1 } },
+      });
+
+      return tx.module.create({
+        data: {
+          serviceId: BigInt(serviceId),
+          name: data.name.trim(),
+          code,
+          description: data.description || '',
+          icon: data.icon || 'layers',
+          orderNo,
+          status: data.status || 'ACTIVE',
+        },
+        include: {
+          subModules: true,
+        },
+      });
     });
 
     await auditService.logAudit({
@@ -262,25 +405,31 @@ export const catalogService = {
     });
     if (!parentModule) return null;
 
-    const maxOrder = await prisma.subModule.aggregate({
-      where: { moduleId: BigInt(moduleId) },
-      _max: { orderNo: true },
-    });
-    const nextOrder = (maxOrder._max.orderNo || 0) + 1;
-    const code = data.code
-      ? data.code.trim().toLowerCase().replace(/\s+/g, '_')
-      : data.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const code = data.code ? slugifyCode(data.code) : slugifyCode(data.name);
+    const subModule = await prisma.$transaction(async (tx) => {
+      const maxOrder = await tx.subModule.aggregate({
+        where: { moduleId: BigInt(moduleId) },
+        _max: { orderNo: true },
+      });
+      const nextOrder = (maxOrder._max.orderNo || 0) + 1;
+      const orderNo = requestedOrder(data.order_no, nextOrder);
 
-    const subModule = await prisma.subModule.create({
-      data: {
-        moduleId: BigInt(moduleId),
-        serviceId: parentModule.serviceId,
-        name: data.name.trim(),
-        code,
-        route: data.route || '',
-        orderNo: Number(data.order_no || nextOrder),
-        status: data.status || 'ACTIVE',
-      },
+      await tx.subModule.updateMany({
+        where: { moduleId: BigInt(moduleId), orderNo: { gte: orderNo } },
+        data: { orderNo: { increment: 1 } },
+      });
+
+      return tx.subModule.create({
+        data: {
+          moduleId: BigInt(moduleId),
+          serviceId: parentModule.serviceId,
+          name: data.name.trim(),
+          code,
+          route: buildSubModuleRoute(parentModule, code),
+          orderNo,
+          status: data.status || 'ACTIVE',
+        },
+      });
     });
 
     await auditService.logAudit({
