@@ -1,0 +1,319 @@
+.settingsPage {
+  --settings-bg: #ffffff;
+  --settings-subtle: #f8fafc;
+  --settings-border: #e2e8f0;
+  --settings-text: #0f172a;
+  --settings-muted: #64748b;
+  max-width: 980px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  color: var(--settings-text);
+}
+
+.settingsPage[data-theme="dark"] {
+  --settings-bg: #12131c;
+  --settings-subtle: #181926;
+  --settings-border: #26283b;
+  --settings-text: #f8fafc;
+  --settings-muted: #94a3b8;
+}
+
+.pageHeader h2 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  margin: 0;
+  color: var(--settings-text);
+}
+
+.pageHeader p,
+.muted,
+.helpText {
+  color: var(--settings-muted);
+}
+
+.pageHeader p {
+  font-size: 0.88rem;
+  margin-top: 0.35rem;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--settings-border);
+}
+
+.tab {
+  color: var(--settings-muted);
+  padding: 0.7rem 0.95rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab:hover,
+.activeTab {
+  color: var(--primary, #7f22fe);
+}
+
+.activeTab {
+  border-bottom-color: var(--primary, #7f22fe);
+}
+
+.card,
+.infoCard {
+  background: var(--settings-bg);
+  border: 1px solid var(--settings-border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.cardHeader {
+  border-bottom: 1px solid var(--settings-border);
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.cardHeader h3 {
+  color: var(--settings-text);
+  font-size: 1.02rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.cardHeader p {
+  color: var(--settings-muted);
+  font-size: 0.82rem;
+  margin: 0.35rem 0 0;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 720px;
+}
+
+.field,
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.label {
+  color: var(--settings-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid var(--settings-border);
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  color: var(--settings-text);
+  background: var(--settings-subtle);
+  font-size: 0.88rem;
+}
+
+.field input:focus {
+  border-color: var(--primary, #7f22fe);
+  outline: 2px solid color-mix(in srgb, var(--primary, #7f22fe) 18%, transparent);
+}
+
+.field input[readonly] {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.helpText {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.twoColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.primaryButton {
+  align-self: flex-start;
+  background: var(--primary, #7f22fe);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.68rem 1.05rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.primaryButton:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.choice {
+  text-align: left;
+  background: var(--settings-subtle);
+  border: 1px solid var(--settings-border);
+  border-radius: 10px;
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.selectedChoice {
+  border-color: var(--primary, #7f22fe);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #7f22fe) 14%, transparent);
+}
+
+.choiceTitle {
+  color: var(--settings-text);
+  font-weight: 800;
+  font-size: 0.86rem;
+}
+
+.muted {
+  font-size: 0.74rem;
+}
+
+.colorChoices {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.colorChoice {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--settings-bg);
+  border-radius: 50%;
+  background: var(--swatch-color);
+  box-shadow: 0 0 0 1px var(--settings-border);
+}
+
+.selectedColor {
+  box-shadow: 0 0 0 2px var(--swatch-color);
+}
+
+.customColor {
+  color: var(--settings-muted);
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.customColor input {
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.readonlyInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--settings-muted);
+  font-size: 0.86rem;
+}
+
+.infoCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: var(--settings-subtle);
+  color: var(--settings-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.infoCard strong {
+  color: var(--settings-text);
+}
+
+.preferenceList {
+  display: flex;
+  flex-direction: column;
+}
+
+.preference {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--settings-border);
+  cursor: pointer;
+}
+
+.preference > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.preference strong {
+  color: var(--settings-text);
+  font-size: 0.86rem;
+}
+
+.preference small {
+  color: var(--settings-muted);
+  font-size: 0.77rem;
+}
+
+.preference input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary, #7f22fe);
+  flex: 0 0 auto;
+}
+
+.securityNote {
+  color: var(--settings-muted);
+  background: var(--settings-subtle);
+  border: 1px solid var(--settings-border);
+  padding: 0.8rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-size: 0.77rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .card,
+  .infoCard {
+    padding: 1.1rem;
+  }
+
+  .twoColumns,
+  .choiceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tab {
+    padding: 0.65rem 0.55rem;
+    font-size: 0.78rem;
+  }
+}

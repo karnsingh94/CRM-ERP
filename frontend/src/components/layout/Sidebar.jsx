@@ -292,6 +292,7 @@ export default function Sidebar({
     <aside
       style={{
         width: isCollapsed ? '78px' : '270px',
+        flexShrink: 0,
         backgroundColor: '#18181b',
         color: '#e4e4e7',
         minHeight: '100vh',

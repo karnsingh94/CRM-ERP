@@ -11,6 +11,7 @@ import {
   IconBell,
   IconMenu,
 } from '../ui/Icons';
+import styles from '../company-admin/CompanyAdminPortal.module.css';
 
 export default function Topbar({
   activeTab,
@@ -64,6 +65,7 @@ export default function Topbar({
 
   return (
     <header
+      className={styles.topbar}
       style={{
         height: '64px',
         backgroundColor: '#ffffff',
@@ -83,6 +85,7 @@ export default function Topbar({
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, maxWidth: '520px' }}>
         <button
           type="button"
+          className={styles.topbarIconButton}
           onClick={onToggleSidebar}
           style={{
             padding: '0.45rem',
@@ -103,6 +106,7 @@ export default function Topbar({
 
         {/* Global Search Bar */}
         <div
+          className={styles.companyDropdown}
           style={{
             position: 'relative',
             display: 'flex',
@@ -184,6 +188,7 @@ export default function Topbar({
 
             {showCompanyMenu && (
               <div
+                className={styles.companyDropdownHeading}
                 style={{
                   position: 'absolute',
                   top: 'calc(100% + 6px)',
@@ -217,6 +222,7 @@ export default function Topbar({
                     <button
                       key={c.id}
                       type="button"
+                      className={`${styles.companyDropdownOption} ${isSelected ? styles.companyDropdownOptionActive : ''}`}
                       onClick={() => {
                         onSelectCompany(c.id);
                         setShowCompanyMenu(false);
@@ -249,6 +255,7 @@ export default function Topbar({
         ) : activeCompany ? (
           /* Normal single-company experience: static verified company name badge (no dropdown/chevron) */
           <div
+            className={styles.companyContextBadge}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -274,6 +281,7 @@ export default function Topbar({
         <div style={{ position: 'relative' }} ref={profileRef}>
           <button
             type="button"
+            className={styles.profileTrigger}
             onClick={() => setShowProfileMenu(prev => !prev)}
             style={{
               display: 'flex',
@@ -304,10 +312,10 @@ export default function Topbar({
               {userInitials}
             </div>
             <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+              <span className={styles.profileName} style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
                 {displayName}
               </span>
-              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+              <span className={styles.profileRole} style={{ fontSize: '0.7rem', color: '#64748b' }}>
                 {displayRole}
               </span>
             </div>
@@ -316,6 +324,7 @@ export default function Topbar({
 
           {showProfileMenu && (
             <div
+              className={styles.profileDropdown}
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 8px)',
@@ -330,16 +339,17 @@ export default function Topbar({
               }}
             >
               <div
+                className={styles.profileDropdownHeader}
                 style={{
                   padding: '0.65rem 0.75rem',
                   borderBottom: '1px solid #f1f5f9',
                   marginBottom: '0.45rem',
                 }}
               >
-                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
+                <div className={styles.profileDropdownName} style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
                   {displayName}
                 </div>
-                <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px', wordBreak: 'break-all' }}>
+                <div className={styles.profileDropdownEmail} style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px', wordBreak: 'break-all' }}>
                   {displayEmail || 'No email registered'}
                 </div>
                 {displayOrg && (
@@ -348,6 +358,7 @@ export default function Topbar({
                   </div>
                 )}
                 <div
+                  className={styles.profileRoleBadge}
                   style={{
                     display: 'inline-block',
                     marginTop: '0.4rem',
@@ -368,6 +379,7 @@ export default function Topbar({
 
               <Link
                 href="/settings"
+                className={styles.profileDropdownLink}
                 onClick={() => setShowProfileMenu(false)}
                 style={{
                   display: 'flex',

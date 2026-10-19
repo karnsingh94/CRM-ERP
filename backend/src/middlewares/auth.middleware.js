@@ -77,6 +77,22 @@ export function requireCompanyUser(req, res, next) {
 }
 
 /**
+ * Guard restricted to the tenant's Company Admin account
+ */
+export function requireCompanyAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (req.user?.role !== 'COMPANY_ADMIN' || !req.user.companyId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Company Admin privileges required.',
+        code: 'FORBIDDEN_COMPANY_ADMIN_ONLY',
+      });
+    }
+    next();
+  });
+}
+
+/**
  * Tenant Isolation & Company Ownership Guard
  * Verifies that the authenticated user belongs to the target companyId
  */
@@ -211,6 +227,7 @@ export default {
   requireAuth,
   requireSuperAdmin,
   requireCompanyUser,
+  requireCompanyAdmin,
   validateCompanyAccess,
   validateSubModuleAccess,
 };

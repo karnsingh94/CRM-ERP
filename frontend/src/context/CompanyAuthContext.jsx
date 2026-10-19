@@ -324,6 +324,40 @@ export function CompanyAuthProvider({ children }) {
     }
   };
 
+  const updateCompanyAdminState = ({ profile, company } = {}) => {
+    if (profile) {
+      setCurrentUser((previous) => {
+        const updated = { ...previous, ...profile };
+        globalCurrentUser = updated;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('company_user', JSON.stringify(updated));
+          sessionStorage.setItem('company_user', JSON.stringify(updated));
+        }
+        return updated;
+      });
+      if (profile.name) {
+        setActiveCompany((previous) => {
+          const updated = { ...previous, name: profile.name };
+          globalActiveCompany = updated;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('cached_company_data', JSON.stringify(updated));
+          }
+          return updated;
+        });
+      }
+    }
+    if (company) {
+      setActiveCompany((previous) => {
+        const updated = { ...previous, ...company };
+        globalActiveCompany = updated;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('cached_company_data', JSON.stringify(updated));
+        }
+        return updated;
+      });
+    }
+  };
+
   // Perform secure logout
   const logout = async () => {
     const token = getStoredToken();
@@ -367,6 +401,7 @@ export function CompanyAuthProvider({ children }) {
     isLoading,
     error,
     selectCompany,
+    updateCompanyAdminState,
     logout,
     refreshSession: () => loadCompanySession(true),
   };

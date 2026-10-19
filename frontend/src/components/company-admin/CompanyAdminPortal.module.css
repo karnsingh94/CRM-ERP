@@ -1,6 +1,9 @@
 .appContainer {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
   background-color: var(--bg-body, #f8fafc);
   color: var(--text-main, #0f172a);
 }
@@ -20,6 +23,166 @@
   max-width: 1600px;
   width: 100%;
   margin: 0 auto;
+}
+
+.appContainer[data-theme="dark"] {
+  background-color: #0c0d14;
+  color: #e2e8f0;
+}
+
+.appContainer[data-theme="dark"] .mainContent,
+.appContainer[data-theme="dark"] .contentArea {
+  background-color: #0c0d14;
+}
+
+.appContainer[data-theme="dark"] main [style*="background: #ffffff"],
+.appContainer[data-theme="dark"] main [style*="background:#ffffff"],
+.appContainer[data-theme="dark"] main [style*="background-color: #ffffff"],
+.appContainer[data-theme="dark"] main [style*="background-color:#ffffff"],
+.appContainer[data-theme="dark"] main [style*="background: rgb(255, 255, 255)"],
+.appContainer[data-theme="dark"] main [style*="background-color: rgb(255, 255, 255)"] {
+  background-color: #12131c !important;
+  border-color: #26283b !important;
+}
+
+.appContainer[data-theme="dark"] main [style*="background: rgb(248, 250, 252)"],
+.appContainer[data-theme="dark"] main [style*="background-color: rgb(248, 250, 252)"],
+.appContainer[data-theme="dark"] main [style*="background: rgb(241, 245, 249)"],
+.appContainer[data-theme="dark"] main [style*="background-color: rgb(241, 245, 249)"] {
+  background: #181926 !important;
+  border-color: #26283b !important;
+}
+
+.appContainer[data-theme="dark"] main [style*="background: #f8fafc"],
+.appContainer[data-theme="dark"] main [style*="background:#f8fafc"],
+.appContainer[data-theme="dark"] main [style*="background-color: #f8fafc"],
+.appContainer[data-theme="dark"] main [style*="background-color:#f8fafc"] {
+  background-color: #181926 !important;
+  border-color: #26283b !important;
+}
+
+.appContainer[data-theme="dark"] main input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+.appContainer[data-theme="dark"] main select,
+.appContainer[data-theme="dark"] main textarea {
+  background-color: #181926 !important;
+  border-color: #34364c !important;
+  color: #f8fafc !important;
+}
+
+.appContainer[data-theme="dark"] main [style*="color: #0f172a"],
+.appContainer[data-theme="dark"] main [style*="color:#0f172a"],
+.appContainer[data-theme="dark"] main [style*="color: #1e293b"],
+.appContainer[data-theme="dark"] main [style*="color:#1e293b"],
+.appContainer[data-theme="dark"] main [style*="color: #334155"],
+.appContainer[data-theme="dark"] main [style*="color:#334155"] {
+  color: #e2e8f0 !important;
+}
+
+.appContainer[data-theme="dark"] main [style*="color: rgb(15, 23, 42)"],
+.appContainer[data-theme="dark"] main [style*="color: rgb(30, 41, 59)"],
+.appContainer[data-theme="dark"] main [style*="color: rgb(51, 65, 85)"],
+.appContainer[data-theme="dark"] main [style*="color: rgb(71, 85, 105)"] {
+  color: #e2e8f0 !important;
+}
+
+.appContainer[data-theme="dark"] main [style*="color: #64748b"],
+.appContainer[data-theme="dark"] main [style*="color:#64748b"] {
+  color: #94a3b8 !important;
+}
+
+.appContainer[data-theme="dark"] main [style*="color: rgb(100, 116, 139)"],
+.appContainer[data-theme="dark"] main [style*="color: rgb(148, 163, 184)"] {
+  color: #94a3b8 !important;
+}
+
+.appContainer[data-theme="dark"] main input:focus,
+.appContainer[data-theme="dark"] main select:focus,
+.appContainer[data-theme="dark"] main textarea:focus {
+  background-color: #181926 !important;
+  color: #f8fafc !important;
+}
+
+.appContainer[data-theme="dark"] .topbar {
+  background-color: #12131c !important;
+  border-bottom-color: #26283b !important;
+  color: #e2e8f0;
+}
+
+.appContainer[data-theme="dark"] .topbar input {
+  background-color: #181926 !important;
+  border-color: #34364c !important;
+  color: #f8fafc !important;
+}
+
+.appContainer[data-theme="dark"] .topbarIconButton,
+.appContainer[data-theme="dark"] .companyContextBadge {
+  background-color: #181926 !important;
+  border-color: #34364c !important;
+  color: #e2e8f0 !important;
+}
+
+.appContainer[data-theme="dark"] .profileTrigger {
+  background-color: #181926 !important;
+  border-color: #34364c !important;
+}
+
+.appContainer[data-theme="dark"] .profileName,
+.appContainer[data-theme="dark"] .profileDropdownName,
+.appContainer[data-theme="dark"] .profileDropdownLink,
+.appContainer[data-theme="dark"] .companyDropdownOption {
+  color: #e2e8f0 !important;
+}
+
+.appContainer[data-theme="dark"] .profileRole,
+.appContainer[data-theme="dark"] .profileDropdownEmail {
+  color: #94a3b8 !important;
+}
+
+.appContainer[data-theme="dark"] .profileDropdown,
+.appContainer[data-theme="dark"] .companyDropdown {
+  background: #12131c !important;
+  border-color: #26283b !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+}
+
+.appContainer[data-theme="dark"] .companyDropdownHeading {
+  border-bottom-color: #26283b !important;
+  color: #94a3b8 !important;
+}
+
+.appContainer[data-theme="dark"] .companyDropdownOption {
+  background-color: transparent !important;
+}
+
+.appContainer[data-theme="dark"] .companyDropdownOptionActive {
+  background-color: #222436 !important;
+}
+
+.appContainer[data-theme="dark"] .profileDropdownHeader {
+  border-bottom-color: #26283b !important;
+}
+
+.appContainer[data-theme="dark"] .profileRoleBadge {
+  background: #202235 !important;
+  border-color: #34364c !important;
+  color: #c4b5fd !important;
+}
+
+.appContainer[data-theme="dark"] .profileDropdownLink:hover,
+.appContainer[data-theme="dark"] .companyDropdownOption:hover {
+  background: #222436 !important;
+}
+
+.appContainer[data-theme="dark"] .breadcrumbs {
+  color: #94a3b8;
+}
+
+.appContainer[data-theme="dark"] .breadcrumbCurrent {
+  color: #f8fafc !important;
+}
+
+.appContainer[data-theme="dark"] .breadcrumbLink {
+  color: #a5b4fc !important;
 }
 
 @media (max-width: 900px) {

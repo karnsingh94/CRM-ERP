@@ -3794,14 +3794,14 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                           </button>
                         </div>
                         {/* Live Password Rules Indicator */}
-                        <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.22rem', fontSize: '0.73rem', background: '#f8fafc', padding: '0.5rem 0.65rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                          <span style={{ color: (clientForm.password || '').length >= 8 ? '#16a34a' : '#64748b', fontWeight: (clientForm.password || '').length >= 8 ? 700 : 500, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <div className={styles.passwordRules} style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.22rem', fontSize: '0.73rem', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                          <span style={{ color: (clientForm.password || '').length >= 8 ? '#16a34a' : 'var(--password-rule-color, #64748b)', fontWeight: (clientForm.password || '').length >= 8 ? 700 : 500, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                             <span>{(clientForm.password || '').length >= 8 ? '✅' : '○'}</span> At least 8 characters
                           </span>
-                          <span style={{ color: /[A-Z]/.test(clientForm.password || '') ? '#16a34a' : '#64748b', fontWeight: /[A-Z]/.test(clientForm.password || '') ? 700 : 500, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ color: /[A-Z]/.test(clientForm.password || '') ? '#16a34a' : 'var(--password-rule-color, #64748b)', fontWeight: /[A-Z]/.test(clientForm.password || '') ? 700 : 500, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                             <span>{/[A-Z]/.test(clientForm.password || '') ? '✅' : '○'}</span> At least 1 uppercase letter (A-Z)
                           </span>
-                          <span style={{ color: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(clientForm.password || '') ? '#16a34a' : '#64748b', fontWeight: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(clientForm.password || '') ? 700 : 500, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ color: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(clientForm.password || '') ? '#16a34a' : 'var(--password-rule-color, #64748b)', fontWeight: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(clientForm.password || '') ? 700 : 500, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                             <span>{/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(clientForm.password || '') ? '✅' : '○'}</span> At least 1 special character (!@#$%^&* etc.)
                           </span>
                         </div>
@@ -3820,7 +3820,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     </div>
 
                     {/* Section 1.1: Assigned Theme Color / Primary Brand Accent */}
-                    <div style={{ marginTop: '1.25rem', padding: '1.15rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <div className={styles.clientThemePanel} style={{ marginTop: '1.25rem', padding: '1.15rem', borderRadius: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ fontSize: '1.1rem' }}>🎨</span>
@@ -3835,7 +3835,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Selected:</span>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#ffffff', padding: '0.2rem 0.55rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.78rem', fontWeight: 700 }}>
+                          <span className={styles.themeSelectedColor} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700 }}>
                             <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: clientForm.theme_color || '#7f22fe' }} />
                             <span>{clientForm.theme_color || '#7f22fe'}</span>
                           </span>
@@ -3850,6 +3850,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                             <button
                               key={preset.hex}
                               type="button"
+                              className={styles.themeSwatch}
                               onClick={() => setClientForm({ ...clientForm, theme_color: preset.hex })}
                               style={{
                                 display: 'flex',
@@ -3858,7 +3859,6 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                                 padding: '0.55rem 0.75rem',
                                 borderRadius: '8px',
                                 border: isSelected ? `2px solid ${preset.hex}` : '1px solid #cbd5e1',
-                                background: '#ffffff',
                                 boxShadow: isSelected ? `0 2px 8px ${preset.hex}33` : 'none',
                                 cursor: 'pointer',
                                 textAlign: 'left',
@@ -3876,10 +3876,10 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                                 }}
                               />
                               <div style={{ minWidth: 0, flex: 1 }}>
-                                <div style={{ fontSize: '0.78rem', fontWeight: isSelected ? 800 : 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div className={styles.themeSwatchName} style={{ fontSize: '0.78rem', fontWeight: isSelected ? 800 : 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {preset.name}
                                 </div>
-                                <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{preset.hex}</div>
+                                <div className={styles.themeSwatchHex} style={{ fontSize: '0.68rem' }}>{preset.hex}</div>
                               </div>
                               {isSelected && <span style={{ color: preset.hex, fontWeight: 900, fontSize: '0.85rem' }}>✓</span>}
                             </button>
@@ -3888,9 +3888,9 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                       </div>
 
                       {/* Live Mini Preview Box */}
-                      <div style={{ marginTop: '0.9rem', padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '8px', border: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <div className={styles.themePreviewPanel} style={{ marginTop: '0.9rem', padding: '0.85rem 1rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>Live Accent Preview:</span>
+                          <span className={styles.themePreviewLabel} style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Live Accent Preview:</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <span style={{ background: clientForm.theme_color || '#7f22fe', color: '#ffffff', fontSize: '0.72rem', fontWeight: 700, padding: '0.25rem 0.65rem', borderRadius: '6px' }}>
                               Primary Button
@@ -3898,7 +3898,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                             <span style={{ border: `1px solid ${clientForm.theme_color || '#7f22fe'}`, color: clientForm.theme_color || '#7f22fe', background: `${clientForm.theme_color || '#7f22fe'}14`, fontSize: '0.72rem', fontWeight: 700, padding: '0.25rem 0.65rem', borderRadius: '6px' }}>
                               Active Tab
                             </span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: '#0f172a', fontWeight: 600 }}>
+                            <span className={styles.themePreviewNavItem} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: 600 }}>
                               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: clientForm.theme_color || '#7f22fe', boxShadow: `0 0 6px ${clientForm.theme_color || '#7f22fe'}` }} />
                               Selected Nav Item
                             </span>
@@ -3907,7 +3907,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
 
                         {/* Custom Hex Color Picker */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Custom Hex:</span>
+                          <span className={styles.themePreviewLabel} style={{ fontSize: '0.72rem' }}>Custom Hex:</span>
                           <input
                             type="color"
                             value={clientForm.theme_color || '#7f22fe'}
@@ -3921,7 +3921,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                             onChange={(e) => setClientForm({ ...clientForm, theme_color: e.target.value })}
                             placeholder="#7f22fe"
                             maxLength={7}
-                            style={{ width: '80px', padding: '0.25rem 0.45rem', fontSize: '0.75rem', fontFamily: 'monospace', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                            className={`${styles.themeHexInput} ${styles.formInput}`}
+                            style={{ width: '80px', padding: '0.25rem 0.45rem', fontSize: '0.75rem', fontFamily: 'monospace', borderRadius: '4px' }}
                           />
                         </div>
                       </div>
