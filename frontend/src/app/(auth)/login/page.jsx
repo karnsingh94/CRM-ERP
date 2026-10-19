@@ -43,7 +43,7 @@ function LoginForm() {
                 localStorage.setItem('azzuniqe_super_token', authTokenParam);
                 sessionStorage.setItem('azzuniqe_super_token', authTokenParam);
                 localStorage.setItem('auth_user', JSON.stringify(user));
-                const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/';
+                const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/super-admin';
                 router.replace(target);
                 return;
               } else {
@@ -95,17 +95,11 @@ function LoginForm() {
               const target = isValid ? redirectParam : '/super-admin';
               router.replace(target);
               return;
-            } else if (user.role === 'DEPARTMENT_HEAD') {
-              const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
-              const target = isValid ? redirectParam : '/department/dashboard';
-              router.replace(target);
-              return;
-            } else if (user.role === 'EMPLOYEE') {
-              const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
-              const target = isValid ? redirectParam : '/employee/dashboard';
-              router.replace(target);
-              return;
-            } else if (user.role === 'COMPANY_ADMIN') {
+            } else if (
+              user.role === 'COMPANY_ADMIN' ||
+              user.role === 'DEPARTMENT_HEAD' ||
+              user.role === 'EMPLOYEE'
+            ) {
               const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
               const target = isValid ? redirectParam : '/dashboard';
               router.replace(target);
@@ -214,12 +208,6 @@ function LoginForm() {
       if (user.role === 'SUPER_ADMIN') {
         const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login' && redirectParam !== '/dashboard';
         destination = isValidRedirect ? redirectParam : '/super-admin';
-      } else if (user.role === 'DEPARTMENT_HEAD') {
-        const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
-        destination = isValidRedirect ? redirectParam : '/department/dashboard';
-      } else if (user.role === 'EMPLOYEE') {
-        const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
-        destination = isValidRedirect ? redirectParam : '/employee/dashboard';
       } else {
         const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
         destination = isValidRedirect ? redirectParam : (redirectUrl || '/dashboard');

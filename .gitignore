@@ -1,34 +1,44 @@
-# Node modules
+# Dependencies
 node_modules/
-*/node_modules/
-*/*/node_modules/
+**/node_modules/
 
-# Environment files
+# Environment files (keep templates)
 .env
 .env.local
 .env.*.local
-*.env
-*/.env
-*/*/.env
+**/.env
+**/.env.local
+**/.env.*.local
+!.env.example
+!**/.env.example
 
-# Next.js build
+# Framework and build output
 .next/
-*/.next/
-*/*/.next/
+**/.next/
 out/
+**/out/
 build/
+**/build/
 dist/
+**/dist/
+coverage/
+**/coverage/
 
-# Debug and logs
+# Logs and caches
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.eslintcache
+*.tsbuildinfo
 
-# OS files
-.DS_Store
-Thumbs.db
+# Deployment tooling
+.vercel/
 
-# IDEs
+# Editors and operating systems
 .vscode/
 .idea/
+.DS_Store
+**/.DS_Store
+Thumbs.db

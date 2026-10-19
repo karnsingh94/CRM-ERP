@@ -229,12 +229,12 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
 
   // Helper to resolve active tab from URL path
   const resolveTabFromPath = (path) => {
-    if (!path || path === '/' || path === '/dashboard') return 'dashboard';
-    if (path === '/services') return 'services';
-    if (path.startsWith('/services/')) return 'service-detail';
-    if (path === '/clients') return 'clients';
-    if (path === '/audit-logs') return 'audit-logs';
-    if (path === '/settings') return 'settings';
+    if (!path || path === '/super-admin' || path === '/super-admin/dashboard') return 'dashboard';
+    if (path === '/super-admin/services') return 'services';
+    if (path.startsWith('/super-admin/services/')) return 'service-detail';
+    if (path === '/super-admin/clients') return 'clients';
+    if (path === '/super-admin/audit-logs') return 'audit-logs';
+    if (path === '/super-admin/settings') return 'settings';
     return 'dashboard';
   };
 
@@ -770,7 +770,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
         setActiveTab('service-detail');
         if (shouldPushRoute && router) {
           const targetSlug = json.data.code ? json.data.code.replace(/_/g, '-') : json.data.id;
-          const targetUrl = `/services/${targetSlug}`;
+          const targetUrl = `/super-admin/services/${targetSlug}`;
           if (pathname !== targetUrl) {
             router.push(targetUrl);
           }
@@ -790,8 +790,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
     if (pathname) {
       const targetTab = resolveTabFromPath(pathname);
       setActiveTab(targetTab);
-      if (pathname.startsWith('/services/')) {
-        const idOrSlug = pathname.replace('/services/', '').split('/')[0];
+      if (pathname.startsWith('/super-admin/services/')) {
+        const idOrSlug = pathname.replace('/super-admin/services/', '').split('/')[0];
         if (idOrSlug && idOrSlug !== 'departments') {
           handleOpenServiceDetail(idOrSlug, false);
         }
@@ -1548,7 +1548,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
           <div className={styles.navSectionTitle}>Navigation</div>
           
           <Link
-            href="/dashboard"
+            href="/super-admin/dashboard"
             className={`${styles.navItem} ${activeTab === 'dashboard' ? styles.navItemActive : ''}`}
           >
             <span className={styles.navIcon}><IconDashboard size={18} /></span>
@@ -1556,7 +1556,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
           </Link>
 
           <Link
-            href="/services"
+            href="/super-admin/services"
             className={`${styles.navItem} ${activeTab === 'services' || activeTab === 'service-detail' ? styles.navItemActive : ''}`}
           >
             <span className={styles.navIcon}><IconGrid size={18} /></span>
@@ -1565,7 +1565,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
           </Link>
 
           <Link
-            href="/clients"
+            href="/super-admin/clients"
             className={`${styles.navItem} ${activeTab === 'clients' ? styles.navItemActive : ''}`}
           >
             <span className={styles.navIcon}><IconUsers size={18} /></span>
@@ -1576,7 +1576,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
           <div className={styles.navSectionTitle}>System &amp; Security</div>
 
           <Link
-            href="/audit-logs"
+            href="/super-admin/audit-logs"
             className={`${styles.navItem} ${activeTab === 'audit-logs' ? styles.navItemActive : ''}`}
           >
             <span className={styles.navIcon}><IconClipboardList size={18} /></span>
@@ -1584,7 +1584,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
           </Link>
 
           <Link
-            href="/settings"
+            href="/super-admin/settings"
             className={`${styles.navItem} ${activeTab === 'settings' ? styles.navItemActive : ''}`}
           >
             <span className={styles.navIcon}><IconSettings size={18} /></span>
@@ -1664,7 +1664,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                   className={styles.dropdownItem}
                   onClick={() => {
                     setShowProfileMenu(false);
-                    router.push('/settings');
+                    router.push('/super-admin/settings');
                   }}
                 >
                   <IconSettings size={15} />
@@ -1676,7 +1676,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                   className={styles.dropdownItem}
                   onClick={() => {
                     setShowProfileMenu(false);
-                    router.push('/audit-logs');
+                    router.push('/super-admin/audit-logs');
                   }}
                 >
                   <IconClipboardList size={15} />
@@ -1757,7 +1757,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
               <div className={styles.tableCard}>
                 <div className={styles.tableHeader}>
                   <span className={styles.tableTitle}>Provisioned Companies / Admins</span>
-                  <button type="button" className={styles.btnSecondary} onClick={() => router.push('/clients')} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <button type="button" className={styles.btnSecondary} onClick={() => router.push('/super-admin/clients')} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                     Manage All ({clients.length}) &rarr;
                   </button>
                 </div>
@@ -1902,7 +1902,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
               <div className={styles.tableCard}>
                 <div className={styles.tableHeader}>
                   <span className={styles.tableTitle}>Recent Platform Audit Activity</span>
-                  <button type="button" className={styles.btnSecondary} onClick={() => router.push('/audit-logs')} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <button type="button" className={styles.btnSecondary} onClick={() => router.push('/super-admin/audit-logs')} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                     View All Audit Logs &rarr;
                   </button>
                 </div>
@@ -2032,7 +2032,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
             <div>
               <div className={styles.detailHeader}>
                 <Link
-                  href="/services"
+                  href="/super-admin/services"
                   className={styles.detailBack}
                   onClick={() => {
                     setSelectedService(null);
