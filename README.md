@@ -1,57 +1,120 @@
 # AZZUNIQE CRM & ERP System
 
-An enterprise-grade, multi-tenant CRM & ERP management platform designed with a multi-tier permission architecture: **Service ➔ Main Module ➔ Sub-Module**.
+An enterprise-grade, multi-tenant CRM & ERP platform designed with a clean unified Next.js frontend and an Express/Prisma backend.
 
 ---
 
 ## 📌 Project Overview
 
-AZZUNIQE CRM & ERP decouples platform administration from tenant management:
-* **Super Admin (Platform Owner)**: Manages global Service catalogues, Main Modules, Sub-Module feature screens, and provisions distinct tenant companies.
-* **Company / Client Admin (Tenant)**: Manages day-to-day CRM and ERP operations (leads, quotations, inventory, invoicing, production) based strictly on permissions granted by Super Admin.
-* **Dynamic Permission Engine**: Granular access control allowing Full Service, Full Module, or Custom Sub-Module feature screen assignment per tenant.
+AZZUNIQE CRM & ERP architecture decouples platform administration from tenant management:
+* **Single Unified Frontend**: Runs on `http://localhost:3000` with unified authentication `/login` dynamically routing to role-specific workspaces.
+* **Backend API**: Runs on `http://localhost:5000` with Express, Prisma ORM, and MySQL database.
+* **Four Supported Roles**:
+  1. `SUPER_ADMIN` (Master Admin): Platform catalogues, tenant company provisioning, system audit logs, and security controls.
+  2. `COMPANY_ADMIN`: Multi-tenant CRM, Products, Sales, Procurement, Inventory, Production, Dispatch, Accounts, and Team.
+  3. `DEPARTMENT_HEAD`: Department-specific pipeline, team roster management, and approval queues.
+  4. `EMPLOYEE`: Daily task assignments, attendance/shift punch clock, and station operational jobs.
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ System Architecture & Folder Structure
 
 ```text
-CRM & ERP/
-├── .gitignore
-├── README.md                               <-- Root Documentation
+AZZUNIQE-CRM-ERP/
 │
-├── backend/                                <-- Node.js + Express + MySQL + Prisma
-│   ├── .env                                <-- Server & Database Environment Variables
-│   ├── .env.example                        <-- Environment Template
-│   ├── package.json                        <-- Scripts & Dependencies
+├── frontend/                    # Single Unified Next.js Application (Port 3000)
+│   ├── public/                  # Static assets, SVG icons, images
+│   │   ├── images/
+│   │   ├── icons/
+│   │   └── assets/
+│   │
+│   ├── src/
+│   │   ├── app/                 # All routes and layouts
+│   │   │   ├── (auth)/          # Unified auth route group
+│   │   │   │   ├── login/
+│   │   │   │   ├── forgot-password/
+│   │   │   │   └── reset-password/
+│   │   │   │
+│   │   │   ├── (super-admin)/   # Super Admin / Master Admin routes
+│   │   │   │   ├── super-admin/
+│   │   │   │   │   ├── dashboard/
+│   │   │   │   │   ├── services/
+│   │   │   │   │   ├── clients/
+│   │   │   │   │   ├── audit-logs/
+│   │   │   │   │   └── settings/
+│   │   │   │   └── layout.jsx
+│   │   │   │
+│   │   │   ├── (company-admin)/ # Company Admin business routes
+│   │   │   │   ├── company/
+│   │   │   │   ├── dashboard/
+│   │   │   │   ├── services/
+│   │   │   │   ├── crm/
+│   │   │   │   ├── products/
+│   │   │   │   ├── sales/
+│   │   │   │   ├── procurement/
+│   │   │   │   ├── inventory/
+│   │   │   │   ├── accounts/
+│   │   │   │   ├── production/
+│   │   │   │   ├── dispatch/
+│   │   │   │   ├── gate-pass/
+│   │   │   │   ├── grn/
+│   │   │   │   ├── bom/
+│   │   │   │   ├── vendors/
+│   │   │   │   ├── team/
+│   │   │   │   ├── returns/
+│   │   │   │   ├── settings/
+│   │   │   │   └── layout.jsx
+│   │   │   │
+│   │   │   ├── (department-head)/ # Department Head routes
+│   │   │   │   ├── department/
+│   │   │   │   │   └── dashboard/
+│   │   │   │   └── layout.jsx
+│   │   │   │
+│   │   │   ├── (employee)/      # Employee self-service routes
+│   │   │   │   ├── employee/
+│   │   │   │   │   └── dashboard/
+│   │   │   │   └── layout.jsx
+│   │   │   │
+│   │   │   ├── layout.jsx       # Root HTML/Body shell & Context Providers
+│   │   │   ├── page.jsx         # Root intelligent session resolver
+│   │   │   ├── globals.css      # Design system variables & resets
+│   │   │   └── not-found.jsx    # Custom 404 handler
+│   │   │
+│   │   ├── components/
+│   │   │   ├── ui/              # Reusable UI primitives: Button, Input, Select, Modal, Table, Card, Badge, Switch
+│   │   │   ├── layout/          # Shared layout components: Sidebar, Topbar, Navbar, DashboardLayout, Breadcrumb
+│   │   │   └── shared/
+│   │   │
+│   │   ├── features/            # Role-specific feature logic and components
+│   │   │   ├── super-admin/
+│   │   │   ├── company-admin/
+│   │   │   ├── department-head/
+│   │   │   └── employee/
+│   │   │
+│   │   ├── context/             # AuthContext, CompanyAuthContext, ThemeContext
+│   │   ├── hooks/               # Custom React hooks (useCompanyAuth, useCompanyAccess)
+│   │   ├── lib/                 # HTTP client (api-client.js, api.js, auth.js)
+│   │   ├── services/            # Frontend API client service abstractions
+│   │   ├── utils/               # Formatting and utility helpers
+│   │   └── constants/           # Core catalog and route constants
+│   │
+│   ├── package.json
+│   ├── next.config.mjs
+│   └── jsconfig.json
+│
+├── backend/                     # Express API Server (Port 5000)
+│   ├── src/
+│   │   ├── controllers/
+│   │   ├── services/
+│   │   ├── routes/
+│   │   ├── middlewares/
+│   │   └── server.js
 │   ├── prisma/
-│   │   └── schema.prisma                   <-- Prisma MySQL Models & Relations
-│   └── src/
-│       ├── config/
-│       │   └── prisma.js                   <-- PrismaClient Singleton
-│       ├── routes/
-│       │   └── api.routes.js               <-- REST API Endpoints
-│       ├── services/
-│       │   └── catalog.service.js          <-- Catalogue Store & Persistence Layer
-│       └── server.js                       <-- Express Server Entrypoint
+│   ├── tests/
+│   └── package.json
 │
-└── frontend/                               <-- Frontend Parent Directory
-    ├── super-admin/                        <-- Super Admin Portal (Port 3000, JSX)
-    │   ├── .env                            <-- Frontend Environment Config
-    │   ├── .env.example                    <-- Frontend Template
-    │   ├── package.json                    <-- Next.js Scripts & Dependencies
-    │   └── src/app/                        <-- Super Admin Layout & Dashboard
-    │
-    └── company-admin/                      <-- Company Admin Portal (Port 3001, JSX)
-        ├── .env                            <-- Frontend Environment Config (PORT=3001)
-        ├── .env.example                    <-- Frontend Template
-        ├── package.json                    <-- Next.js Scripts & Dependencies
-        └── src/
-            ├── app/                        <-- Layout, Page, CSS Modules
-            ├── components/                 <-- Layout, Dashboard, Modules & UI
-            ├── constants/                  <-- Core 7-Service Catalogue
-            ├── hooks/                      <-- useCompanyAuth, useCompanyAccess
-            └── lib/                        <-- Centralized API Client
+├── .gitignore
+└── README.md
 ```
 
 ---
@@ -72,35 +135,12 @@ AZZUNIQE is designed around seven fixed core enterprise services:
 
 ---
 
-## 🛠️ Technology Stack
-
-### Backend
-* **Runtime**: Node.js (ES Modules, `"type": "module"`)
-* **Framework**: Express.js
-* **Database**: MySQL
-* **ORM**: Prisma ORM (v6.4.1)
-* **Utilities**: `dotenv`, `cors`, `nodemon`
-
-### Frontend (`super-admin`)
-* **Framework**: Next.js 16 (App Router)
-* **Syntax**: Pure JavaScript / JSX (No TSX)
-* **Engine**: Webpack (`--webpack` mode for cross-platform reliability)
-* **Styling**: Vanilla CSS Modules with custom CSS variables
-* **Design System**:
-  * Light theme background (`#f8fafc` & `#ffffff`)
-  * Deep enterprise navy blue sidebar (`#0f172a` / `#1e293b`)
-  * High-contrast black/slate typography (`#0f172a`)
-  * Interactive Red / Green state toggles with animated toast alerts
-  * Live Client Panel Simulator modal
-
----
-
 ## 🚀 Getting Started & Installation
 
 ### Prerequisites
 * **Node.js**: v20.x or v22.x
 * **npm**: v10.x or higher
-* **MySQL**: v8.0 or higher (optional for resilient mode)
+* **MySQL**: v8.0 or higher
 
 ---
 
@@ -122,93 +162,48 @@ npm install
 # Generate Prisma Client
 npm run prisma:generate
 
-# Run Database Migrations (requires active MySQL instance)
-npm run prisma:migrate
-
-# Start Backend Server (development mode with nodemon)
+# Start Backend Server (runs on http://localhost:5000)
 npm run dev
 ```
 
-* Backend API will run at: `http://localhost:5000`
-* Health Check: `http://localhost:5000/api/health`
-* DB Status: `http://localhost:5000/api/db-status`
-
 ---
 
-### 2. Frontend Setup (`super-admin`)
+### 2. Frontend Setup (Unified Application)
 
 ```powershell
-# Navigate to frontend/super-admin directory
-cd frontend/super-admin
+# Navigate to frontend directory
+cd frontend
 
-# Install dependencies
+# Install dependencies (only if needed)
 npm install
 
-# Configure environment variables
-# Verify NEXT_PUBLIC_API_URL=http://localhost:5000/api in .env
-
-# Start Next.js Development Server
+# Start Next.js Development Server (runs on http://localhost:3000)
 npm run dev
 ```
 
-* Super Admin Portal will be available at: `http://localhost:3000`
-
----
-
-## 🔑 Key Features Implemented
-
-1. **Super Admin Dashboard**:
-   * Real-time metrics counters for Services, Main Modules, Sub-Modules, and provisioned Client Panels.
-   * Live status monitoring chips for Backend API and MySQL Prisma connectivity.
-   * Recent provisioned companies and platform audit activity feed.
-
-2. **Services Catalogue Management (All-on-One-Page)**:
-   * View all active and inactive services with module counts and display ordering.
-   * Instant status toggling (Active 🟢 / Inactive 🔴) with animated Toast notifications.
-   * Modal to create new global services.
-
-3. **Single Service Detail View**:
-   * Inspect any service's hierarchical structure.
-   * Main Module accordion cards with nested Sub-Module (Screen/Route) tags.
-   * Inline actions to add Main Modules and Sub-Modules directly.
-
-4. **Company / Client Admin Provisioning**:
-   * Add new tenant companies with company name, admin name, email, mobile, and password.
-   * **Hierarchical Permission Tree**:
-     * `[x] Full Service`: Grants all modules and sub-modules under that service.
-     * `[FULL MODULE]`: Grants all sub-modules under that specific module.
-     * `[CUSTOM]`: Select individual sub-modules with "Select All" shortcut.
-   * Instant Active/Inactive toggle switch with feedback toasts.
-   * Delete company panels with confirmation.
-
-5. **Live Client Panel Simulator**:
-   * Click **"👁️ Live Preview"** on any client row to open a dynamic simulation modal.
-   * Renders the client's perspective: only displays services, modules, and screens permitted by Super Admin.
-   * Live demonstration of permission-driven multi-tenant architecture.
-
-6. **Audit Trail**:
-   * Automatic event tracking for Service, Module, Client, and Permission changes with timestamps and actor details.
+* Unified Application will be live at: `http://localhost:3000`
+* Unified Login: `http://localhost:3000/login`
 
 ---
 
 ## 📜 Available NPM Scripts
 
+### Frontend (`/frontend`)
+| Script | Command | Purpose |
+| :--- | :--- | :--- |
+| `npm run dev` | `next dev --webpack -p 3000` | Starts Next.js development server at port 3000 |
+| `npm run build` | `next build --webpack` | Builds production bundle |
+| `npm run start` | `next start -p 3000` | Runs production server at port 3000 |
+| `npm run lint` | `next lint` | Runs ESLint validation |
+
 ### Backend (`/backend`)
 | Script | Command | Purpose |
 | :--- | :--- | :--- |
-| `npm run dev` | `nodemon src/server.js` | Runs Express server with live reload |
+| `npm run dev` | `nodemon src/server.js` | Runs Express server on port 5000 |
 | `npm run start` | `node src/server.js` | Runs Express server in production mode |
+| `npm run test` | `node tests/integration/suite.test.js` | Runs automated integration tests |
 | `npm run prisma:generate` | `prisma generate` | Generates `@prisma/client` bindings |
-| `npm run prisma:migrate` | `prisma migrate dev` | Applies database migrations to MySQL |
-| `npm run prisma:studio` | `prisma studio` | Opens Prisma GUI browser at port 5555 |
-
-### Frontend (`/frontend/super-admin`)
-| Script | Command | Purpose |
-| :--- | :--- | :--- |
-| `npm run dev` | `next dev --webpack` | Starts Next.js development server at port 3000 |
-| `npm run build` | `next build --webpack` | Builds production bundle |
-| `npm run start` | `next start` | Runs production server |
-| `npm run lint` | `next lint` | Runs ESLint validation |
+| `npm run prisma:migrate` | `prisma migrate dev` | Applies database migrations |
 
 ---
 
