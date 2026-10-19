@@ -1,5 +1,5 @@
 import prisma from '../config/prisma.js';
-import { formatService } from '../utils/formatters.js';
+import { formatServicesInDisplayOrder } from '../utils/formatters.js';
 
 /**
  * Service for platform dashboard statistics and global system catalog
@@ -59,7 +59,7 @@ export const systemService = {
       orderBy: { orderNo: 'asc' },
     });
 
-    return services.map(formatService);
+    return formatServicesInDisplayOrder(services);
   },
 };
 

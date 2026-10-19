@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import catalogController from '../controllers/catalog.controller.js';
+import { requireSuperAdmin } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -9,6 +10,7 @@ router.post('/services', catalogController.createService);
 router.get('/services/:id', catalogController.getServiceById);
 router.put('/services/:id', catalogController.updateService);
 router.patch('/services/:id/status', catalogController.toggleServiceStatus);
+router.delete('/services/:id', requireSuperAdmin, catalogController.deleteService);
 
 // ==================== MODULES ====================
 router.post('/services/:serviceId/modules', catalogController.createModule);

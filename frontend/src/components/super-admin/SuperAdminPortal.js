@@ -6,6 +6,28 @@ import { usePathname, useRouter } from 'next/navigation';
 import styles from './SuperAdminPortal.module.css';
 import SuperAdminBreadcrumbs from '@/components/navigation/SuperAdminBreadcrumbs';
 
+const toCatalogCode = (value) =>
+  value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'item';
+
+const updateCatalogName = (form, setForm, name) => {
+  const previousGeneratedCode = form.name ? toCatalogCode(form.name) : '';
+  setForm({
+    ...form,
+    name,
+    code: !form.code || form.code === previousGeneratedCode ? toCatalogCode(name) : form.code,
+  });
+};
+
+const SEEDED_SERVICE_CODES = new Set([
+  'crm_sales',
+  'purchase_vendor',
+  'inventory_warehouse',
+  'manufacturing_production',
+  'dispatch_returns',
+  'accounts_banking',
+  'permission_controls',
+]);
+
 // ============================================================================
 // CONSISTENT ENTERPRISE SVG ICONS (Consistent stroke weight, dimensions & a11y)
 // ============================================================================
@@ -320,6 +342,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
   const [showAddModuleModal, setShowAddModuleModal] = useState(false);
   const [showAddSubModuleModal, setShowAddSubModuleModal] = useState(false);
   const [activeModuleForSub, setActiveModuleForSub] = useState(null);
+  const [serviceToDelete, setServiceToDelete] = useState(null);
+  const [isDeletingService, setIsDeletingService] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [clientModalMode, setClientModalMode] = useState('create'); // 'create' | 'permissions' | 'details'
@@ -330,9 +354,9 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
   const [simActiveModule, setSimActiveModule] = useState(null);
 
   // Form states
-  const [serviceForm, setServiceForm] = useState({ name: '', code: '', description: '', order_no: 1 });
+  const [serviceForm, setServiceForm] = useState({ name: '', code: '', description: '', order_no: 8 });
   const [moduleForm, setModuleForm] = useState({ name: '', code: '', description: '', icon: 'layers', order_no: 1 });
-  const [subModuleForm, setSubModuleForm] = useState({ name: '', code: '', route: '', order_no: 1 });
+  const [subModuleForm, setSubModuleForm] = useState({ name: '', code: '', order_no: 1 });
   
   // Client Form & Permission tree state
   const [clientForm, setClientForm] = useState({
@@ -863,12 +887,24 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
         if (json.data) {
           setServices(prev => [...prev, json.data]);
         }
-        setServiceForm({ name: '', code: '', description: '', order_no: 1 });
+        setServiceForm({ name: '', code: '', description: '', order_no: 8 });
         fetchData(true);
+      } else {
+        showToast('Service not created', json.message || 'Unable to create service.', 'danger');
       }
     } catch (err) {
       showToast('Error', err.message, 'danger');
     }
+  };
+
+  const handleOpenAddServiceModal = () => {
+    setServiceForm({
+      name: '',
+      code: '',
+      description: '',
+      order_no: Math.max(8, services.length + 1),
+    });
+    setShowAddServiceModal(true);
   };
 
   // Create Module under Service
@@ -888,6 +924,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
         setModuleForm({ name: '', code: '', description: '', icon: 'layers', order_no: 1 });
         handleOpenServiceDetail(selectedService.id, false);
         fetchData(true);
+      } else {
+        showToast('Module not created', json.message || 'Unable to create module.', 'danger');
       }
     } catch (err) {
       showToast('Error', err.message, 'danger');
@@ -908,12 +946,52 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
       if (json.success) {
         setShowAddSubModuleModal(false);
         showToast('Sub-Module Created! ⚡', `Screen "${subModuleForm.name}" added to ${activeModuleForSub.name}.`, 'success');
-        setSubModuleForm({ name: '', code: '', route: '', order_no: 1 });
+        setSubModuleForm({ name: '', code: '', order_no: 1 });
         if (selectedService) handleOpenServiceDetail(selectedService.id, false);
         fetchData(true);
+      } else {
+        showToast('Sub-module not created', json.message || 'Unable to create sub-module.', 'danger');
       }
     } catch (err) {
       showToast('Error', err.message, 'danger');
+    }
+  };
+
+  const handleDeleteService = async () => {
+    if (!serviceToDelete || isDeletingService) return;
+
+    setIsDeletingService(true);
+    try {
+      const storedToken = localStorage.getItem('azzuniqe_super_token') || sessionStorage.getItem('azzuniqe_super_token');
+      const headers = storedToken ? { Authorization: `Bearer ${storedToken}` } : {};
+      const res = await fetch(`${API_BASE}/services/${serviceToDelete.id}`, {
+        method: 'DELETE',
+        headers,
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        showToast('Service not deleted', json.message || 'Unable to delete service.', 'danger');
+        return;
+      }
+
+      setServices((previous) => previous.filter((service) => service.id !== serviceToDelete.id));
+      if (selectedService?.id === serviceToDelete.id) {
+        setSelectedService(null);
+        setActiveTab('services');
+        router.push('/super-admin/services');
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('cached_company_data');
+        localStorage.setItem('azzuniqe_catalog_updated', String(Date.now()));
+      }
+      showToast('Service Deleted', `"${serviceToDelete.name}" and its modules have been permanently deleted.`, 'success');
+      setServiceToDelete(null);
+      fetchData(true);
+    } catch (err) {
+      showToast('Service not deleted', err.message, 'danger');
+    } finally {
+      setIsDeletingService(false);
     }
   };
 
@@ -1712,7 +1790,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                   <button type="button" className={styles.btnPrimary} onClick={handleOpenNewClientModal} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                     <IconPlus size={15} /> Add New Admin / Client
                   </button>
-                  <button type="button" className={`${styles.btnSecondary} ${styles.btnPurple}`} onClick={() => setShowAddServiceModal(true)} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <button type="button" className={`${styles.btnSecondary} ${styles.btnPurple}`} onClick={handleOpenAddServiceModal} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                     <IconPlus size={15} /> Add Service
                   </button>
                 </div>
@@ -1954,7 +2032,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                   <h3>Global Services Catalogue</h3>
                   <p>All active and inactive services visible on one page. Toggle active state or click to manage modules.</p>
                 </div>
-                <button type="button" className={styles.btnPrimary} onClick={() => setShowAddServiceModal(true)} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <button type="button" className={styles.btnPrimary} onClick={handleOpenAddServiceModal} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                   <IconPlus size={15} /> Add New Service
                 </button>
               </div>
@@ -2017,6 +2095,16 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                         >
                           {isAct ? 'Deactivate 🔴' : 'Activate 🟢'}
                         </button>
+                        {!SEEDED_SERVICE_CODES.has(s.code) && (
+                          <button
+                            type="button"
+                            className={styles.btnDanger}
+                            onClick={() => setServiceToDelete(s)}
+                            title={`Delete custom service ${s.name}`}
+                          >
+                            <IconTrash size={14} /> Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -3272,7 +3360,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     placeholder="e.g. CRM & Sales, Human Resources"
                     required
                     value={serviceForm.name}
-                    onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })}
+                    onChange={(e) => updateCatalogName(serviceForm, setServiceForm, e.target.value)}
                   />
                 </div>
                 <div className={styles.formGrid}>
@@ -3280,7 +3368,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     <label className={styles.formLabel}>Service Code</label>
                     <input
                       className={styles.formInput}
-                      placeholder="e.g. crm_sales"
+                      placeholder="Auto-generated from service name"
                       value={serviceForm.code}
                       onChange={(e) => setServiceForm({ ...serviceForm, code: e.target.value })}
                     />
@@ -3289,6 +3377,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     <label className={styles.formLabel}>Display Order</label>
                     <input
                       type="number"
+                      min="1"
+                      step="1"
                       className={styles.formInput}
                       value={serviceForm.order_no}
                       onChange={(e) => setServiceForm({ ...serviceForm, order_no: e.target.value })}
@@ -3338,7 +3428,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     placeholder="e.g. CRM, Product, Sales"
                     required
                     value={moduleForm.name}
-                    onChange={(e) => setModuleForm({ ...moduleForm, name: e.target.value })}
+                    onChange={(e) => updateCatalogName(moduleForm, setModuleForm, e.target.value)}
                   />
                 </div>
                 <div className={styles.formGrid}>
@@ -3346,7 +3436,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     <label className={styles.formLabel}>Module Code</label>
                     <input
                       className={styles.formInput}
-                      placeholder="e.g. crm"
+                      placeholder="Auto-generated from module name"
                       value={moduleForm.code}
                       onChange={(e) => setModuleForm({ ...moduleForm, code: e.target.value })}
                     />
@@ -3355,6 +3445,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     <label className={styles.formLabel}>Display Order</label>
                     <input
                       type="number"
+                      min="1"
+                      step="1"
                       className={styles.formInput}
                       value={moduleForm.order_no}
                       onChange={(e) => setModuleForm({ ...moduleForm, order_no: e.target.value })}
@@ -3403,7 +3495,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     placeholder="e.g. Lead, Customer, Quotation"
                     required
                     value={subModuleForm.name}
-                    onChange={(e) => setSubModuleForm({ ...subModuleForm, name: e.target.value })}
+                    onChange={(e) => updateCatalogName(subModuleForm, setSubModuleForm, e.target.value)}
                   />
                 </div>
                 <div className={styles.formGrid}>
@@ -3411,29 +3503,22 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     <label className={styles.formLabel}>Sub-Module Code</label>
                     <input
                       className={styles.formInput}
-                      placeholder="e.g. lead"
+                      placeholder="Auto-generated from sub-module name"
                       value={subModuleForm.code}
                       onChange={(e) => setSubModuleForm({ ...subModuleForm, code: e.target.value })}
                     />
                   </div>
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Frontend Route</label>
+                    <label className={styles.formLabel}>Display Order</label>
                     <input
+                      type="number"
+                      min="1"
+                      step="1"
                       className={styles.formInput}
-                      placeholder="e.g. /crm/leads"
-                      value={subModuleForm.route}
-                      onChange={(e) => setSubModuleForm({ ...subModuleForm, route: e.target.value })}
+                      value={subModuleForm.order_no}
+                      onChange={(e) => setSubModuleForm({ ...subModuleForm, order_no: e.target.value })}
                     />
                   </div>
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Display Order</label>
-                  <input
-                    type="number"
-                    className={styles.formInput}
-                    value={subModuleForm.order_no}
-                    onChange={(e) => setSubModuleForm({ ...subModuleForm, order_no: e.target.value })}
-                  />
                 </div>
               </div>
               <div className={styles.modalFooter}>
@@ -4021,6 +4106,53 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                 onClick={handleConfirmDeleteClient}
               >
                 <IconTrash size={15} /> Yes, Delete Panel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {serviceToDelete && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => {
+            if (!isDeletingService) setServiceToDelete(null);
+          }}
+        >
+          <div
+            className={styles.confirmModal}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirmDeleteServiceTitle"
+          >
+            <div className={styles.confirmIconWrap} aria-hidden="true">
+              <IconTrash size={30} />
+            </div>
+            <h3 id="confirmDeleteServiceTitle" className={styles.confirmTitle}>
+              Delete Custom Service?
+            </h3>
+            <p className={styles.confirmText}>
+              Permanently delete{' '}
+              <strong className={styles.confirmTargetName}>&quot;{serviceToDelete.name}&quot;</strong>?
+              This also removes its modules, screens, client access assignments, and related departments.
+              The 7 seeded core services cannot be deleted.
+            </p>
+            <div className={styles.confirmActions}>
+              <button
+                type="button"
+                className={styles.confirmBtnCancel}
+                onClick={() => setServiceToDelete(null)}
+                disabled={isDeletingService}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.confirmBtnDelete}
+                onClick={handleDeleteService}
+                disabled={isDeletingService}
+              >
+                <IconTrash size={15} /> {isDeletingService ? 'Deleting...' : 'Yes, Delete Service'}
               </button>
             </div>
           </div>

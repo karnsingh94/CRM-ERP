@@ -112,7 +112,12 @@ export function CompanyAuthProvider({ children }) {
       return;
     }
 
-    if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+    if (pathname.startsWith('/super-admin')) {
+      setIsLoading(false);
+      return;
+    }
+
+    if (pathname === '/login') {
       setIsLoading(false);
       return;
     }
@@ -251,7 +256,7 @@ export function CompanyAuthProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [pathname, router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

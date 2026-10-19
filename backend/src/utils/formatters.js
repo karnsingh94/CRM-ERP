@@ -33,6 +33,33 @@ export const clientAccessInclude = {
   },
 };
 
+const SEEDED_SERVICE_ORDER = new Map([
+  ['crm_sales', 1],
+  ['purchase_vendor', 2],
+  ['inventory_warehouse', 3],
+  ['manufacturing_production', 4],
+  ['dispatch_returns', 5],
+  ['accounts_banking', 6],
+  ['permission_controls', 7],
+]);
+
+export function formatServicesInDisplayOrder(services) {
+  return [...services]
+    .sort((left, right) => {
+      const leftSeedOrder = SEEDED_SERVICE_ORDER.get(left.code);
+      const rightSeedOrder = SEEDED_SERVICE_ORDER.get(right.code);
+      if (leftSeedOrder && rightSeedOrder) return leftSeedOrder - rightSeedOrder;
+      if (leftSeedOrder) return -1;
+      if (rightSeedOrder) return 1;
+      return left.orderNo - right.orderNo || Number(left.id - right.id);
+    })
+    .map((service, index) => ({
+      ...formatService(service),
+      order_no: index + 1,
+      orderNo: index + 1,
+    }));
+}
+
 /**
  * Format Sub-Module record
  */

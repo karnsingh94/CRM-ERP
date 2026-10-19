@@ -63,6 +63,21 @@ export const catalogController = {
     }
   },
 
+  async deleteService(req, res, next) {
+    try {
+      const deleted = await catalogService.deleteService(req.params.id, req.meta || {});
+      if (deleted === null) {
+        return res.status(404).json({ success: false, message: 'Service not found' });
+      }
+      if (deleted === false) {
+        return res.status(403).json({ success: false, message: 'Seeded core services cannot be deleted' });
+      }
+      res.json({ success: true, message: 'Service deleted successfully' });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   // ==================== MODULES ====================
   async createModule(req, res, next) {
     try {
@@ -111,13 +126,13 @@ export const catalogController = {
   // ==================== SUB-MODULES ====================
   async createSubModule(req, res, next) {
     try {
-      const { name, code, route, order_no, status } = req.body;
+      const { name, code, order_no, status } = req.body;
       if (!name || typeof name !== 'string' || !name.trim()) {
         return res.status(400).json({ success: false, message: 'Valid sub-module name is required' });
       }
       const subModule = await catalogService.createSubModule(
         req.params.moduleId,
-        { name, code, route, order_no, status },
+        { name, code, order_no, status },
         req.meta || {}
       );
       if (!subModule) {
