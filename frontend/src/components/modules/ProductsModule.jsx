@@ -1,63 +1,52 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { IconPlus, IconSearch, IconBox, IconLayers } from '../ui/Icons';
 import Modal from '../ui/Modal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import EmptyState from '../ui/EmptyState';
+import ServiceDepartments from '../departments/ServiceDepartments';
 
 export default function ProductsModule({ activeCompany, showToast, initialSubTab }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const TAB_ROUTES = {
+    all: '/products',
+    categories: '/products/categories',
+    pricing: '/products/pricing',
+    departments: '/services/crm-sales/departments',
+  };
+
+  const [activeTab, setActiveTab] = useState(initialSubTab || 'all');
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveTab(initialSubTab);
+    } else if (pathname) {
+      if (pathname.includes('/products/categories')) setActiveTab('categories');
+      else if (pathname.includes('/products/pricing')) setActiveTab('pricing');
+      else if (pathname.includes('/departments')) setActiveTab('departments');
+      else if (pathname.includes('/products')) setActiveTab('all');
+    }
+  }, [initialSubTab, pathname]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(
     initialSubTab === 'categories' ? 'Raw Material' : 'ALL'
   );
 
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      sku: 'PRD-RAW-001',
-      name: 'High-Density Polymer Resin A4',
-      category: 'Raw Material',
-      uom: 'KG',
-      sellingPrice: 420.00,
-      purchasePrice: 310.00,
-      stock: 450,
-      status: 'ACTIVE',
-    },
-    {
-      id: 2,
-      sku: 'PRD-FIN-102',
-      name: 'Industrial Valve Coupling 50mm',
-      category: 'Finished Goods',
-      uom: 'PCS',
-      sellingPrice: 1850.00,
-      purchasePrice: 1100.00,
-      stock: 64,
-      status: 'ACTIVE',
-    },
-    {
-      id: 3,
-      sku: 'PRD-PKG-033',
-      name: 'Reinforced Corrugated Box Type-B',
-      category: 'Packaging',
-      uom: 'BOX',
-      sellingPrice: 45.00,
-      purchasePrice: 28.00,
-      stock: 1200,
-      status: 'ACTIVE',
-    },
-    {
-      id: 4,
-      sku: 'PRD-WIP-088',
-      name: 'Machined Brass Cylinder Core',
-      category: 'WIP Semi-Finished',
-      uom: 'PCS',
-      sellingPrice: 940.00,
-      purchasePrice: 620.00,
-      stock: 18,
-      status: 'ACTIVE',
-    },
-  ]);
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    setSearchQuery('');
+    const targetRoute = TAB_ROUTES[newTab];
+    if (targetRoute && pathname !== targetRoute) {
+      router.push(targetRoute);
+    }
+  };
+
+  const [products, setProducts] = useState([]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
@@ -101,10 +90,12 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
     setProductToDelete(null);
   };
 
-  const filtered = products.filter(p => {
-    const matchesSearch =
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase());
+  const filtered = (products || []).filter(p => {
+    if (!p) return false;
+    const q = (searchQuery || '').toLowerCase().trim();
+    const matchesSearch = !q ||
+      String(p.sku || '').toLowerCase().includes(q) ||
+      String(p.name || '').toLowerCase().includes(q);
     const matchesCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -127,18 +118,108 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
             alignItems: 'center',
             gap: '0.5rem',
             padding: '0.65rem 1.25rem',
-            background: '#2563eb',
+            background: '#7f22fe',
             color: '#ffffff',
             borderRadius: '8px',
             fontWeight: 700,
             fontSize: '0.86rem',
-            boxShadow: '0 4px 6px rgba(37, 99, 235, 0.25)',
+            boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
           }}
         >
           <IconPlus size={16} /> Register New SKU
         </button>
       </div>
 
+      {/* Module Navigation Tabs */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => handleTabChange('all')}
+          style={{
+            padding: '0.65rem 1.25rem',
+            fontWeight: activeTab === 'all' ? 800 : 600,
+            color: activeTab === 'all' ? '#7f22fe' : '#64748b',
+            borderBottom: activeTab === 'all' ? '2px solid #7f22fe' : '2px solid transparent',
+            background: 'transparent',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            fontSize: '0.88rem',
+            cursor: 'pointer',
+          }}
+        >
+          Product Directory ({products.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange('categories')}
+          style={{
+            padding: '0.65rem 1.25rem',
+            fontWeight: activeTab === 'categories' ? 800 : 600,
+            color: activeTab === 'categories' ? '#7f22fe' : '#64748b',
+            borderBottom: activeTab === 'categories' ? '2px solid #7f22fe' : '2px solid transparent',
+            background: 'transparent',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            fontSize: '0.88rem',
+            cursor: 'pointer',
+          }}
+        >
+          Categories
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange('pricing')}
+          style={{
+            padding: '0.65rem 1.25rem',
+            fontWeight: activeTab === 'pricing' ? 800 : 600,
+            color: activeTab === 'pricing' ? '#7f22fe' : '#64748b',
+            borderBottom: activeTab === 'pricing' ? '2px solid #7f22fe' : '2px solid transparent',
+            background: 'transparent',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            fontSize: '0.88rem',
+            cursor: 'pointer',
+          }}
+        >
+          Pricing &amp; Plans
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange('departments')}
+          style={{
+            padding: '0.65rem 1.25rem',
+            fontWeight: activeTab === 'departments' ? 800 : 600,
+            color: activeTab === 'departments' ? '#7f22fe' : '#64748b',
+            borderBottom: activeTab === 'departments' ? '2px solid #7f22fe' : '2px solid transparent',
+            background: 'transparent',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            fontSize: '0.88rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            cursor: 'pointer',
+          }}
+        >
+          <span>🏢</span>
+          <span>Departments</span>
+        </button>
+      </div>
+
+      {activeTab === 'departments' ? (
+        <ServiceDepartments
+          activeCompany={activeCompany}
+          serviceCode="crm_sales"
+          showToast={showToast}
+        />
+      ) : (
       <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
         {/* Filter Bar */}
         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
@@ -208,7 +289,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
               <tbody>
                 {filtered.map((p) => (
                   <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800, color: '#2563eb' }}>
+                    <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800, color: '#7f22fe' }}>
                       {p.sku}
                     </td>
                     <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>
@@ -262,6 +343,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
           </div>
         )}
       </div>
+      )}
 
       {/* Add Product Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Register New Catalogue SKU">
@@ -368,7 +450,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
             </button>
             <button
               type="submit"
-              style={{ padding: '0.6rem 1.35rem', borderRadius: '6px', border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 700 }}
+              style={{ padding: '0.6rem 1.35rem', borderRadius: '6px', border: 'none', background: '#7f22fe', color: '#ffffff', fontWeight: 700 }}
             >
               Register SKU
             </button>

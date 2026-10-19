@@ -43,13 +43,13 @@ export default function ConfirmDialog({
             padding: '0.65rem 1.35rem',
             borderRadius: '8px',
             border: 'none',
-            background: isDanger ? '#dc2626' : '#2563eb',
+            background: isDanger ? '#ef4444' : '#7f22fe',
             color: '#ffffff',
             fontWeight: 700,
             fontSize: '0.88rem',
             boxShadow: isDanger
-              ? '0 4px 6px -1px rgba(220, 38, 38, 0.2)'
-              : '0 4px 6px -1px rgba(37, 99, 235, 0.2)',
+              ? '0 4px 10px -1px rgba(239, 68, 68, 0.25)'
+              : '0 4px 12px -1px rgba(127, 34, 254, 0.3)',
           }}
         >
           {confirmLabel}

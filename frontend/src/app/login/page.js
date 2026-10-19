@@ -91,7 +91,8 @@ function LoginForm() {
           const user = body?.data?.user || body?.data;
           if (user) {
             if (user.role === 'SUPER_ADMIN') {
-              const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/';
+              const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login' && redirectParam !== '/dashboard';
+              const target = isValid ? redirectParam : '/super-admin';
               router.replace(target);
               return;
             } else if (
@@ -99,7 +100,8 @@ function LoginForm() {
               user.role === 'DEPARTMENT_HEAD' ||
               user.role === 'EMPLOYEE'
             ) {
-              const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/dashboard';
+              const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
+              const target = isValid ? redirectParam : '/dashboard';
               router.replace(target);
               return;
             }
@@ -153,7 +155,24 @@ function LoginForm() {
 
       const { user, token, redirectUrl, targetOrigin } = data.data || data;
 
-      // Persist session
+      // 1. Wipe all previous session items to prevent cross-role collisions
+      const keysToClean = [
+        'azzuniqe_super_token',
+        'azzuniqe_super_token_backup',
+        'azzuniqe_client_token',
+        'auth_user',
+        'company_user',
+        'active_company_id',
+        'cached_company_data',
+        'is_super_admin_impersonating',
+        'impersonated_client_name',
+      ];
+      keysToClean.forEach(k => {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+      });
+
+      // 2. Persist fresh session
       const storage = formData.rememberMe ? localStorage : sessionStorage;
       if (user.role === 'SUPER_ADMIN') {
         localStorage.setItem('azzuniqe_super_token', token);
@@ -163,24 +182,38 @@ function LoginForm() {
         localStorage.setItem('azzuniqe_client_token', token);
         sessionStorage.setItem('azzuniqe_client_token', token);
         storage.setItem('company_user', JSON.stringify(user));
+        storage.setItem('auth_user', JSON.stringify(user));
         if (user.companyId) {
           storage.setItem('active_company_id', String(user.companyId));
+        }
+        if (user.organizationName || user.name) {
+          const compData = {
+            id: String(user.companyId || user.id),
+            name: user.organizationName || user.name,
+            organizationName: user.organizationName || user.name,
+            email: user.email,
+            themeColor: user.themeColor || user.theme_color || '#7f22fe',
+            theme_color: user.theme_color || user.themeColor || '#7f22fe',
+            access: user.access || { services: [] },
+            status: user.status || 'ACTIVE',
+          };
+          storage.setItem('cached_company_data', JSON.stringify(compData));
         }
       }
 
       setSuccessMessage(`Welcome back, ${user.name || user.email}! Routing to workspace...`);
 
-      // Determine destination in single unified application on port 3000
+      // 3. Determine clean destination in single unified application on port 3000
       let destination = '/dashboard';
       if (user.role === 'SUPER_ADMIN') {
-        destination = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/super-admin';
+        const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login' && redirectParam !== '/dashboard';
+        destination = isValidRedirect ? redirectParam : '/super-admin';
       } else {
-        destination = redirectParam && redirectParam.startsWith('/') ? redirectParam : (redirectUrl || '/dashboard');
+        const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
+        destination = isValidRedirect ? redirectParam : (redirectUrl || '/dashboard');
       }
 
-      setTimeout(() => {
-        router.replace(destination);
-      }, 500);
+      router.replace(destination);
     } catch {
       setErrorMessage('Network connection error. Please verify the backend service is running.');
       setLoading(false);
@@ -205,7 +238,7 @@ function LoginForm() {
             style={{
               width: '20px',
               height: '20px',
-              border: '2.5px solid #2563eb',
+              border: '2.5px solid #7f22fe',
               borderTopColor: 'transparent',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
@@ -221,7 +254,7 @@ function LoginForm() {
     <div
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #EEF4FF 0%, #F5F3FF 45%, #EDE9FE 100%)',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f5f0ff 45%, #ede9fe 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -236,7 +269,7 @@ function LoginForm() {
           maxWidth: '880px',
           background: '#ffffff',
           borderRadius: '20px',
-          boxShadow: '0 20px 50px -15px rgba(37, 99, 235, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9)',
+          boxShadow: '0 20px 50px -15px rgba(127, 34, 254, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'row',
@@ -248,7 +281,7 @@ function LoginForm() {
         <div
           style={{
             flex: '1 1 380px',
-            background: 'linear-gradient(145deg, #1e3a8a 0%, #2563eb 55%, #4f46e5 100%)',
+            background: 'linear-gradient(145deg, #18181b 0%, #2e1065 55%, #4c1d95 100%)',
             padding: '2.25rem 2rem',
             color: '#ffffff',
             display: 'flex',
@@ -602,7 +635,7 @@ function LoginForm() {
                   type="checkbox"
                   checked={formData.rememberMe}
                   onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
-                  style={{ width: '15px', height: '15px', accentColor: '#2563eb' }}
+                  style={{ width: '15px', height: '15px', accentColor: '#7f22fe' }}
                 />
                 Remember session
               </label>
@@ -611,13 +644,13 @@ function LoginForm() {
                 href="/forgot-password"
                 style={{
                   fontSize: '0.8rem',
-                  color: '#2563eb',
+                  color: '#7f22fe',
                   fontWeight: 600,
                   textDecoration: 'none',
                   transition: 'color 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#1d4ed8')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#2563eb')}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#6b12df')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#7f22fe')}
               >
                 Forgot password?
               </Link>
@@ -630,13 +663,13 @@ function LoginForm() {
                 width: '100%',
                 padding: '0.82rem',
                 borderRadius: '9px',
-                background: loading ? '#93c5fd' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                background: loading ? '#c4b5fd' : 'linear-gradient(135deg, #7f22fe 0%, #6b12df 100%)',
                 border: 'none',
                 color: '#ffffff',
                 fontSize: '0.92rem',
                 fontWeight: 700,
                 cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.28)',
+                boxShadow: '0 4px 14px rgba(127, 34, 254, 0.35)',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
@@ -702,7 +735,7 @@ export default function UnifiedSuperAdminLoginPage() {
               width: '40px',
               height: '40px',
               border: '3px solid #e2e8f0',
-              borderTopColor: '#2563eb',
+              borderTopColor: '#7f22fe',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }}

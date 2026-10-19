@@ -16,14 +16,6 @@ export function CompanyAuthProvider({ children }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [activeCompany, setActiveCompany] = useState(globalActiveCompany);
-  const [authorizedCompanies, setAuthorizedCompanies] = useState(globalAuthorizedCompanies);
-  const [currentUser, setCurrentUser] = useState(globalCurrentUser);
-  const [isLoading, setIsLoading] = useState(!globalIsLoaded);
-  const [error, setError] = useState(null);
-
-  const isInitialLoadDone = useRef(globalIsLoaded);
-
   // Helper to read cached token
   const getStoredToken = () => {
     if (typeof window === 'undefined') return null;
@@ -46,6 +38,33 @@ export function CompanyAuthProvider({ children }) {
     }
   };
 
+  // Helper to read cached company structure
+  const getStoredCompany = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw =
+        localStorage.getItem('cached_company_data') ||
+        localStorage.getItem('company_user');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && (parsed.organizationName || parsed.name)) {
+        return {
+          id: String(parsed.companyId || parsed.id),
+          name: parsed.organizationName || parsed.name,
+          organizationName: parsed.organizationName || parsed.name,
+          email: parsed.email,
+          themeColor: parsed.themeColor || parsed.theme_color || '#7f22fe',
+          theme_color: parsed.themeColor || parsed.theme_color || '#7f22fe',
+          access: parsed.access || { services: [] },
+          status: parsed.status || 'ACTIVE',
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
   // Format role display label
   const formatRoleTitle = (role, departmentName) => {
     switch (role) {
@@ -60,9 +79,36 @@ export function CompanyAuthProvider({ children }) {
     }
   };
 
+  const initialComp = globalActiveCompany || getStoredCompany();
+  const initialUser = (() => {
+    if (globalCurrentUser) return globalCurrentUser;
+    const session = getStoredSession();
+    if (session) {
+      return {
+        ...session,
+        roleTitle: formatRoleTitle(session.role, session.departmentName),
+        isCompanyAdmin: session.role === 'COMPANY_ADMIN',
+        isDepartmentHead: session.role === 'DEPARTMENT_HEAD',
+        isEmployee: session.role === 'EMPLOYEE',
+      };
+    }
+    return null;
+  })();
+
+  const [activeCompany, setActiveCompany] = useState(initialComp);
+  const [authorizedCompanies, setAuthorizedCompanies] = useState(() => {
+    if (globalAuthorizedCompanies.length > 0) return globalAuthorizedCompanies;
+    return initialComp ? [initialComp] : [];
+  });
+  const [currentUser, setCurrentUser] = useState(initialUser);
+  const [isLoading, setIsLoading] = useState(() => !globalIsLoaded && !initialComp);
+  const [error, setError] = useState(null);
+
+  const isInitialLoadDone = useRef(globalIsLoaded);
+
   // Load and verify company user session ONCE (does NOT repeat on every pathname change)
   const loadCompanySession = useCallback(async (force = false) => {
-    if (isInitialLoadDone.current && !force) {
+    if ((globalIsLoaded || isInitialLoadDone.current) && !force) {
       return;
     }
 
@@ -71,7 +117,10 @@ export function CompanyAuthProvider({ children }) {
       return;
     }
 
-    setIsLoading(true);
+    // Never show full loading skeleton if user/company is already known
+    if (!globalCurrentUser && !getStoredSession()) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
@@ -81,10 +130,14 @@ export function CompanyAuthProvider({ children }) {
       // 1. Verify session with backend /api/auth/me
       if (token) {
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500);
           const res = await fetch(`${API_BASE}/auth/me`, {
             credentials: 'include',
             headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
           });
+          clearTimeout(timeoutId);
 
           if (res.ok) {
             const body = await res.json();
@@ -146,44 +199,46 @@ export function CompanyAuthProvider({ children }) {
       };
       setCurrentUser(userProfile);
 
-      // 4. Resolve company context from trusted identity
+      // 4. Resolve company context immediately from verifiedUser identity payload
       const targetCompanyId = verifiedUser.companyId || verifiedUser.clientAdminId;
 
-      let finalCompany = null;
-      let finalAuthorizedList = [];
+      let finalCompany = {
+        id: String(targetCompanyId || verifiedUser.id || 'default'),
+        name: verifiedUser.organizationName || verifiedUser.name || 'Company Workspace',
+        organizationName: verifiedUser.organizationName || verifiedUser.name || 'Company Workspace',
+        email: verifiedUser.email,
+        status: verifiedUser.status || 'ACTIVE',
+        themeColor: verifiedUser.themeColor || verifiedUser.theme_color || '#7f22fe',
+        theme_color: verifiedUser.theme_color || verifiedUser.themeColor || '#7f22fe',
+        access: verifiedUser.access || { services: [] },
+      };
 
-      if (targetCompanyId) {
-        try {
-          const compRes = await api.get(`/clients/${targetCompanyId}`);
-          const companyData = compRes?.data || null;
-          if (companyData) {
-            finalCompany = companyData;
-            finalAuthorizedList = [companyData];
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('active_company_id', String(companyData.id));
-            }
-          } else {
-            finalCompany = {
-              id: targetCompanyId,
-              name: verifiedUser.organizationName || verifiedUser.name,
-              organizationName: verifiedUser.organizationName || verifiedUser.name,
-              email: verifiedUser.email,
-              status: 'ACTIVE',
-            };
-          }
-        } catch {
-          finalCompany = {
-            id: targetCompanyId,
-            name: verifiedUser.organizationName || verifiedUser.name,
-            organizationName: verifiedUser.organizationName || verifiedUser.name,
-            email: verifiedUser.email,
-            status: 'ACTIVE',
-          };
-        }
+      let finalAuthorizedList = [finalCompany];
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('active_company_id', String(finalCompany.id));
+        localStorage.setItem('cached_company_data', JSON.stringify(finalCompany));
       }
 
       setActiveCompany(finalCompany);
       setAuthorizedCompanies(finalAuthorizedList);
+
+      // Non-blocking background sync for any updated metadata from /clients/:id
+      if (targetCompanyId) {
+        api.get(`/clients/${targetCompanyId}`).then(compRes => {
+          const companyData = compRes?.data || null;
+          if (companyData) {
+            setActiveCompany(prev => ({
+              ...prev,
+              ...companyData,
+              access: companyData.access || prev?.access,
+            }));
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('cached_company_data', JSON.stringify(companyData));
+            }
+          }
+        }).catch(() => {});
+      }
 
       globalCurrentUser = userProfile;
       globalActiveCompany = finalCompany;
@@ -199,6 +254,42 @@ export function CompanyAuthProvider({ children }) {
   }, [router]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      let cachedCompany = globalActiveCompany;
+      if (!cachedCompany) {
+        try {
+          const raw = localStorage.getItem('cached_company_data');
+          if (raw) cachedCompany = JSON.parse(raw);
+        } catch {}
+      }
+      const cached = globalCurrentUser || getStoredSession();
+      if (cached) {
+        const roleTitle = formatRoleTitle(cached.role, cached.departmentName);
+        const profile = {
+          ...cached,
+          roleTitle,
+          isCompanyAdmin: cached.role === 'COMPANY_ADMIN',
+          isDepartmentHead: cached.role === 'DEPARTMENT_HEAD',
+          isEmployee: cached.role === 'EMPLOYEE',
+        };
+        setCurrentUser(profile);
+        if (cachedCompany) {
+          setActiveCompany(cachedCompany);
+        }
+        setIsLoading(false);
+      }
+
+      // Revalidate automatically on tab focus or catalog update storage event
+      const handleRevalidate = () => {
+        loadCompanySession(true);
+      };
+      window.addEventListener('focus', handleRevalidate);
+      window.addEventListener('storage', handleRevalidate);
+      return () => {
+        window.removeEventListener('focus', handleRevalidate);
+        window.removeEventListener('storage', handleRevalidate);
+      };
+    }
     loadCompanySession();
   }, [loadCompanySession]);
 

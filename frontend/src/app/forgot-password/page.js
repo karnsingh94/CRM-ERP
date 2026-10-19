@@ -55,7 +55,7 @@ export default function SuperAdminForgotPasswordPage() {
     <div
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #EEF4FF 0%, #F5F3FF 45%, #EDE9FE 100%)',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f5f0ff 45%, #ede9fe 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -69,7 +69,7 @@ export default function SuperAdminForgotPasswordPage() {
           maxWidth: '460px',
           background: '#ffffff',
           borderRadius: '20px',
-          boxShadow: '0 20px 50px -15px rgba(37, 99, 235, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9)',
+          boxShadow: '0 20px 50px -15px rgba(127, 34, 254, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9)',
           padding: '2.5rem 2.25rem',
           boxSizing: 'border-box',
           animation: 'fadeInUp 0.3s ease-out',
@@ -84,9 +84,9 @@ export default function SuperAdminForgotPasswordPage() {
               gap: '0.55rem',
               padding: '0.35rem 0.8rem',
               borderRadius: '9999px',
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              color: '#2563eb',
+              background: '#f5f0ff',
+              border: '1px solid #ebdfff',
+              color: '#7f22fe',
               marginBottom: '1rem',
             }}
           >
@@ -105,9 +105,9 @@ export default function SuperAdminForgotPasswordPage() {
               width: '48px',
               height: '48px',
               borderRadius: '14px',
-              background: 'linear-gradient(135deg, #eff6ff 0%, #ede9fe 100%)',
-              border: '1px solid #c7d2fe',
-              color: '#2563eb',
+              background: 'linear-gradient(135deg, #f5f0ff 0%, #ede9fe 100%)',
+              border: '1px solid #d8bfff',
+              color: '#7f22fe',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -203,7 +203,7 @@ export default function SuperAdminForgotPasswordPage() {
                 <a
                   href={devResetLink}
                   style={{
-                    color: '#2563eb',
+                    color: '#7f22fe',
                     fontWeight: 600,
                     wordBreak: 'break-all',
                     textDecoration: 'underline',
@@ -221,7 +221,7 @@ export default function SuperAdminForgotPasswordPage() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.45rem',
-                  color: '#2563eb',
+                  color: '#7f22fe',
                   fontSize: '0.86rem',
                   fontWeight: 700,
                   textDecoration: 'none',
@@ -277,13 +277,13 @@ export default function SuperAdminForgotPasswordPage() {
                 width: '100%',
                 padding: '0.82rem',
                 borderRadius: '9px',
-                background: loading ? '#93c5fd' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                background: loading ? '#c4b5fd' : 'linear-gradient(135deg, #7f22fe 0%, #6b12df 100%)',
                 border: 'none',
                 color: '#ffffff',
                 fontSize: '0.92rem',
                 fontWeight: 700,
                 cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.28)',
+                boxShadow: '0 4px 14px rgba(127, 34, 254, 0.35)',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
@@ -324,7 +324,7 @@ export default function SuperAdminForgotPasswordPage() {
                   textDecoration: 'none',
                   transition: 'color 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#2563eb')}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#7f22fe')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = '#475569')}
               >
                 ← Back to Login

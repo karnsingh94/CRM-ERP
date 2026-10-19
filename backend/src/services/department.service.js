@@ -8,65 +8,15 @@ import auditService from './audit.service.js';
  */
 export const departmentService = {
   /**
-   * Get eligible employees for a company (with resilient fallback seeds)
+   * Get eligible employees for a company
    */
   async getCompanyEmployees(companyId) {
     const cid = BigInt(companyId);
-    let employees = await prisma.companyEmployee.findMany({
+    const employees = await prisma.companyEmployee.findMany({
       where: { companyId: cid },
       include: { department: true },
       orderBy: { createdAt: 'asc' },
     });
-
-    // Auto-seed initial eligible employees if none exist for this company
-    if (employees.length === 0) {
-      const company = await prisma.clientAdmin.findUnique({ where: { id: cid } });
-      if (company) {
-        const domain = company.email && company.email.includes('@') ? company.email.split('@')[1] : 'company.com';
-        const defaultSeeds = [
-          {
-            companyId: cid,
-            name: company.name,
-            email: company.email,
-            role: 'Company Administrator',
-            status: 'ACTIVE',
-          },
-          {
-            companyId: cid,
-            name: 'Rohan Mehra',
-            email: `rohan.sales@${domain}`,
-            role: 'Senior Sales Executive',
-            status: 'ACTIVE',
-          },
-          {
-            companyId: cid,
-            name: 'Pooja Nair',
-            email: `pooja.logistics@${domain}`,
-            role: 'Logistics & Inventory Officer',
-            status: 'ACTIVE',
-          },
-          {
-            companyId: cid,
-            name: 'Rajesh Verma',
-            email: `rajesh.purchase@${domain}`,
-            role: 'Procurement Specialist',
-            status: 'ACTIVE',
-          },
-        ];
-
-        for (const seed of defaultSeeds) {
-          try {
-            await prisma.companyEmployee.create({ data: seed });
-          } catch (_) {}
-        }
-
-        employees = await prisma.companyEmployee.findMany({
-          where: { companyId: cid },
-          include: { department: true },
-          orderBy: { createdAt: 'asc' },
-        });
-      }
-    }
 
     return employees.map(formatEmployee);
   },
@@ -154,6 +104,14 @@ export const departmentService = {
       throw error;
     }
 
+    // MANDATORY REQUIREMENT: Verify service is globally ACTIVE
+    if (service.status === 'INACTIVE') {
+      const error = new Error(`Access Denied: Service "${service.name}" is currently deactivated by Super Admin.`);
+      error.statusCode = 403;
+      error.code = 'SERVICE_INACTIVE';
+      throw error;
+    }
+
     // MANDATORY REQUIREMENT: Verify service is assigned to the company by Super Admin
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
       where: {
@@ -195,12 +153,16 @@ export const departmentService = {
   },
 
   /**
-   * Get all departments for a company across all assigned services
+   * Get all departments for a company across all assigned active services
    */
-  async getAllDepartmentsForCompany(companyId) {
+  async getAllDepartmentsForCompany(companyId, includeInactiveServices = false) {
     const cid = BigInt(companyId);
+    const where = { companyId: cid };
+    if (!includeInactiveServices) {
+      where.service = { status: 'ACTIVE' };
+    }
     const departments = await prisma.department.findMany({
-      where: { companyId: cid },
+      where,
       include: {
         service: true,
         head: true,
@@ -232,6 +194,14 @@ export const departmentService = {
     if (!service) {
       const error = new Error('Service not found in catalogue');
       error.statusCode = 404;
+      throw error;
+    }
+
+    // MANDATORY REQUIREMENT: Verify parent service is globally ACTIVE
+    if (service.status === 'INACTIVE') {
+      const error = new Error(`Department creation denied: Service "${service.name}" is currently deactivated by Super Admin.`);
+      error.statusCode = 403;
+      error.code = 'SERVICE_INACTIVE';
       throw error;
     }
 
@@ -364,6 +334,13 @@ export const departmentService = {
       throw error;
     }
 
+    if (existingDept.service?.status === 'INACTIVE') {
+      const error = new Error(`Operation denied: Service "${existingDept.service.name}" is currently deactivated by Super Admin.`);
+      error.statusCode = 403;
+      error.code = 'SERVICE_INACTIVE';
+      throw error;
+    }
+
     let validatedHeadId = existingDept.headId;
     if (data.headId !== undefined || data.head_id !== undefined) {
       const hId = data.headId || data.head_id;
@@ -440,6 +417,13 @@ export const departmentService = {
       throw error;
     }
 
+    if (existingDept.service?.status === 'INACTIVE') {
+      const error = new Error(`Operation denied: Service "${existingDept.service.name}" is currently deactivated by Super Admin.`);
+      error.statusCode = 403;
+      error.code = 'SERVICE_INACTIVE';
+      throw error;
+    }
+
     // Detach employees before deleting
     await prisma.companyEmployee.updateMany({
       where: { departmentId: did },
@@ -477,6 +461,13 @@ export const departmentService = {
     if (!existingDept) {
       const error = new Error('Department not found for this company');
       error.statusCode = 404;
+      throw error;
+    }
+
+    if (existingDept.service?.status === 'INACTIVE') {
+      const error = new Error(`Operation denied: Service "${existingDept.service.name}" is currently deactivated by Super Admin.`);
+      error.statusCode = 403;
+      error.code = 'SERVICE_INACTIVE';
       throw error;
     }
 

@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import { hashPassword } from '../utils/hash.js';
 import { formatClient, clientAccessInclude } from '../utils/formatters.js';
+import { signToken } from '../utils/token.js';
 import auditService from './audit.service.js';
 
 /**
@@ -46,6 +47,7 @@ export const companyService = {
           organizationName: data.organization_name.trim(),
           passwordHash,
           status: data.status || 'ACTIVE',
+          themeColor: data.themeColor || data.theme_color || '#7f22fe',
         },
       });
 
@@ -63,8 +65,9 @@ export const companyService = {
             organization: client.organizationName,
             email: client.email,
             status: client.status,
+            themeColor: client.themeColor,
           }),
-          reason: `Provisioned client panel for "${client.organizationName}"`,
+          reason: `Provisioned client panel for "${client.organizationName}" with theme ${client.themeColor || '#7f22fe'}`,
           ipAddress: meta.ip || '127.0.0.1',
           userAgent: meta.userAgent || null,
         },
@@ -95,6 +98,9 @@ export const companyService = {
       if (data.mobile !== undefined) updateData.mobile = data.mobile;
       if (data.organization_name !== undefined) updateData.organizationName = data.organization_name.trim();
       if (data.status !== undefined) updateData.status = data.status;
+      if (data.themeColor !== undefined || data.theme_color !== undefined) {
+        updateData.themeColor = data.themeColor || data.theme_color || '#7f22fe';
+      }
       if (data.password && data.password.trim()) {
         updateData.passwordHash = hashPassword(data.password.trim());
       }
@@ -281,16 +287,35 @@ export const companyService = {
 
   /**
    * List services actively assigned to a specific company
+   * Enforces global status rule: deactivated services are excluded for tenant clients
    */
-  async getCompanyAssignedServices(companyId) {
+  async getCompanyAssignedServices(companyId, includeInactive = false) {
     const cid = BigInt(companyId);
+    const where = {
+      clientAdminId: cid,
+      isAllowed: true,
+    };
+    if (!includeInactive) {
+      where.service = { status: 'ACTIVE' };
+    }
+
     const assigned = await prisma.clientServiceAccess.findMany({
-      where: {
-        clientAdminId: cid,
-        isAllowed: true,
-      },
+      where,
       include: {
-        service: true,
+        service: {
+          include: {
+            modules: {
+              where: includeInactive ? {} : { status: 'ACTIVE' },
+              include: {
+                subModules: {
+                  where: includeInactive ? {} : { status: 'ACTIVE' },
+                  orderBy: { orderNo: 'asc' },
+                },
+              },
+              orderBy: { orderNo: 'asc' },
+            },
+          },
+        },
       },
       orderBy: { service: { orderNo: 'asc' } },
     });
@@ -302,9 +327,83 @@ export const companyService = {
       name: sa.service.name,
       description: sa.service.description || '',
       status: sa.service.status,
-      isAllowed: sa.isAllowed,
+      isAllowed: sa.isAllowed && sa.service.status === 'ACTIVE',
+      rawIsAllowed: sa.isAllowed,
       isFullService: sa.isFullService,
+      modules: (sa.service.modules || []).map((m) => ({
+        id: m.id.toString(),
+        moduleId: m.id.toString(),
+        code: m.code,
+        name: m.name,
+        status: m.status,
+        isAllowed: m.status === 'ACTIVE',
+        subModules: (m.subModules || []).map((sm) => ({
+          id: sm.id.toString(),
+          code: sm.code,
+          name: sm.name,
+          route: sm.route || '',
+          status: sm.status,
+          isAllowed: sm.status === 'ACTIVE',
+        })),
+      })),
     }));
+  },
+
+  /**
+   * Super Admin switches directly into Client Admin panel (authenticated switch session)
+   */
+  async switchToClientPanel(clientId, meta = {}) {
+    const client = await prisma.clientAdmin.findUnique({
+      where: { id: BigInt(clientId) },
+      include: clientAccessInclude,
+    });
+    if (!client || client.deletedAt) {
+      const err = new Error('Client account not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const formatted = formatClient(client);
+    const userObj = {
+      id: client.id.toString(),
+      name: client.name,
+      email: client.email,
+      role: 'COMPANY_ADMIN',
+      companyId: client.id.toString(),
+      organizationName: client.organizationName,
+      themeColor: client.themeColor || '#7f22fe',
+      theme_color: client.themeColor || '#7f22fe',
+      access: formatted.access,
+      isImpersonated: true,
+      switchedBySuperAdmin: true,
+    };
+
+    const token = signToken({
+      userId: userObj.id,
+      name: userObj.name,
+      email: userObj.email,
+      role: 'COMPANY_ADMIN',
+      companyId: userObj.companyId,
+      organizationName: userObj.organizationName,
+      type: 'COMPANY_USER',
+      isImpersonated: true,
+      switchedBySuperAdmin: true,
+    });
+
+    await auditService.logAudit({
+      action: 'SWITCH_TO_CLIENT_PANEL',
+      entityType: 'CLIENT_ADMIN',
+      entityId: client.id,
+      reason: `Super Admin switched into panel of "${client.organizationName}" (${client.name})`,
+      ipAddress: meta.ip || '127.0.0.1',
+      userAgent: meta.userAgent || null,
+    });
+
+    return {
+      token,
+      user: userObj,
+      redirectUrl: '/dashboard',
+    };
   },
 };
 

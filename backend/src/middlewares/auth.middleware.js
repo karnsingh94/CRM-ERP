@@ -121,10 +121,96 @@ export async function validateCompanyAccess(req, res, next) {
   }
 }
 
+/**
+ * Submodule / Feature Screen Access Guard
+ * Enforces effective availability:
+ * Service is ACTIVE && Module is ACTIVE && Submodule is ACTIVE && Company Assigned
+ */
+export function validateSubModuleAccess(subModuleCodeOrRoute) {
+  return async (req, res, next) => {
+    try {
+      const { prisma } = await import('../config/prisma.js');
+      const subModule = await prisma.subModule.findFirst({
+        where: {
+          OR: [
+            { code: subModuleCodeOrRoute },
+            { route: subModuleCodeOrRoute },
+            { route: `/crm/${subModuleCodeOrRoute}` },
+          ],
+        },
+        include: {
+          module: {
+            include: {
+              service: true,
+            },
+          },
+        },
+      });
+
+      if (!subModule) {
+        return next();
+      }
+
+      // Check parent service status
+      if (subModule.module?.service?.status !== 'ACTIVE') {
+        return res.status(403).json({
+          success: false,
+          code: 'SERVICE_INACTIVE',
+          message: `Access denied: Parent service "${subModule.module?.service?.name || 'Unknown'}" is currently inactive.`,
+        });
+      }
+
+      // Check parent module status
+      if (subModule.module?.status !== 'ACTIVE') {
+        return res.status(403).json({
+          success: false,
+          code: 'MODULE_INACTIVE',
+          message: `Access denied: Parent module "${subModule.module?.name || 'Unknown'}" is currently inactive.`,
+        });
+      }
+
+      // Check submodule status
+      if (subModule.status !== 'ACTIVE') {
+        return res.status(403).json({
+          success: false,
+          code: 'SUBMODULE_INACTIVE',
+          message: `Access denied: Feature screen "${subModule.name}" is currently deactivated by Super Admin.`,
+        });
+      }
+
+      // Tenant isolation & assignment check if company context exists
+      const targetCompanyId = req.params?.companyId || req.user?.companyId;
+      if (targetCompanyId && req.user?.role !== 'SUPER_ADMIN') {
+        const companyIdBig = BigInt(targetCompanyId);
+        const serviceAccess = await prisma.clientServiceAccess.findFirst({
+          where: {
+            clientAdminId: companyIdBig,
+            serviceId: subModule.serviceId,
+            isAllowed: true,
+          },
+        });
+
+        if (!serviceAccess) {
+          return res.status(403).json({
+            success: false,
+            code: 'SERVICE_NOT_ASSIGNED',
+            message: `Access denied: Service "${subModule.module?.service?.name}" is not assigned to this company.`,
+          });
+        }
+      }
+
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
 export default {
   authenticate,
   requireAuth,
   requireSuperAdmin,
   requireCompanyUser,
   validateCompanyAccess,
+  validateSubModuleAccess,
 };

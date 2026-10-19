@@ -41,7 +41,7 @@ export default function CompanyDashboard({
       {/* 1. Header Banner */}
       <div
         style={{
-          background: 'linear-gradient(135deg, #0b1329 0%, #1e293b 100%)',
+          background: 'linear-gradient(135deg, #18181b 0%, #2e1065 60%, #4c1d95 100%)',
           borderRadius: '16px',
           padding: '2rem 2.25rem',
           color: '#ffffff',
@@ -50,7 +50,7 @@ export default function CompanyDashboard({
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '1.25rem',
-          boxShadow: '0 10px 25px -5px rgba(11, 19, 41, 0.25)',
+          boxShadow: '0 10px 25px -5px rgba(24, 24, 27, 0.25)',
         }}
       >
         <div>
@@ -61,23 +61,23 @@ export default function CompanyDashboard({
                 fontWeight: 800,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                background: 'rgba(56, 189, 248, 0.2)',
-                color: '#38bdf8',
-                border: '1px solid rgba(56, 189, 248, 0.35)',
+                background: 'rgba(127, 34, 254, 0.25)',
+                color: '#c4b5fd',
+                border: '1px solid rgba(127, 34, 254, 0.4)',
                 padding: '0.15rem 0.55rem',
                 borderRadius: '9999px',
               }}
             >
               Enterprise Tenant
             </span>
-            <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>• {todayFormatted}</span>
+            <span suppressHydrationWarning style={{ fontSize: '0.82rem', color: '#a1a1aa' }}>• {todayFormatted}</span>
           </div>
 
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.5px', color: '#ffffff' }}>
             Welcome, {activeCompany?.name || 'Company Admin'}!
           </h2>
-          <p style={{ fontSize: '0.9rem', color: '#cbd5e1', marginTop: '0.25rem' }}>
-            Operating Workspace for <strong style={{ color: '#38bdf8' }}>{activeCompany?.organizationName}</strong>
+          <p style={{ fontSize: '0.9rem', color: '#e4e4e7', marginTop: '0.25rem' }}>
+            Operating Workspace for <strong style={{ color: '#c4b5fd' }}>{activeCompany?.organizationName}</strong>
           </p>
         </div>
 
@@ -93,11 +93,11 @@ export default function CompanyDashboard({
                 gap: '0.5rem',
                 padding: '0.65rem 1.15rem',
                 borderRadius: '8px',
-                background: '#2563eb',
+                background: '#7f22fe',
                 color: '#ffffff',
                 fontWeight: 700,
                 fontSize: '0.85rem',
-                boxShadow: '0 4px 6px rgba(37, 99, 235, 0.3)',
+                boxShadow: '0 4px 12px rgba(127, 34, 254, 0.35)',
               }}
             >
               <IconPlus size={15} /> New Lead / Quote
@@ -171,19 +171,19 @@ export default function CompanyDashboard({
           <div
             style={{
               background: '#ffffff',
-              borderRadius: '12px',
-              padding: '1.15rem 1.25rem',
-              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.25rem 1.35rem',
+              border: '1px solid #e4e4e7',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             }}
           >
-            <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '0.74rem', color: '#71717a', fontWeight: 700, textTransform: 'uppercase' }}>
               Authorized Services
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#2563eb', margin: '0.2rem 0' }}>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#7f22fe', margin: '0.2rem 0' }}>
               {permittedServices.length} / 7
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>
               Assigned by Super Admin
             </div>
           </div>
@@ -191,19 +191,19 @@ export default function CompanyDashboard({
           <div
             style={{
               background: '#ffffff',
-              borderRadius: '12px',
-              padding: '1.15rem 1.25rem',
-              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.25rem 1.35rem',
+              border: '1px solid #e4e4e7',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             }}
           >
-            <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '0.74rem', color: '#71717a', fontWeight: 700, textTransform: 'uppercase' }}>
               Permitted Modules
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', margin: '0.2rem 0' }}>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#18181b', margin: '0.2rem 0' }}>
               {permittedServices.reduce((acc, s) => acc + (s.modules?.length || 0), 0)}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.72rem', color: '#7f22fe', fontWeight: 600 }}>
               Operational Feature Screens
             </div>
           </div>
@@ -211,19 +211,19 @@ export default function CompanyDashboard({
           <div
             style={{
               background: '#ffffff',
-              borderRadius: '12px',
-              padding: '1.15rem 1.25rem',
-              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.25rem 1.35rem',
+              border: '1px solid #e4e4e7',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             }}
           >
-            <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '0.74rem', color: '#71717a', fontWeight: 700, textTransform: 'uppercase' }}>
               Panel Status
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: activeCompany?.status === 'ACTIVE' ? '#16a34a' : '#d97706', margin: '0.2rem 0' }}>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: activeCompany?.status === 'ACTIVE' ? '#10b981' : '#f59e0b', margin: '0.2rem 0' }}>
               {activeCompany?.status || 'ACTIVE'}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.72rem', color: '#71717a', fontWeight: 600 }}>
               Tenant ID: #{activeCompany?.id}
             </div>
           </div>
@@ -231,19 +231,19 @@ export default function CompanyDashboard({
           <div
             style={{
               background: '#ffffff',
-              borderRadius: '12px',
-              padding: '1.15rem 1.25rem',
-              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.25rem 1.35rem',
+              border: '1px solid #e4e4e7',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             }}
           >
-            <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '0.74rem', color: '#71717a', fontWeight: 700, textTransform: 'uppercase' }}>
               Admin Profile
             </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0.35rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#18181b', margin: '0.35rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {activeCompany?.name || 'Authorized Admin'}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: '0.72rem', color: '#71717a', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {activeCompany?.email || 'Authenticated User'}
             </div>
           </div>
@@ -282,7 +282,7 @@ export default function CompanyDashboard({
               style={{
                 padding: '0.5rem 1rem',
                 borderRadius: '6px',
-                background: '#2563eb',
+                background: '#7f22fe',
                 color: '#ffffff',
                 fontWeight: 700,
                 fontSize: '0.8rem',
@@ -321,8 +321,8 @@ export default function CompanyDashboard({
                     width: '44px',
                     height: '44px',
                     borderRadius: '10px',
-                    background: '#eff6ff',
-                    color: '#2563eb',
+                    background: '#f5f0ff',
+                    color: '#7f22fe',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -651,8 +651,8 @@ export default function CompanyDashboard({
                   justifyContent: 'space-between',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#3b82f6';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.08)';
+                  e.currentTarget.style.borderColor = '#7f22fe';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(127, 34, 254, 0.12)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = '#e2e8f0';
@@ -668,8 +668,8 @@ export default function CompanyDashboard({
                       style={{
                         fontSize: '0.68rem',
                         fontWeight: 700,
-                        color: '#2563eb',
-                        background: '#eff6ff',
+                        color: '#7f22fe',
+                        background: '#f5f0ff',
                         padding: '0.15rem 0.45rem',
                         borderRadius: '4px',
                       }}

@@ -106,7 +106,7 @@ function ResetPasswordForm() {
     <div
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #EEF4FF 0%, #F5F3FF 45%, #EDE9FE 100%)',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f5f0ff 45%, #ede9fe 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -117,10 +117,10 @@ function ResetPasswordForm() {
       <div
         style={{
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '480px',
           background: '#ffffff',
           borderRadius: '20px',
-          boxShadow: '0 20px 50px -15px rgba(37, 99, 235, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9)',
+          boxShadow: '0 20px 50px -15px rgba(127, 34, 254, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9)',
           padding: '2.5rem 2.25rem',
           boxSizing: 'border-box',
           animation: 'fadeInUp 0.3s ease-out',
@@ -135,9 +135,9 @@ function ResetPasswordForm() {
               gap: '0.55rem',
               padding: '0.35rem 0.8rem',
               borderRadius: '9999px',
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              color: '#2563eb',
+              background: '#f5f0ff',
+              border: '1px solid #ebdfff',
+              color: '#7f22fe',
               marginBottom: '1rem',
             }}
           >
@@ -181,7 +181,7 @@ function ResetPasswordForm() {
               style={{
                 width: '28px',
                 height: '28px',
-                border: '3px solid #2563eb',
+                border: '3px solid #7f22fe',
                 borderTopColor: 'transparent',
                 borderRadius: '50%',
                 animation: 'spin 0.8s linear infinite',
@@ -223,11 +223,12 @@ function ResetPasswordForm() {
                   textAlign: 'center',
                   padding: '0.78rem',
                   borderRadius: '9px',
-                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  background: 'linear-gradient(135deg, #7f22fe 0%, #6b12df 100%)',
                   color: '#ffffff',
                   fontSize: '0.88rem',
                   fontWeight: 700,
                   textDecoration: 'none',
+                  boxShadow: '0 4px 14px rgba(127, 34, 254, 0.35)',
                 }}
               >
                 Request a New Reset Link
@@ -282,12 +283,12 @@ function ResetPasswordForm() {
                 textAlign: 'center',
                 padding: '0.82rem',
                 borderRadius: '9px',
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                background: 'linear-gradient(135deg, #7f22fe 0%, #6b12df 100%)',
                 color: '#ffffff',
                 fontSize: '0.92rem',
                 fontWeight: 700,
                 textDecoration: 'none',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.28)',
+                boxShadow: '0 4px 14px rgba(127, 34, 254, 0.28)',
               }}
             >
               Sign In to Workspace →
@@ -441,8 +442,8 @@ function ResetPasswordForm() {
                 borderRadius: '9px',
                 background:
                   loading || password.length < 8 || password !== confirmPassword
-                    ? '#93c5fd'
-                    : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    ? '#c4b5fd'
+                    : 'linear-gradient(135deg, #7f22fe 0%, #6b12df 100%)',
                 border: 'none',
                 color: '#ffffff',
                 fontSize: '0.92rem',
@@ -451,7 +452,7 @@ function ResetPasswordForm() {
                   loading || password.length < 8 || password !== confirmPassword
                     ? 'not-allowed'
                     : 'pointer',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.28)',
+                boxShadow: '0 4px 14px rgba(127, 34, 254, 0.35)',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
@@ -532,7 +533,7 @@ export default function SuperAdminResetPasswordPage() {
               width: '40px',
               height: '40px',
               border: '3px solid #e2e8f0',
-              borderTopColor: '#2563eb',
+              borderTopColor: '#7f22fe',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }}

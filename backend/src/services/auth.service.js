@@ -304,6 +304,8 @@ export const authService = {
           role: 'COMPANY_ADMIN',
           companyId: clientAdmin.id.toString(),
           organizationName: clientAdmin.organizationName,
+          themeColor: clientAdmin.themeColor || '#7f22fe',
+          theme_color: clientAdmin.themeColor || '#7f22fe',
           access: formatted.access,
         };
 
@@ -395,6 +397,8 @@ export const authService = {
           departmentName: employee.department?.name || null,
           departmentServiceCode: employee.department?.service?.code || null,
           organizationName: employee.clientAdmin.organizationName,
+          themeColor: employee.clientAdmin?.themeColor || '#7f22fe',
+          theme_color: employee.clientAdmin?.themeColor || '#7f22fe',
           access: formattedCompany.access,
         };
 
@@ -506,6 +510,8 @@ export const authService = {
             email: superAdmin.email,
             role: 'SUPER_ADMIN',
             status: superAdmin.status,
+            lastLoginAt: superAdmin.lastLoginAt,
+            createdAt: superAdmin.createdAt,
           };
         }
       } catch {}
@@ -534,6 +540,8 @@ export const authService = {
             role: 'COMPANY_ADMIN',
             organizationName: client.organizationName,
             companyId: client.id.toString(),
+            themeColor: client.themeColor || '#7f22fe',
+            theme_color: client.themeColor || '#7f22fe',
             access: formatted.access,
           };
         }
@@ -578,6 +586,8 @@ export const authService = {
             departmentName: employee.department?.name || null,
             departmentServiceCode: employee.department?.service?.code || null,
             organizationName: employee.clientAdmin?.organizationName || '',
+            themeColor: employee.clientAdmin?.themeColor || '#7f22fe',
+            theme_color: employee.clientAdmin?.themeColor || '#7f22fe',
             access: formattedCompany.access,
           };
         }
@@ -827,6 +837,143 @@ export const authService = {
     return {
       success: true,
       message: 'Your password has been reset successfully. You can now log in with your new credentials.',
+    };
+  },
+
+  /**
+   * Update Super Admin profile name
+   */
+  async updateSuperAdminProfile(userPayload, { name }, meta = {}) {
+    if (!userPayload || userPayload.role !== 'SUPER_ADMIN') {
+      const error = new Error('Access denied: Only Super Admin can update platform profile.');
+      error.statusCode = 403;
+      throw error;
+    }
+    const cleanName = (name || '').trim();
+    if (!cleanName || cleanName.length < 2) {
+      const error = new Error('Profile name must be at least 2 characters.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    let updatedUser = null;
+    try {
+      const updated = await prisma.superAdmin.update({
+        where: { id: BigInt(userPayload.userId) },
+        data: { name: cleanName },
+      });
+      updatedUser = {
+        id: updated.id.toString(),
+        name: updated.name,
+        email: updated.email,
+        role: 'SUPER_ADMIN',
+        status: updated.status,
+        lastLoginAt: updated.lastLoginAt,
+        createdAt: updated.createdAt,
+      };
+    } catch (err) {
+      BOOTSTRAP_SUPER_ADMIN.name = cleanName;
+      updatedUser = {
+        id: userPayload.userId,
+        name: cleanName,
+        email: userPayload.email,
+        role: 'SUPER_ADMIN',
+        status: 'ACTIVE',
+      };
+    }
+
+    await auditService.logAudit({
+      action: 'UPDATE_PROFILE',
+      entityType: 'SUPER_ADMIN',
+      entityId: userPayload.userId,
+      reason: `Super Admin profile updated name to "${cleanName}"`,
+      ipAddress: meta.ip || '127.0.0.1',
+      userAgent: meta.userAgent || null,
+    });
+
+    return {
+      success: true,
+      message: 'Super Admin profile updated successfully',
+      data: updatedUser,
+      user: updatedUser,
+    };
+  },
+
+  /**
+   * Update Super Admin password with current password verification
+   */
+  async updateSuperAdminPassword(userPayload, { currentPassword, newPassword }, meta = {}) {
+    if (!userPayload || userPayload.role !== 'SUPER_ADMIN') {
+      const error = new Error('Access denied: Only Super Admin can update platform password.');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    if (!currentPassword) {
+      const error = new Error('Current password is required.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      const error = new Error('New password must be at least 8 characters long.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const cleanEmail = (userPayload.email || '').trim().toLowerCase();
+    let superAdmin = null;
+    try {
+      superAdmin = await prisma.superAdmin.findUnique({
+        where: { id: BigInt(userPayload.userId) },
+      });
+    } catch {}
+
+    // Verify current password
+    let isCurrentValid = false;
+    if (PASSWORD_OVERRIDES.has(cleanEmail)) {
+      isCurrentValid = comparePassword(currentPassword, PASSWORD_OVERRIDES.get(cleanEmail));
+    } else if (superAdmin) {
+      isCurrentValid = comparePassword(currentPassword, superAdmin.passwordHash);
+    } else if (cleanEmail === BOOTSTRAP_SUPER_ADMIN.email && currentPassword === BOOTSTRAP_SUPER_ADMIN.password) {
+      isCurrentValid = true;
+    }
+
+    if (!isCurrentValid) {
+      const error = new Error('The current password entered is incorrect.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Hash new password
+    const newPasswordHash = hashPassword(newPassword);
+    PASSWORD_OVERRIDES.set(cleanEmail, newPasswordHash);
+
+    if (superAdmin) {
+      try {
+        await prisma.superAdmin.update({
+          where: { id: superAdmin.id },
+          data: { passwordHash: newPasswordHash },
+        });
+      } catch (err) {
+        logger.debug('Super Admin database password update deferred:', err.message);
+      }
+    } else if (cleanEmail === BOOTSTRAP_SUPER_ADMIN.email) {
+      BOOTSTRAP_SUPER_ADMIN.password = newPassword;
+    }
+
+    await auditService.logAudit({
+      action: 'UPDATE_PASSWORD',
+      entityType: 'SUPER_ADMIN',
+      entityId: userPayload.userId,
+      reason: `Super Admin password successfully updated for account ${cleanEmail}`,
+      ipAddress: meta.ip || '127.0.0.1',
+      userAgent: meta.userAgent || null,
+    });
+
+    return {
+      success: true,
+      message: 'Password updated successfully.',
     };
   },
 };

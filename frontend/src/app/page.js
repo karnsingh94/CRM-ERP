@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyCurrentSession } from '@/lib/auth';
+import { verifyCurrentSession, getStoredUser } from '@/lib/auth';
 import SuperAdminPortal from '@/components/super-admin/SuperAdminPortal';
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export default function RootHomePage() {
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isResolving, setIsResolving] = useState(true);
 
   useEffect(() => {
+    setIsMounted(true);
     let mounted = true;
 
     async function checkUserSession() {
@@ -27,7 +29,12 @@ export default function RootHomePage() {
         setCurrentUser(user);
       } catch (err) {
         console.error('Session check error:', err);
-        if (mounted) router.replace('/login');
+        const fallback = getStoredUser();
+        if (mounted && fallback) {
+          setCurrentUser(fallback);
+        } else if (mounted) {
+          router.replace('/login');
+        }
       } finally {
         if (mounted) setIsResolving(false);
       }
@@ -40,7 +47,7 @@ export default function RootHomePage() {
     };
   }, [router]);
 
-  if (isResolving) {
+  if (!isMounted || (isResolving && !currentUser)) {
     return (
       <div
         style={{
@@ -60,7 +67,7 @@ export default function RootHomePage() {
             width: '42px',
             height: '42px',
             border: '3px solid #e2e8f0',
-            borderTopColor: '#2563eb',
+            borderTopColor: '#7f22fe',
             borderRadius: '50%',
             animation: 'spin 0.8s linear infinite',
           }}

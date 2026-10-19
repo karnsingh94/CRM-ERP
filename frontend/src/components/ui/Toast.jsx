@@ -21,9 +21,9 @@ export default function ToastContainer({ toasts, onRemove }) {
         const isDanger = t.type === 'danger';
         const isWarning = t.type === 'warning';
 
-        const bg = isSuccess ? '#ecfdf5' : isDanger ? '#fef2f2' : isWarning ? '#fffbeb' : '#f0f9ff';
-        const border = isSuccess ? '#10b981' : isDanger ? '#ef4444' : isWarning ? '#f59e0b' : '#0284c7';
-        const text = isSuccess ? '#065f46' : isDanger ? '#991b1b' : isWarning ? '#92400e' : '#0369a1';
+        const bg = isSuccess ? '#ecfdf5' : isDanger ? '#fef2f2' : isWarning ? '#fffbeb' : '#f5f0ff';
+        const border = isSuccess ? '#10b981' : isDanger ? '#ef4444' : isWarning ? '#f59e0b' : '#7f22fe';
+        const text = isSuccess ? '#065f46' : isDanger ? '#991b1b' : isWarning ? '#92400e' : '#480b95';
         const icon = isSuccess ? '✅' : isDanger ? '⛔' : isWarning ? '⚠️' : 'ℹ️';
 
         return (

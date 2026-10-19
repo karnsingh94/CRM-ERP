@@ -6,36 +6,7 @@ import Modal from '../ui/Modal';
 import EmptyState from '../ui/EmptyState';
 
 export default function GrnModule({ activeCompany, showToast }) {
-  const [grns, setGrns] = useState([
-    {
-      id: 1,
-      grnNo: 'GRN-2026-104',
-      poRef: 'PO-2026-034',
-      vendor: 'Sterling Steel & Alloy Corp',
-      receiptDate: '2026-10-14',
-      item: 'Precision Cold-Rolled Steel Sheet',
-      orderedQty: 500,
-      receivedQty: 500,
-      acceptedQty: 495,
-      rejectedQty: 5,
-      qcStatus: 'PASSED',
-      warehouse: 'Main Warehouse - Bay 3',
-    },
-    {
-      id: 2,
-      grnNo: 'GRN-2026-105',
-      poRef: 'PO-2026-035',
-      vendor: 'PolyChem Polymers India',
-      receiptDate: '2026-10-13',
-      item: 'Polymer Resin Pellets Grade B',
-      orderedQty: 200,
-      receivedQty: 200,
-      acceptedQty: 200,
-      rejectedQty: 0,
-      qcStatus: 'PASSED',
-      warehouse: 'Chemical Depot A',
-    },
-  ]);
+  const [grns, setGrns] = useState([]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState({
@@ -89,12 +60,12 @@ export default function GrnModule({ activeCompany, showToast }) {
             alignItems: 'center',
             gap: '0.5rem',
             padding: '0.65rem 1.25rem',
-            background: '#2563eb',
+            background: '#7f22fe',
             color: '#ffffff',
             borderRadius: '8px',
             fontWeight: 700,
             fontSize: '0.86rem',
-            boxShadow: '0 4px 6px rgba(37, 99, 235, 0.25)',
+            boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
           }}
         >
           <IconPlus size={16} /> Record Inward GRN
@@ -102,54 +73,64 @@ export default function GrnModule({ activeCompany, showToast }) {
       </div>
 
       <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: 700 }}>
-                <th style={{ padding: '0.85rem 1.25rem' }}>GRN Number</th>
-                <th style={{ padding: '0.85rem 1rem' }}>PO Reference</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Supplier</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Material / Item</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Received / Accepted</th>
-                <th style={{ padding: '0.85rem 1rem' }}>QC Status</th>
-                <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>Put-away Location</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grns.map((g) => (
-                <tr key={g.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800, color: '#2563eb' }}>
-                    {g.grnNo}
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#475569' }}>
-                    {g.poRef}
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem', color: '#0f172a', fontWeight: 700 }}>
-                    {g.vendor}
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem', color: '#334155' }}>
-                    {g.item}
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem' }}>
-                    <span style={{ fontWeight: 700, color: '#0f172a' }}>{g.receivedQty}</span>
-                    <span style={{ color: '#10b981', fontWeight: 700 }}> ({g.acceptedQty} ok)</span>
-                    {g.rejectedQty > 0 && (
-                      <span style={{ color: '#ef4444', fontWeight: 700 }}> / {g.rejectedQty} rej</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem' }}>
-                    <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
-                      {g.qcStatus}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', color: '#64748b', fontSize: '0.78rem' }}>
-                    {g.warehouse}
-                  </td>
+        {grns.length === 0 ? (
+          <EmptyState
+            icon="📥"
+            title="No GRNs Recorded"
+            description="Record inward goods receipt notes against purchase orders and track inspection statuses."
+            actionLabel="Record GRN"
+            onAction={() => setShowAddModal(true)}
+          />
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: 700 }}>
+                  <th style={{ padding: '0.85rem 1.25rem' }}>GRN Number</th>
+                  <th style={{ padding: '0.85rem 1rem' }}>PO Reference</th>
+                  <th style={{ padding: '0.85rem 1rem' }}>Supplier</th>
+                  <th style={{ padding: '0.85rem 1rem' }}>Material / Item</th>
+                  <th style={{ padding: '0.85rem 1rem' }}>Received / Accepted</th>
+                  <th style={{ padding: '0.85rem 1rem' }}>QC Status</th>
+                  <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>Put-away Location</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {grns.map((g) => (
+                  <tr key={g.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800, color: '#7f22fe' }}>
+                      {g.grnNo}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#475569' }}>
+                      {g.poRef}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', color: '#0f172a', fontWeight: 700 }}>
+                      {g.vendor}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', color: '#334155' }}>
+                      {g.item}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>{g.receivedQty}</span>
+                      <span style={{ color: '#10b981', fontWeight: 700 }}> ({g.acceptedQty} ok)</span>
+                      {g.rejectedQty > 0 && (
+                        <span style={{ color: '#ef4444', fontWeight: 700 }}> / {g.rejectedQty} rej</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
+                        {g.qcStatus}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', color: '#64748b', fontSize: '0.78rem' }}>
+                      {g.warehouse}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Log Inward Goods Receipt Note (GRN)">
@@ -263,7 +244,7 @@ export default function GrnModule({ activeCompany, showToast }) {
             </button>
             <button
               type="submit"
-              style={{ padding: '0.6rem 1.35rem', borderRadius: '6px', border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 700 }}
+              style={{ padding: '0.6rem 1.35rem', borderRadius: '6px', border: 'none', background: '#7f22fe', color: '#ffffff', fontWeight: 700 }}
             >
               Confirm Inward GRN
             </button>

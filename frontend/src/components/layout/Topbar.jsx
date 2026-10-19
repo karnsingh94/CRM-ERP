@@ -59,6 +59,8 @@ export default function Topbar({
   const displayOrg = activeCompany?.organizationName || currentUser?.organizationName || '';
   const displayRole = currentUser?.roleTitle || (currentUser?.role === 'DEPARTMENT_HEAD' ? 'Department Head' : currentUser?.role === 'EMPLOYEE' ? 'Employee' : 'Company Admin');
   const userInitials = getInitials(displayName);
+  const brandColor = activeCompany?.theme_color || activeCompany?.themeColor || currentUser?.theme_color || currentUser?.themeColor || '#7f22fe';
+  const brandGlow = `${brandColor}4d`;
 
   return (
     <header
@@ -137,9 +139,9 @@ export default function Topbar({
               transition: 'all 0.2s ease',
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = '#3b82f6';
+              e.target.style.borderColor = brandColor;
               e.target.style.backgroundColor = '#ffffff';
-              e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.12)';
+              e.target.style.boxShadow = `0 0 0 3px ${brandGlow}`;
             }}
             onBlur={(e) => {
               e.target.style.borderColor = '#e2e8f0';
@@ -173,7 +175,7 @@ export default function Topbar({
               }}
               title="Switch Tenant Company"
             >
-              <IconBuilding size={16} className="text-primary" />
+              <IconBuilding size={16} style={{ color: brandColor }} />
               <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {activeCompany?.organizationName || 'Select Company'}
               </span>
@@ -227,8 +229,8 @@ export default function Topbar({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        backgroundColor: isSelected ? '#eff6ff' : 'transparent',
-                        color: isSelected ? '#2563eb' : '#334155',
+                        backgroundColor: isSelected ? '#f5f0ff' : 'transparent',
+                        color: isSelected ? brandColor : '#334155',
                         fontWeight: isSelected ? 700 : 500,
                         fontSize: '0.82rem',
                       }}
@@ -237,7 +239,7 @@ export default function Topbar({
                         <div>{c.organizationName}</div>
                         <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{c.name}</div>
                       </div>
-                      {isSelected && <span style={{ color: '#2563eb', fontWeight: 800 }}>✓</span>}
+                      {isSelected && <span style={{ color: brandColor, fontWeight: 800 }}>✓</span>}
                     </button>
                   );
                 })}
@@ -261,7 +263,7 @@ export default function Topbar({
             }}
             title={`Active Tenant: ${activeCompany.organizationName}`}
           >
-            <IconBuilding size={16} style={{ color: '#2563eb' }} />
+            <IconBuilding size={16} style={{ color: brandColor }} />
             <span style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {activeCompany.organizationName}
             </span>
@@ -289,13 +291,14 @@ export default function Topbar({
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
-                backgroundColor: '#2563eb',
+                backgroundColor: brandColor,
                 color: '#ffffff',
                 fontWeight: 800,
                 fontSize: '0.8rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                boxShadow: `0 2px 8px ${brandGlow}`,
               }}
             >
               {userInitials}
@@ -340,7 +343,7 @@ export default function Topbar({
                   {displayEmail || 'No email registered'}
                 </div>
                 {displayOrg && (
-                  <div style={{ fontSize: '0.74rem', color: '#2563eb', fontWeight: 600, marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.74rem', color: '#7f22fe', fontWeight: 600, marginTop: '2px' }}>
                     {displayOrg}
                   </div>
                 )}
@@ -350,9 +353,9 @@ export default function Topbar({
                     marginTop: '0.4rem',
                     fontSize: '0.68rem',
                     fontWeight: 700,
-                    color: '#0284c7',
-                    background: '#f0f9ff',
-                    border: '1px solid #bae6fd',
+                    color: '#7f22fe',
+                    background: '#f5f0ff',
+                    border: '1px solid #ebdfff',
                     padding: '0.1rem 0.45rem',
                     borderRadius: '9999px',
                     textTransform: 'uppercase',

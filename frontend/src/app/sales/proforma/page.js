@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function SalesProformaPage() {
-  return <CompanyAdminPortal initialTab="crm_sales:sales" initialSubTab="quotes" />;
+  return <CompanyAdminPortal initialTab="crm_sales:sales" initialSubTab="proforma" />;
 }

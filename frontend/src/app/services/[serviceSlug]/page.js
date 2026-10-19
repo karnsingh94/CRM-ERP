@@ -1,5 +1,7 @@
 import { Suspense } from 'react';
-import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
+import ServicePageClient from './ServicePageClient';
+
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   return [
@@ -17,6 +19,13 @@ export function generateStaticParams() {
     { serviceSlug: 'dispatch_returns' },
     { serviceSlug: 'accounts_banking' },
     { serviceSlug: 'permission_controls' },
+    { serviceSlug: '1' },
+    { serviceSlug: '2' },
+    { serviceSlug: '3' },
+    { serviceSlug: '4' },
+    { serviceSlug: '5' },
+    { serviceSlug: '6' },
+    { serviceSlug: '7' },
   ];
 }
 
@@ -25,21 +34,16 @@ export async function generateMetadata({ params }) {
   const slug = resolvedParams?.serviceSlug || 'service';
   const formatted = slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   return {
-    title: `${formatted} — AZZUNIQE Company Admin`,
-    description: `Assigned service operations and department management for ${formatted}`,
+    title: `${formatted} — AZZUNIQE Workspace`,
+    description: `Service management and details for ${formatted}`,
   };
 }
 
-async function ServiceContent({ params }) {
+export default async function ServicePage({ params }) {
   const resolvedParams = await params;
-  const slug = (resolvedParams?.serviceSlug || 'crm_sales').replace(/-/g, '_');
-  return <CompanyAdminPortal initialTab={`services:${slug}:departments`} />;
-}
-
-export default function ServicePage({ params }) {
   return (
     <Suspense fallback={<div style={{ padding: '2rem' }}>Loading service workspace...</div>}>
-      <ServiceContent params={params} />
+      <ServicePageClient serviceSlug={resolvedParams?.serviceSlug} />
     </Suspense>
   );
 }

@@ -13,7 +13,7 @@ export const companyController = {
 
   async createClient(req, res, next) {
     try {
-      const { name, email, mobile, organization_name, password, access, status } = req.body;
+      const { name, email, mobile, organization_name, password, access, status, theme_color, themeColor } = req.body;
       if (!name || !name.trim() || !email || !email.trim() || !organization_name || !organization_name.trim()) {
         return res.status(400).json({ success: false, message: 'Company name, admin name, and email are required.' });
       }
@@ -62,6 +62,12 @@ export const companyController = {
         });
       }
 
+      // Validate themeColor if provided (must be valid hex format, e.g. #7f22fe)
+      let selectedThemeColor = theme_color || themeColor || '#7f22fe';
+      if (selectedThemeColor && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(selectedThemeColor)) {
+        selectedThemeColor = '#7f22fe';
+      }
+
       const client = await companyService.createClient(
         {
           name: name.trim(),
@@ -71,6 +77,8 @@ export const companyController = {
           password: pwd,
           access,
           status,
+          themeColor: selectedThemeColor,
+          theme_color: selectedThemeColor,
         },
         req.meta || {}
       );
@@ -132,6 +140,16 @@ export const companyController = {
           });
         }
         req.body.password = pwd;
+      }
+
+      // Theme Color validation if provided
+      if (req.body.theme_color !== undefined || req.body.themeColor !== undefined) {
+        const rawColor = req.body.theme_color || req.body.themeColor;
+        if (rawColor && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(rawColor)) {
+          req.body.themeColor = rawColor;
+        } else {
+          req.body.themeColor = '#7f22fe';
+        }
       }
 
       const updated = await companyService.updateClient(req.params.id, req.body, req.meta || {});
@@ -196,8 +214,22 @@ export const companyController = {
   // ==================== ASSIGNED SERVICES ====================
   async getCompanyAssignedServices(req, res, next) {
     try {
-      const services = await companyService.getCompanyAssignedServices(req.params.companyId);
+      const includeInactive = req.query.include_inactive === 'true' && req.user?.role === 'SUPER_ADMIN';
+      const services = await companyService.getCompanyAssignedServices(req.params.companyId, includeInactive);
       res.json({ success: true, data: services });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async switchToClientPanel(req, res, next) {
+    try {
+      const result = await companyService.switchToClientPanel(req.params.id, req.meta || {});
+      res.json({
+        success: true,
+        message: `Switched into ${result.user.organizationName} panel`,
+        data: result,
+      });
     } catch (err) {
       next(err);
     }

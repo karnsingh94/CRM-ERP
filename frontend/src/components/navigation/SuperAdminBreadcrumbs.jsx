@@ -82,7 +82,7 @@ export default function SuperAdminBreadcrumbs({ selectedService = null }) {
                     transition: 'color 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = '#2563eb';
+                    e.currentTarget.style.color = '#7f22fe';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.color = '#64748b';

@@ -195,6 +195,54 @@ export const authController = {
       next(err);
     }
   },
+
+  /**
+   * Update Super Admin Profile Name
+   */
+  async updateSuperAdminProfile(req, res, next) {
+    try {
+      const { name } = req.body;
+      const meta = {
+        ip: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
+        userAgent: req.get('user-agent'),
+      };
+      const result = await authService.updateSuperAdminProfile(req.user, { name }, meta);
+      res.json(result);
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({
+          success: false,
+          message: err.message,
+          code: err.code || 'VALIDATION_ERROR',
+        });
+      }
+      next(err);
+    }
+  },
+
+  /**
+   * Update Super Admin Password
+   */
+  async updateSuperAdminPassword(req, res, next) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const meta = {
+        ip: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
+        userAgent: req.get('user-agent'),
+      };
+      const result = await authService.updateSuperAdminPassword(req.user, { currentPassword, newPassword }, meta);
+      res.json(result);
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({
+          success: false,
+          message: err.message,
+          code: err.code || 'PASSWORD_UPDATE_FAILED',
+        });
+      }
+      next(err);
+    }
+  },
 };
 
 export default authController;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -17,37 +17,11 @@ import {
   IconChevronRight,
   IconBuilding,
 } from '../ui/Icons';
+import { getHierarchyFromPathname } from '@/config/routes.config';
 
-// Route mappings for services and modules
-const SERVICE_DEFAULT_ROUTES = {
-  crm_sales: '/crm/leads',
-  purchase_vendor: '/procurement/orders',
-  inventory_warehouse: '/inventory',
-  manufacturing_production: '/production/orders',
-  dispatch_returns: '/dispatch',
-  accounts_banking: '/accounts/invoices',
-  permission_controls: '/team',
-};
-
-const MODULE_DEFAULT_ROUTES = {
-  crm: '/crm/leads',
-  product: '/products',
-  sales: '/sales/orders',
-  vendor: '/vendors',
-  procurement: '/procurement/orders',
-  grn: '/grn',
-  inventory_mgmt: '/inventory',
-  gate_pass: '/gate-pass/inward',
-  bom: '/bom',
-  production: '/production/orders',
-  dispatch: '/dispatch',
-  returns: '/returns',
-  accounts_banking: '/accounts/invoices',
-  permission_controls: '/team',
-};
-
-// Detailed sub-feature routes for dedicated navigation
-const MODULE_SUB_FEATURES = {
+// Canonical sub-page definitions mapped strictly to each submodule
+const SUBMODULE_PAGES = {
+  // 1. CRM & Sales
   crm: [
     { label: 'Leads Pipeline', href: '/crm/leads' },
     { label: 'Customers', href: '/crm/customers' },
@@ -57,16 +31,18 @@ const MODULE_SUB_FEATURES = {
   product: [
     { label: 'Product Directory', href: '/products' },
     { label: 'Categories', href: '/products/categories' },
-    { label: 'Pricing Specs', href: '/products/pricing' },
+    { label: 'Pricing & Plans', href: '/products/pricing' },
   ],
   sales: [
     { label: 'Sales Orders', href: '/sales/orders' },
     { label: 'Quotations', href: '/sales/quotations' },
     { label: 'Proforma Invoices', href: '/sales/proforma' },
   ],
+
+  // 2. Purchase & Vendor
   vendor: [
     { label: 'Vendor Directory', href: '/vendors' },
-    { label: 'Vendor Evaluation', href: '/vendors/evaluation' },
+    { label: 'Supplier Ratings', href: '/vendors/evaluation' },
   ],
   procurement: [
     { label: 'Purchase Orders', href: '/procurement/orders' },
@@ -77,6 +53,8 @@ const MODULE_SUB_FEATURES = {
     { label: 'Goods Receipts', href: '/grn' },
     { label: 'Quality Inspection', href: '/grn/inspection' },
   ],
+
+  // 3. Inventory & Warehouse
   inventory_mgmt: [
     { label: 'Stock Ledger', href: '/inventory' },
     { label: 'Warehouses & Bins', href: '/inventory/warehouses' },
@@ -88,6 +66,8 @@ const MODULE_SUB_FEATURES = {
     { label: 'Outward Gate Pass', href: '/gate-pass/outward' },
     { label: 'Returnable Register', href: '/gate-pass/returnable' },
   ],
+
+  // 4. Manufacturing & Production
   bom: [
     { label: 'BOM Master', href: '/bom' },
     { label: 'Formulas & Costing', href: '/bom/costing' },
@@ -97,6 +77,8 @@ const MODULE_SUB_FEATURES = {
     { label: 'Work Orders', href: '/production/work-orders' },
     { label: 'Material Consumption', href: '/production/consumption' },
   ],
+
+  // 5. Dispatch & Returns
   dispatch: [
     { label: 'Outbound Dispatch', href: '/dispatch' },
     { label: 'Delivery Challans', href: '/dispatch/challans' },
@@ -105,12 +87,16 @@ const MODULE_SUB_FEATURES = {
     { label: 'Customer Returns', href: '/returns' },
     { label: 'Supplier Restock', href: '/returns/restock' },
   ],
+
+  // 6. Accounts & Banking
   accounts_banking: [
     { label: 'Sales Invoices', href: '/accounts/invoices' },
     { label: 'Vendor Bills', href: '/accounts/bills' },
     { label: 'Payments & Receipts', href: '/accounts/payments' },
     { label: 'General Ledger', href: '/accounts/ledger' },
   ],
+
+  // 7. Permission Controls
   permission_controls: [
     { label: 'Team Members', href: '/team' },
     { label: 'Roles & Permissions', href: '/team/roles' },
@@ -118,76 +104,173 @@ const MODULE_SUB_FEATURES = {
   ],
 };
 
+const normalize = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function getPagesForModule(mod, hasSubModuleAccess) {
+  const allowedSubs = Array.isArray(mod?.subModules) ? mod.subModules : [];
+
+  const isPagePermitted = (page) => {
+    if (typeof hasSubModuleAccess === 'function') {
+      if (hasSubModuleAccess(page.href)) return true;
+      if (page.code && hasSubModuleAccess(page.code)) return true;
+    }
+    return allowedSubs.some((sub) => {
+      if (sub.route && page.href && sub.route.toLowerCase() === page.href.toLowerCase()) return true;
+      if (page.code && sub.code && page.code === sub.code) return true;
+      if (page.label && sub.name && normalize(page.label) === normalize(sub.name)) return true;
+      if (page.href === '/crm/leads' && (sub.code === 'leads' || sub.code === 'crm_leads')) return true;
+      if (page.href === '/crm/customers' && (sub.code === 'customers' || sub.code === 'crm_customers')) return true;
+      if (page.href === '/crm/contacts' && (sub.code === 'contacts' || sub.code === 'crm_contacts')) return true;
+      if (
+        (page.href === '/crm/opportunities' || page.href === '/crm/followups') &&
+        (sub.code === 'opportunities' || sub.code === 'crm_followups' || sub.code === 'followups')
+      ) return true;
+      // Product & Catalogue matching
+      if (
+        page.href === '/products' &&
+        (sub.code === 'product_master' || sub.code === 'product_list' || sub.code === 'products' || normalize(sub.name) === 'productdirectory' || normalize(sub.name) === 'productmaster')
+      ) return true;
+      if (
+        page.href === '/products/categories' &&
+        (sub.code === 'categories' || sub.code === 'product_categories' || normalize(sub.name).includes('categor'))
+      ) return true;
+      if (
+        page.href === '/products/pricing' &&
+        (sub.code === 'price_management' || sub.code === 'price_list' || sub.code === 'pricing' || normalize(sub.name).includes('pric'))
+      ) return true;
+      // Sales Operations matching
+      if (
+        page.href === '/sales/orders' &&
+        (sub.code === 'sales_orders' || sub.code === 'orders' || normalize(sub.name).includes('order'))
+      ) return true;
+      if (
+        page.href === '/sales/quotations' &&
+        (sub.code === 'sales_quotations' || sub.code === 'quotations' || sub.code === 'quotes' || normalize(sub.name).includes('quot'))
+      ) return true;
+      if (
+        page.href === '/sales/proforma' &&
+        (sub.code === 'sales_proforma_invoices' || sub.code === 'proforma_invoice' || sub.code === 'proforma' || normalize(sub.name).includes('proforma'))
+      ) return true;
+      return false;
+    });
+  };
+
+  if (SUBMODULE_PAGES[mod.code]) {
+    // If active submodules list or permission checker is provided, strictly filter
+    if (allowedSubs.length > 0 || typeof hasSubModuleAccess === 'function') {
+      return SUBMODULE_PAGES[mod.code].filter(isPagePermitted);
+    }
+    return SUBMODULE_PAGES[mod.code];
+  }
+
+  if (allowedSubs.length > 0) {
+    return allowedSubs.map((sub) => ({
+      label: sub.name,
+      href: sub.route,
+    }));
+  }
+
+  return [];
+}
+
 export default function Sidebar({
   activeTab,
   onSelectTab,
   activeCompany,
   permittedServices = [],
+  hasSubModuleAccess,
   isCollapsed = false,
   onToggleCollapse,
 }) {
   const pathname = usePathname() || '/dashboard';
 
-  // Automatically expand parent accordions when current pathname matches
-  const [expandedServices, setExpandedServices] = useState({
-    crm_sales: true,
-    purchase_vendor: true,
-    inventory_warehouse: true,
-    manufacturing_production: true,
-    dispatch_returns: true,
-    accounts_banking: true,
-    permission_controls: true,
+  // 1. Initial State Resolution from Active Route
+  const initialHierarchy = getHierarchyFromPathname(pathname);
+
+  // Rule 1: Exactly ONE main service can be expanded at a time
+  const [expandedService, setExpandedService] = useState(() => {
+    if (initialHierarchy.serviceCode) return initialHierarchy.serviceCode;
+    // CRM & Sales is default open only when route doesn't identify another service
+    return 'crm_sales';
   });
 
-  useEffect(() => {
-    if (pathname.includes('/departments')) {
-      const match = pathname.match(/\/services\/([^\/]+)\/departments/);
-      if (match) {
-        const sc = match[1].replace(/-/g, '_');
-        setExpandedServices(prev => ({ ...prev, [sc]: true }));
-      }
+  // Rule 2: Exactly ONE sibling submodule can be expanded within the active service
+  const [expandedSubmodule, setExpandedSubmodule] = useState(() => {
+    if (initialHierarchy.moduleCode) return initialHierarchy.moduleCode;
+    if (!initialHierarchy.serviceCode || initialHierarchy.serviceCode === 'crm_sales') {
+      return 'crm';
     }
-    if (pathname.startsWith('/crm') || pathname.startsWith('/products') || pathname.startsWith('/sales')) {
-      setExpandedServices(prev => ({ ...prev, crm_sales: true }));
-    } else if (pathname.startsWith('/vendors') || pathname.startsWith('/procurement') || pathname.startsWith('/grn')) {
-      setExpandedServices(prev => ({ ...prev, purchase_vendor: true }));
-    } else if (pathname.startsWith('/inventory') || pathname.startsWith('/gate-pass')) {
-      setExpandedServices(prev => ({ ...prev, inventory_warehouse: true }));
-    } else if (pathname.startsWith('/bom') || pathname.startsWith('/production')) {
-      setExpandedServices(prev => ({ ...prev, manufacturing_production: true }));
-    } else if (pathname.startsWith('/dispatch') || pathname.startsWith('/returns')) {
-      setExpandedServices(prev => ({ ...prev, dispatch_returns: true }));
-    } else if (pathname.startsWith('/accounts')) {
-      setExpandedServices(prev => ({ ...prev, accounts_banking: true }));
-    } else if (pathname.startsWith('/team')) {
-      setExpandedServices(prev => ({ ...prev, permission_controls: true }));
+    return null;
+  });
+
+  // 2. Synchronize Accordion with Route Changes
+  const lastPathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    if (lastPathnameRef.current !== pathname) {
+      lastPathnameRef.current = pathname;
+      const h = getHierarchyFromPathname(pathname);
+      if (h.serviceCode) {
+        setExpandedService(h.serviceCode);
+        if (h.moduleCode) {
+          setExpandedSubmodule(h.moduleCode);
+        } else if (h.isDepartmentRoute) {
+          // Keep submodules compact when on department management page
+          setExpandedSubmodule(null);
+        }
+      }
     }
   }, [pathname]);
 
-  const toggleServiceExpand = (code, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setExpandedServices(prev => ({
-      ...prev,
-      [code]: !prev[code],
-    }));
-  };
+  // 3. Manual Main Service Accordion Click Handler
+  const toggleService = (serviceCode) => {
+    if (expandedService === serviceCode) {
+      // Toggle collapse if already open
+      setExpandedService(null);
+      setExpandedSubmodule(null);
+    } else {
+      // Open selected service and close previously open service immediately (Rule 1)
+      setExpandedService(serviceCode);
 
-  // Map service icon codes to components
-  const renderServiceIcon = (code) => {
-    switch (code) {
-      case 'crm_sales': return <IconCRM size={17} />;
-      case 'purchase_vendor': return <IconTruck size={17} />;
-      case 'inventory_warehouse': return <IconLayers size={17} />;
-      case 'manufacturing_production': return <IconCpu size={17} />;
-      case 'dispatch_returns': return <IconPackage size={17} />;
-      case 'accounts_banking': return <IconCreditCard size={17} />;
-      case 'permission_controls': return <IconShield size={17} />;
-      default: return <IconLayers size={17} />;
+      // Rule 2: Open active submodule if this service contains current route, else open first submodule
+      const h = getHierarchyFromPathname(pathname);
+      if (h.serviceCode === serviceCode && h.moduleCode) {
+        setExpandedSubmodule(h.moduleCode);
+      } else {
+        const srv = permittedServices.find((s) => s.code === serviceCode);
+        const firstModCode = srv?.modules?.[0]?.code || null;
+        setExpandedSubmodule(firstModCode);
+      }
     }
   };
 
-  // Dynamic initials helper
+  // 4. Manual Submodule Accordion Click Handler
+  const toggleSubmodule = (modCode) => {
+    if (expandedSubmodule === modCode) {
+      // Toggle collapse if already open
+      setExpandedSubmodule(null);
+    } else {
+      // Open clicked submodule and close sibling submodules immediately (Rule 2)
+      setExpandedSubmodule(modCode);
+    }
+  };
+
+  // Render Service Icon
+  const renderServiceIcon = (code, isActive) => {
+    const iconColor = isActive ? '#a78bfa' : '#a1a1aa';
+    switch (code) {
+      case 'crm_sales': return <IconCRM size={17} style={{ color: iconColor }} />;
+      case 'purchase_vendor': return <IconTruck size={17} style={{ color: iconColor }} />;
+      case 'inventory_warehouse': return <IconLayers size={17} style={{ color: iconColor }} />;
+      case 'manufacturing_production': return <IconCpu size={17} style={{ color: iconColor }} />;
+      case 'dispatch_returns': return <IconPackage size={17} style={{ color: iconColor }} />;
+      case 'accounts_banking': return <IconCreditCard size={17} style={{ color: iconColor }} />;
+      case 'permission_controls': return <IconShield size={17} style={{ color: iconColor }} />;
+      default: return <IconLayers size={17} style={{ color: iconColor }} />;
+    }
+  };
+
+  // Initials generator
   const getInitials = (name) => {
     if (!name || typeof name !== 'string') return 'CA';
     const clean = name.trim();
@@ -200,33 +283,41 @@ export default function Sidebar({
   const companyInitials = getInitials(activeCompany?.organizationName || 'Company');
   const userInitials = getInitials(activeCompany?.name || 'Administrator');
 
+  const brandColor = activeCompany?.theme_color || activeCompany?.themeColor || '#7f22fe';
+  const brandGlow = `${brandColor}59`;
+  const brandSubtle = `${brandColor}24`;
+  const brandParent = `${brandColor}33`;
+
   return (
     <aside
       style={{
         width: isCollapsed ? '78px' : '270px',
-        backgroundColor: '#0b1329',
-        color: '#e2e8f0',
+        backgroundColor: '#18181b',
+        color: '#e4e4e7',
         minHeight: '100vh',
         height: '100vh',
         position: 'sticky',
         top: 0,
         display: 'flex',
         flexDirection: 'column',
-        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-        transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        borderRight: '1px solid #27272a',
+        transition: 'width 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
         zIndex: 50,
         overflow: 'hidden',
+        userSelect: 'none',
       }}
     >
-      {/* Sidebar Brand Header */}
+      {/* Brand Header */}
       <div
         style={{
           padding: isCollapsed ? '1.25rem 0.75rem' : '1.25rem 1.4rem',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid #27272a',
           display: 'flex',
           alignItems: 'center',
           gap: '0.85rem',
           justifyContent: isCollapsed ? 'center' : 'flex-start',
+          flexShrink: 0,
+          backgroundColor: '#18181b',
         }}
       >
         <div
@@ -234,7 +325,7 @@ export default function Sidebar({
             width: '38px',
             height: '38px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+            background: `linear-gradient(135deg, ${brandColor} 0%, ${brandColor}cc 100%)`,
             color: '#ffffff',
             display: 'flex',
             alignItems: 'center',
@@ -242,7 +333,7 @@ export default function Sidebar({
             fontWeight: 800,
             fontSize: '1rem',
             letterSpacing: '-0.5px',
-            boxShadow: '0 4px 10px rgba(37, 99, 235, 0.35)',
+            boxShadow: `0 4px 14px ${brandGlow}`,
             flexShrink: 0,
           }}
         >
@@ -260,6 +351,7 @@ export default function Sidebar({
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                margin: 0,
               }}
               title={activeCompany?.organizationName || 'Company Portal'}
             >
@@ -268,32 +360,42 @@ export default function Sidebar({
             <div
               style={{
                 fontSize: '0.72rem',
-                color: '#38bdf8',
+                color: '#a78bfa',
                 fontWeight: 700,
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.35rem',
-                marginTop: '1px',
+                marginTop: '2px',
               }}
             >
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8' }} />
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: '#a78bfa',
+                }}
+              />
               Company Admin
             </div>
           </div>
         )}
       </div>
 
-      {/* Navigation Links Area */}
+      {/* Navigation Area */}
       <nav
+        className="custom-scrollbar"
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: isCollapsed ? '1rem 0.5rem' : '1rem 0.85rem',
+          overflowX: 'hidden',
+          padding: isCollapsed ? '1rem 0.5rem' : '0.85rem 0.75rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.35rem',
+          gap: '0.25rem',
         }}
       >
         {/* Dashboard Link */}
@@ -306,21 +408,21 @@ export default function Sidebar({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.75rem',
-                padding: '0.68rem 0.85rem',
+                padding: '0.62rem 0.8rem',
                 borderRadius: '8px',
-                color: isDashboardActive ? '#ffffff' : '#94a3b8',
-                background: isDashboardActive ? '#2563eb' : 'transparent',
+                color: isDashboardActive ? '#ffffff' : '#a1a1aa',
+                background: isDashboardActive ? brandColor : 'transparent',
+                boxShadow: isDashboardActive ? `0 4px 14px ${brandGlow}` : 'none',
                 fontWeight: isDashboardActive ? 700 : 500,
-                fontSize: '0.86rem',
+                fontSize: '0.85rem',
                 width: '100%',
-                textAlign: 'left',
                 textDecoration: 'none',
                 transition: 'all 0.15s ease',
                 justifyContent: isCollapsed ? 'center' : 'flex-start',
               }}
               title="Overview Dashboard"
             >
-              <span style={{ color: isDashboardActive ? '#ffffff' : '#38bdf8', flexShrink: 0 }}>
+              <span style={{ color: isDashboardActive ? '#ffffff' : '#a78bfa', flexShrink: 0 }}>
                 <IconDashboard size={18} />
               </span>
               {!isCollapsed && <span>Dashboard</span>}
@@ -328,25 +430,24 @@ export default function Sidebar({
           );
         })()}
 
-        {/* Section Title */}
+        {/* Services Section Header */}
         {!isCollapsed && (
           <div
             style={{
-              fontSize: '0.7rem',
+              fontSize: '0.68rem',
               fontWeight: 800,
               textTransform: 'uppercase',
-              color: '#475569',
+              color: '#71717a',
               letterSpacing: '0.05em',
-              margin: '0.85rem 0 0.35rem 0.65rem',
+              margin: '0.75rem 0 0.25rem 0.5rem',
             }}
           >
             Assigned Services ({permittedServices.length})
           </div>
         )}
 
-        {/* Permitted Services & Feature Modules */}
+        {/* 4-Level Nested Hierarchy Accordion */}
         {permittedServices.map((service) => {
-          const defaultServiceRoute = SERVICE_DEFAULT_ROUTES[service.code] || '/dashboard';
           const serviceSlugKebab = service.code.replace(/_/g, '-');
           const isServiceActive = (
             (service.code === 'crm_sales' && (pathname.startsWith('/crm') || pathname.startsWith('/products') || pathname.startsWith('/sales'))) ||
@@ -359,81 +460,101 @@ export default function Sidebar({
             pathname.startsWith(`/services/${serviceSlugKebab}/departments`) ||
             pathname.startsWith(`/services/${service.code}/departments`)
           );
-          const isExpanded = expandedServices[service.code];
+
+          // Rule 1: Only ONE service expanded at a time
+          const isServiceExpanded = expandedService === service.code;
 
           return (
             <div key={service.code} style={{ display: 'flex', flexDirection: 'column' }}>
-              <div
+              {/* Level 1: Main Service Row */}
+              <button
+                type="button"
+                onClick={() => toggleService(service.code)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  padding: '0.6rem 0.75rem',
                   borderRadius: '8px',
-                  background: isServiceActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
-                  border: isServiceActive ? '1px solid rgba(37, 99, 235, 0.35)' : '1px solid transparent',
-                  transition: 'all 0.15s ease',
+                  background: isServiceActive
+                    ? brandSubtle
+                    : isServiceExpanded
+                    ? '#27272a'
+                    : 'transparent',
+                  border: isServiceActive
+                    ? `1px solid ${brandParent}`
+                    : '1px solid transparent',
+                  borderLeft: isServiceActive
+                    ? `3px solid ${brandColor}`
+                    : '1px solid transparent',
+                  color: isServiceActive || isServiceExpanded ? '#ffffff' : '#d4d4d8',
+                  fontWeight: isServiceActive ? 700 : 500,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                  width: '100%',
+                  textAlign: 'left',
+                  transition: 'background 0.15s ease, border-color 0.15s ease',
+                  justifyContent: isCollapsed ? 'center' : 'space-between',
                 }}
+                title={service.name}
               >
-                <Link
-                  href={defaultServiceRoute}
+                <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
-                    padding: '0.62rem 0.8rem',
-                    flex: 1,
                     minWidth: 0,
-                    textDecoration: 'none',
-                    color: isServiceActive ? '#ffffff' : '#cbd5e1',
-                    fontWeight: isServiceActive ? 700 : 500,
-                    fontSize: '0.85rem',
+                    overflow: 'hidden',
                   }}
-                  title={service.name}
                 >
-                  <span style={{ color: isServiceActive ? '#38bdf8' : '#94a3b8', flexShrink: 0 }}>
-                    {renderServiceIcon(service.code)}
+                  <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                    {renderServiceIcon(service.code, isServiceActive)}
                   </span>
                   {!isCollapsed && (
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span
+                      style={{
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
                       {service.name}
                     </span>
                   )}
-                </Link>
+                </div>
 
                 {!isCollapsed && service.modules?.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={(e) => toggleServiceExpand(service.code, e)}
+                  <span
                     style={{
-                      padding: '0.62rem 0.6rem',
-                      color: '#64748b',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
+                      color: isServiceActive ? '#a78bfa' : '#71717a',
                       display: 'flex',
                       alignItems: 'center',
+                      transform: isServiceExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      flexShrink: 0,
+                      marginLeft: '0.4rem',
                     }}
-                    aria-label={`Toggle ${service.name} submodules`}
                   >
-                    {isExpanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-                  </button>
+                    <IconChevronDown size={14} />
+                  </span>
                 )}
-              </div>
+              </button>
 
-              {/* Sub-Module Links Accordion */}
-              {!isCollapsed && isExpanded && service.modules?.length > 0 && (
+              {/* Sub-Content (Only rendered when service is expanded) */}
+              {!isCollapsed && isServiceExpanded && (
                 <div
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    paddingLeft: '1.25rem',
-                    margin: '0.2rem 0',
-                    borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-                    marginLeft: '1.25rem',
-                    gap: '0.25rem',
+                    paddingLeft: '0.85rem',
+                    marginLeft: '1.2rem',
+                    borderLeft: '1px solid #27272a',
+                    marginTop: '0.2rem',
+                    marginBottom: '0.35rem',
+                    gap: '0.2rem',
                   }}
                 >
-                  {/* Service Department Management Tab / Link */}
+                  {/* Level 2: Department Grouping Link */}
                   {(() => {
                     const deptRoute = `/services/${serviceSlugKebab}/departments`;
                     const isDeptActive = (
@@ -445,31 +566,31 @@ export default function Sidebar({
                       <Link
                         href={deptRoute}
                         style={{
-                          padding: '0.42rem 0.65rem',
-                          borderRadius: '6px',
-                          color: isDeptActive ? '#38bdf8' : '#cbd5e1',
-                          background: isDeptActive ? 'rgba(56, 189, 248, 0.16)' : 'transparent',
-                          fontWeight: isDeptActive ? 700 : 500,
-                          fontSize: '0.78rem',
-                          textAlign: 'left',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
+                          padding: '0.42rem 0.65rem',
+                          borderRadius: '6px',
+                          color: isDeptActive ? '#c4b5fd' : '#d4d4d8',
+                          background: isDeptActive ? brandParent : 'transparent',
+                          fontWeight: isDeptActive ? 700 : 500,
+                          fontSize: '0.78rem',
                           textDecoration: 'none',
                           transition: 'all 0.15s ease',
-                          marginBottom: '0.15rem',
+                          marginBottom: '0.25rem',
                         }}
+                        title={`Manage departments under ${service.name}`}
                       >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                           <span style={{ fontSize: '0.82rem' }}>🏢</span>
                           <span>Departments</span>
                         </span>
                         <span
                           style={{
-                            fontSize: '0.65rem',
+                            fontSize: '0.64rem',
                             fontWeight: 700,
-                            color: isDeptActive ? '#38bdf8' : '#64748b',
-                            background: isDeptActive ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.06)',
+                            color: isDeptActive ? '#ffffff' : '#71717a',
+                            background: isDeptActive ? brandParent : 'rgba(255,255,255,0.06)',
                             padding: '1px 5px',
                             borderRadius: '4px',
                           }}
@@ -480,96 +601,140 @@ export default function Sidebar({
                     );
                   })()}
 
-                  {service.modules.map((mod) => {
-                    const modRoute = MODULE_DEFAULT_ROUTES[mod.code] || defaultServiceRoute;
-                    const subFeatures = MODULE_SUB_FEATURES[mod.code] || [];
-                    const isModActive = (
-                      (modRoute !== '/dashboard' && pathname.startsWith(modRoute)) ||
-                      subFeatures.some(sub => pathname === sub.href)
-                    );
+                  {/* Level 3: Submodules */}
+                  {service.modules?.map((mod) => {
+                    const pages = getPagesForModule(mod, hasSubModuleAccess);
+                    const isSubExpanded = expandedSubmodule === mod.code;
+                    const isModActive = pages.some((p) => pathname === p.href) || pathname.startsWith(`/${mod.code}`);
 
                     return (
-                      <div key={mod.code} style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                        <Link
-                          href={modRoute}
+                      <div key={mod.code} style={{ display: 'flex', flexDirection: 'column' }}>
+                        {/* Submodule Header Button (Rule 2: toggles only this submodule, closes siblings) */}
+                        <button
+                          type="button"
+                          onClick={() => toggleSubmodule(mod.code)}
                           style={{
-                            padding: '0.42rem 0.65rem',
-                            borderRadius: '6px',
-                            color: isModActive ? '#38bdf8' : '#94a3b8',
-                            background: isModActive ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
-                            fontWeight: isModActive ? 700 : 500,
-                            fontSize: '0.78rem',
-                            textAlign: 'left',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            textDecoration: 'none',
+                            padding: '0.42rem 0.65rem',
+                            borderRadius: '6px',
+                            color: isModActive || isSubExpanded ? '#ffffff' : '#a1a1aa',
+                            background: isModActive
+                              ? brandSubtle
+                              : isSubExpanded
+                              ? '#27272a'
+                              : 'transparent',
+                            fontWeight: isModActive || isSubExpanded ? 700 : 500,
+                            fontSize: '0.78rem',
+                            cursor: 'pointer',
+                            border: 'none',
+                            textAlign: 'left',
+                            width: '100%',
                             transition: 'all 0.15s ease',
                           }}
+                          title={mod.name}
                         >
-                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span
+                            style={{
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
                             {mod.name}
                           </span>
-                          {subFeatures.length > 0 && (
-                            <span
-                              style={{
-                                fontSize: '0.65rem',
-                                color: isModActive ? '#38bdf8' : '#64748b',
-                                background: 'rgba(255,255,255,0.06)',
-                                padding: '1px 5px',
-                                borderRadius: '4px',
-                                fontWeight: 700,
-                              }}
-                            >
-                              {subFeatures.length}
-                            </span>
-                          )}
-                        </Link>
 
-                        {/* Sub-Feature Items */}
-                        {subFeatures.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                            {pages.length > 0 && (
+                              <span
+                                style={{
+                                  fontSize: '0.65rem',
+                                  color: isModActive ? '#c4b5fd' : '#71717a',
+                                  background: 'rgba(255,255,255,0.06)',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {pages.length}
+                              </span>
+                            )}
+                            {pages.length > 0 && (
+                              <span
+                                style={{
+                                  color: isModActive ? '#a78bfa' : '#71717a',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  transform: isSubExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                                }}
+                              >
+                                <IconChevronDown size={12} />
+                              </span>
+                            )}
+                          </div>
+                        </button>
+
+                        {/* Level 4: Individual Child Pages (Rule 2 & 3: rendered ONLY when this submodule is expanded) */}
+                        {isSubExpanded && pages.length > 0 && (
                           <div
                             style={{
                               display: 'flex',
                               flexDirection: 'column',
                               paddingLeft: '0.75rem',
-                              marginLeft: '0.45rem',
-                              borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-                              gap: '0.1rem',
-                              margin: '0.1rem 0 0.25rem 0',
+                              marginLeft: '0.55rem',
+                              borderLeft: '1px solid #27272a',
+                              gap: '0.12rem',
+                              marginTop: '0.15rem',
+                              marginBottom: '0.3rem',
                             }}
                           >
-                            {subFeatures.map((sub) => {
-                              const isSubActive = pathname === sub.href;
+                            {pages.map((page) => {
+                              const isPageActive = pathname === page.href;
                               return (
                                 <Link
-                                  key={sub.href}
-                                  href={sub.href}
+                                  key={page.href}
+                                  href={page.href}
                                   style={{
-                                    padding: '0.32rem 0.55rem',
-                                    borderRadius: '5px',
-                                    fontSize: '0.74rem',
-                                    color: isSubActive ? '#ffffff' : '#94a3b8',
-                                    background: isSubActive ? 'rgba(56, 189, 248, 0.22)' : 'transparent',
-                                    fontWeight: isSubActive ? 700 : 500,
-                                    textDecoration: 'none',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.4rem',
+                                    gap: '0.45rem',
+                                    padding: '0.34rem 0.55rem',
+                                    borderRadius: '5px',
+                                    fontSize: '0.74rem',
+                                    color: isPageActive ? '#ffffff' : '#a1a1aa',
+                                    background: isPageActive
+                                      ? brandParent
+                                      : 'transparent',
+                                    fontWeight: isPageActive ? 700 : 500,
+                                    textDecoration: 'none',
                                     transition: 'all 0.15s ease',
                                   }}
+                                  title={page.label}
                                 >
                                   <span
                                     style={{
-                                      width: '4px',
-                                      height: '4px',
+                                      width: '5px',
+                                      height: '5px',
                                       borderRadius: '50%',
-                                      backgroundColor: isSubActive ? '#38bdf8' : 'rgba(255,255,255,0.2)',
+                                      backgroundColor: isPageActive
+                                        ? brandColor
+                                        : 'rgba(255, 255, 255, 0.25)',
+                                      boxShadow: isPageActive
+                                        ? `0 0 6px ${brandColor}`
+                                        : 'none',
                                       flexShrink: 0,
                                     }}
                                   />
-                                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {sub.label}
+                                  <span
+                                    style={{
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}
+                                  >
+                                    {page.label}
                                   </span>
                                 </Link>
                               );
@@ -589,12 +754,12 @@ export default function Sidebar({
         {!isCollapsed && (
           <div
             style={{
-              fontSize: '0.7rem',
+              fontSize: '0.68rem',
               fontWeight: 800,
               textTransform: 'uppercase',
-              color: '#475569',
+              color: '#71717a',
               letterSpacing: '0.05em',
-              margin: '1rem 0 0.35rem 0.65rem',
+              margin: '0.85rem 0 0.25rem 0.5rem',
             }}
           >
             Company &amp; Preferences
@@ -610,21 +775,21 @@ export default function Sidebar({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.75rem',
-                padding: '0.68rem 0.85rem',
+                padding: '0.62rem 0.8rem',
                 borderRadius: '8px',
-                color: isSettingsActive ? '#ffffff' : '#94a3b8',
-                background: isSettingsActive ? '#2563eb' : 'transparent',
+                color: isSettingsActive ? '#ffffff' : '#a1a1aa',
+                background: isSettingsActive ? brandColor : 'transparent',
+                boxShadow: isSettingsActive ? `0 4px 14px ${brandGlow}` : 'none',
                 fontWeight: isSettingsActive ? 700 : 500,
-                fontSize: '0.86rem',
+                fontSize: '0.85rem',
                 width: '100%',
-                textAlign: 'left',
                 textDecoration: 'none',
                 justifyContent: isCollapsed ? 'center' : 'flex-start',
                 transition: 'all 0.15s ease',
               }}
               title="Company Profile & Settings"
             >
-              <span style={{ color: isSettingsActive ? '#ffffff' : '#38bdf8' }}>
+              <span style={{ color: isSettingsActive ? '#ffffff' : '#a78bfa', flexShrink: 0 }}>
                 <IconSettings size={18} />
               </span>
               {!isCollapsed && <span>Company Settings</span>}
@@ -633,12 +798,13 @@ export default function Sidebar({
         })()}
       </nav>
 
-      {/* Sidebar Footer User Card */}
+      {/* Footer User Card */}
       <div
         style={{
-          padding: isCollapsed ? '1rem 0.5rem' : '1rem 1.25rem',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          backgroundColor: '#070d1e',
+          padding: isCollapsed ? '0.85rem 0.5rem' : '0.85rem 1.15rem',
+          borderTop: '1px solid #27272a',
+          backgroundColor: '#121215',
+          flexShrink: 0,
         }}
       >
         <div
@@ -654,15 +820,15 @@ export default function Sidebar({
               width: '36px',
               height: '36px',
               borderRadius: '8px',
-              backgroundColor: '#1e293b',
-              color: '#38bdf8',
+              backgroundColor: '#27272a',
+              color: '#a78bfa',
               fontWeight: 800,
               fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
-              border: '1px solid rgba(56, 189, 248, 0.3)',
+              border: `1px solid ${brandParent}`,
             }}
           >
             {userInitials}
@@ -672,12 +838,13 @@ export default function Sidebar({
             <div style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
-                  fontSize: '0.85rem',
+                  fontSize: '0.84rem',
                   fontWeight: 700,
                   color: '#ffffff',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
+                  margin: 0,
                 }}
                 title={activeCompany?.name || 'Administrator'}
               >
@@ -686,7 +853,7 @@ export default function Sidebar({
               <div
                 style={{
                   fontSize: '0.7rem',
-                  color: '#94a3b8',
+                  color: '#a1a1aa',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',

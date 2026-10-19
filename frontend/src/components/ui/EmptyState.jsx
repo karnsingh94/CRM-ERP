@@ -32,11 +32,12 @@ export default function EmptyState({
           style={{
             marginTop: '1.25rem',
             padding: '0.6rem 1.25rem',
-            background: '#2563eb',
+            background: '#7f22fe',
             color: '#ffffff',
             borderRadius: '8px',
             fontSize: '0.85rem',
             fontWeight: 700,
+            boxShadow: '0 4px 12px rgba(127, 34, 254, 0.25)',
           }}
         >
           {actionLabel}

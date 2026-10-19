@@ -2,17 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyCurrentSession } from '@/lib/auth';
+import { verifyCurrentSession, getStoredUser } from '@/lib/auth';
 import SuperAdminPortal from '@/components/super-admin/SuperAdminPortal';
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export default function UnifiedDashboardPage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isResolving, setIsResolving] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => getStoredUser());
+  const [isResolving, setIsResolving] = useState(() => !getStoredUser());
 
   useEffect(() => {
+    setIsMounted(true);
     let mounted = true;
+
     async function resolveSession() {
       try {
         const user = await verifyCurrentSession();
@@ -23,7 +26,12 @@ export default function UnifiedDashboardPage() {
         }
         setCurrentUser(user);
       } catch {
-        if (mounted) router.replace('/login?redirect=/dashboard');
+        const fallback = getStoredUser();
+        if (mounted && fallback) {
+          setCurrentUser(fallback);
+        } else if (mounted) {
+          router.replace('/login?redirect=/dashboard');
+        }
       } finally {
         if (mounted) setIsResolving(false);
       }
@@ -34,7 +42,7 @@ export default function UnifiedDashboardPage() {
     };
   }, [router]);
 
-  if (isResolving) {
+  if (!isMounted || (isResolving && !currentUser)) {
     return (
       <div
         style={{
@@ -54,7 +62,7 @@ export default function UnifiedDashboardPage() {
             width: '42px',
             height: '42px',
             border: '3px solid #e2e8f0',
-            borderTopColor: '#2563eb',
+            borderTopColor: '#7f22fe',
             borderRadius: '50%',
             animation: 'spin 0.8s linear infinite',
           }}

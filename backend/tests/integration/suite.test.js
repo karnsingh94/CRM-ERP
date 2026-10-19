@@ -244,7 +244,9 @@ export async function runIntegrationTestSuite() {
 }
 
 // Auto-run when executed directly
-if (import.meta.url === `file://${process.argv[1]}`.replace(/\\/g, '/')) {
+import { fileURLToPath } from 'url';
+const currentFilePath = fileURLToPath(import.meta.url);
+if (process.argv[1] && (currentFilePath.toLowerCase() === process.argv[1].toLowerCase() || process.argv[1].includes('suite.test.js'))) {
   runIntegrationTestSuite()
     .then((result) => {
       if (!result.success) process.exit(1);

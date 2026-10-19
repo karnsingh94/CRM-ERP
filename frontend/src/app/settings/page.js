@@ -2,17 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyCurrentSession } from '@/lib/auth';
+import { verifyCurrentSession, getStoredUser } from '@/lib/auth';
 import SuperAdminPortal from '@/components/super-admin/SuperAdminPortal';
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export default function UnifiedSettingsPage() {
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isResolving, setIsResolving] = useState(true);
 
   useEffect(() => {
+    setIsMounted(true);
     let mounted = true;
+
+    const cachedUser = getStoredUser();
+    if (cachedUser) {
+      setCurrentUser(cachedUser);
+      setIsResolving(false);
+    }
+
     async function resolveSession() {
       try {
         const user = await verifyCurrentSession();
@@ -23,7 +32,7 @@ export default function UnifiedSettingsPage() {
         }
         setCurrentUser(user);
       } catch {
-        if (mounted) router.replace('/login?redirect=/settings');
+        if (mounted && !cachedUser && !currentUser) router.replace('/login?redirect=/settings');
       } finally {
         if (mounted) setIsResolving(false);
       }
@@ -34,7 +43,7 @@ export default function UnifiedSettingsPage() {
     };
   }, [router]);
 
-  if (isResolving) {
+  if (!isMounted || (isResolving && !currentUser)) {
     return (
       <div
         style={{
@@ -54,7 +63,7 @@ export default function UnifiedSettingsPage() {
             width: '42px',
             height: '42px',
             border: '3px solid #e2e8f0',
-            borderTopColor: '#2563eb',
+            borderTopColor: '#7f22fe',
             borderRadius: '50%',
             animation: 'spin 0.8s linear infinite',
           }}

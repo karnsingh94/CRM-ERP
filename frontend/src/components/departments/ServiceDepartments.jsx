@@ -24,13 +24,13 @@ import LoadingSkeleton from '../ui/LoadingSkeleton';
 
 // Service metadata helper
 const SERVICE_META = {
-  crm_sales: { name: 'CRM & Sales', icon: IconCRM, color: '#2563eb' },
+  crm_sales: { name: 'CRM & Sales', icon: IconCRM, color: '#7f22fe' },
   purchase_vendor: { name: 'Purchase & Vendor', icon: IconTruck, color: '#059669' },
   inventory_warehouse: { name: 'Inventory & Warehouse', icon: IconLayers, color: '#d97706' },
   manufacturing_production: { name: 'Manufacturing & Production', icon: IconCpu, color: '#7c3aed' },
   dispatch_returns: { name: 'Dispatch & Returns', icon: IconPackage, color: '#0891b2' },
   accounts_banking: { name: 'Accounts & Banking', icon: IconCreditCard, color: '#dc2626' },
-  permission_controls: { name: 'Permission Controls', icon: IconShield, color: '#4f46e5' },
+  permission_controls: { name: 'Permission Controls', icon: IconShield, color: '#7f22fe' },
 };
 
 export default function ServiceDepartments({
@@ -43,7 +43,7 @@ export default function ServiceDepartments({
   const serviceMeta = SERVICE_META[normalizedCode] || {
     name: normalizedCode.replace(/_/g, ' ').toUpperCase(),
     icon: IconLayers,
-    color: '#2563eb',
+    color: '#7f22fe',
   };
   const ServiceIcon = serviceMeta.icon;
 
@@ -158,7 +158,7 @@ export default function ServiceDepartments({
     setFormData((prev) => ({
       ...prev,
       name: val,
-      code: prev.code === '' || prev.code === prev.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40) ? autoCode : prev.code,
+      code: prev.code === '' || prev.code === (prev.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40) ? autoCode : prev.code,
     }));
   };
 
@@ -303,12 +303,14 @@ export default function ServiceDepartments({
   };
 
   // Filtered departments
-  const filteredDepartments = departments.filter((dept) => {
-    const q = searchQuery.toLowerCase();
+  const filteredDepartments = (departments || []).filter((dept) => {
+    if (!dept) return false;
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return true;
     return (
-      dept.name.toLowerCase().includes(q) ||
-      dept.code.toLowerCase().includes(q) ||
-      (dept.head?.name && dept.head.name.toLowerCase().includes(q))
+      String(dept.name || '').toLowerCase().includes(q) ||
+      String(dept.code || '').toLowerCase().includes(q) ||
+      (dept.head?.name && String(dept.head.name).toLowerCase().includes(q))
     );
   });
 
@@ -378,7 +380,7 @@ export default function ServiceDepartments({
             style={{
               padding: '0.65rem 1.4rem',
               borderRadius: '8px',
-              background: '#2563eb',
+              background: '#7f22fe',
               color: '#ffffff',
               fontWeight: 700,
               fontSize: '0.88rem',
@@ -465,20 +467,20 @@ export default function ServiceDepartments({
             gap: '0.5rem',
             padding: '0.7rem 1.35rem',
             borderRadius: '9px',
-            background: '#2563eb',
+            background: '#7f22fe',
             color: '#ffffff',
             fontWeight: 700,
             fontSize: '0.88rem',
             border: 'none',
             cursor: 'pointer',
-            boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)',
+            boxShadow: '0 4px 6px -1px rgba(127, 34, 254, 0.25)',
             transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#1d4ed8';
+            e.currentTarget.style.background = '#6b12df';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#2563eb';
+            e.currentTarget.style.background = '#7f22fe';
           }}
         >
           <IconPlus size={16} />
@@ -543,7 +545,7 @@ export default function ServiceDepartments({
           <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
             Allocated Staff
           </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#2563eb', marginTop: '0.35rem' }}>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#7f22fe', marginTop: '0.35rem' }}>
             {totalEmployeesCount}
           </div>
           <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '0.2rem' }}>
@@ -646,16 +648,16 @@ export default function ServiceDepartments({
             No departments match your search query &quot;{searchQuery}&quot;.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+          <div style={{ overflowX: 'auto', width: '100%' }}>
+            <table style={{ width: '100%', minWidth: '980px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: 700 }}>
-                  <th style={{ padding: '0.9rem 1.5rem' }}>Department Name &amp; Code</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Parent Service</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Department Head</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Staff Count</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Status</th>
-                  <th style={{ padding: '0.9rem 1.5rem', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '0.9rem 1.5rem', minWidth: '280px', whiteSpace: 'nowrap' }}>Department Name &amp; Code</th>
+                  <th style={{ padding: '0.9rem 1rem', minWidth: '160px', whiteSpace: 'nowrap' }}>Parent Service</th>
+                  <th style={{ padding: '0.9rem 1rem', minWidth: '150px', whiteSpace: 'nowrap' }}>Department Head</th>
+                  <th style={{ padding: '0.9rem 1rem', minWidth: '130px', whiteSpace: 'nowrap' }}>Staff Count</th>
+                  <th style={{ padding: '0.9rem 1rem', minWidth: '110px', whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ padding: '0.9rem 1.5rem', textAlign: 'right', minWidth: '200px', whiteSpace: 'nowrap' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -674,16 +676,26 @@ export default function ServiceDepartments({
                     }}
                   >
                     {/* Department Name & Code */}
-                    <td style={{ padding: '1rem 1.5rem' }}>
-                      <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.92rem' }}>
+                    <td style={{ padding: '1rem 1.5rem', verticalAlign: 'middle' }}>
+                      <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.92rem', whiteSpace: 'nowrap' }}>
                         {dept.name}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
-                        <code style={{ fontSize: '0.75rem', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px', color: '#64748b' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                        <code style={{ fontSize: '0.75rem', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px', color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {dept.code}
                         </code>
                         {dept.description && (
-                          <span style={{ fontSize: '0.78rem', color: '#64748b', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span
+                            style={{
+                              fontSize: '0.78rem',
+                              color: '#64748b',
+                              maxWidth: '300px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                            title={dept.description}
+                          >
                             &bull; {dept.description}
                           </span>
                         )}
@@ -691,35 +703,37 @@ export default function ServiceDepartments({
                     </td>
 
                     {/* Service Name */}
-                    <td style={{ padding: '1rem 1rem' }}>
+                    <td style={{ padding: '1rem 1rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                       <span
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '3px 9px',
+                          gap: '0.45rem',
+                          padding: '4px 10px',
                           borderRadius: '6px',
-                          fontSize: '0.78rem',
+                          fontSize: '0.8rem',
                           fontWeight: 600,
-                          background: `${serviceMeta.color}10`,
+                          whiteSpace: 'nowrap',
+                          background: `${serviceMeta.color}15`,
                           color: serviceMeta.color,
+                          border: `1px solid ${serviceMeta.color}30`,
                         }}
                       >
-                        <ServiceIcon size={13} />
-                        {serviceMeta.name}
+                        <ServiceIcon size={14} style={{ flexShrink: 0 }} />
+                        <span style={{ whiteSpace: 'nowrap' }}>{serviceMeta.name}</span>
                       </span>
                     </td>
 
                     {/* Department Head */}
-                    <td style={{ padding: '1rem 1rem' }}>
+                    <td style={{ padding: '1rem 1rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                       {dept.head ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', whiteSpace: 'nowrap' }}>
                           <div
                             style={{
                               width: '32px',
                               height: '32px',
                               borderRadius: '50%',
-                              background: '#3b82f6',
+                              background: '#7f22fe',
                               color: '#ffffff',
                               fontWeight: 700,
                               fontSize: '0.75rem',
@@ -732,10 +746,10 @@ export default function ServiceDepartments({
                             {dept.head.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.85rem' }}>
+                            <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                               {dept.head.name}
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap' }}>
                               {dept.head.role}
                             </div>
                           </div>
@@ -743,12 +757,15 @@ export default function ServiceDepartments({
                       ) : (
                         <span
                           style={{
-                            padding: '3px 8px',
+                            display: 'inline-block',
+                            padding: '4px 10px',
                             borderRadius: '6px',
-                            fontSize: '0.75rem',
+                            fontSize: '0.76rem',
                             fontWeight: 600,
+                            whiteSpace: 'nowrap',
                             background: '#f1f5f9',
                             color: '#64748b',
+                            border: '1px solid #e2e8f0',
                           }}
                         >
                           Unassigned
@@ -757,7 +774,7 @@ export default function ServiceDepartments({
                     </td>
 
                     {/* Employee Count */}
-                    <td style={{ padding: '1rem 1rem' }}>
+                    <td style={{ padding: '1rem 1rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                       <button
                         type="button"
                         onClick={() => handleOpenAssign(dept)}
@@ -765,7 +782,7 @@ export default function ServiceDepartments({
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.45rem',
-                          padding: '4px 10px',
+                          padding: '5px 12px',
                           borderRadius: '6px',
                           border: '1px solid #cbd5e1',
                           background: '#ffffff',
@@ -773,11 +790,12 @@ export default function ServiceDepartments({
                           fontSize: '0.78rem',
                           fontWeight: 700,
                           cursor: 'pointer',
+                          whiteSpace: 'nowrap',
                           transition: 'all 0.15s ease',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = '#2563eb';
-                          e.currentTarget.style.color = '#2563eb';
+                          e.currentTarget.style.borderColor = '#7f22fe';
+                          e.currentTarget.style.color = '#7f22fe';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.borderColor = '#cbd5e1';
@@ -785,19 +803,21 @@ export default function ServiceDepartments({
                         }}
                         title="Click to manage employees allocated to this department"
                       >
-                        <IconUsers size={14} />
-                        <span>{dept.employeeCount || 0} Staff</span>
+                        <IconUsers size={14} style={{ flexShrink: 0 }} />
+                        <span style={{ whiteSpace: 'nowrap' }}>{dept.employeeCount || 0} Staff</span>
                       </button>
                     </td>
 
                     {/* Status */}
-                    <td style={{ padding: '1rem 1rem' }}>
+                    <td style={{ padding: '1rem 1rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                       <span
                         style={{
-                          padding: '3px 9px',
+                          display: 'inline-block',
+                          padding: '3px 10px',
                           borderRadius: '9999px',
                           fontSize: '0.74rem',
                           fontWeight: 700,
+                          whiteSpace: 'nowrap',
                           background: dept.status === 'ACTIVE' ? '#ecfdf5' : '#f1f5f9',
                           color: dept.status === 'ACTIVE' ? '#065f46' : '#64748b',
                           border: dept.status === 'ACTIVE' ? '1px solid #a7f3d0' : '1px solid #cbd5e1',
@@ -808,13 +828,13 @@ export default function ServiceDepartments({
                     </td>
 
                     {/* Actions */}
-                    <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <td style={{ padding: '1rem 1.5rem', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           onClick={() => handleOpenAssign(dept)}
                           style={{
-                            padding: '0.45rem 0.65rem',
+                            padding: '0.45rem 0.75rem',
                             borderRadius: '6px',
                             border: '1px solid #cbd5e1',
                             background: '#ffffff',
@@ -822,20 +842,22 @@ export default function ServiceDepartments({
                             fontSize: '0.78rem',
                             fontWeight: 600,
                             cursor: 'pointer',
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.35rem',
+                            whiteSpace: 'nowrap',
+                            transition: 'all 0.15s ease',
                           }}
                           title="Assign Staff Members"
                         >
-                          <IconUserCheck size={14} />
-                          <span>Staff</span>
+                          <IconUserCheck size={14} style={{ flexShrink: 0 }} />
+                          <span style={{ whiteSpace: 'nowrap' }}>Staff</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleOpenEdit(dept)}
                           style={{
-                            padding: '0.45rem 0.65rem',
+                            padding: '0.45rem 0.75rem',
                             borderRadius: '6px',
                             border: '1px solid #cbd5e1',
                             background: '#ffffff',
@@ -843,14 +865,16 @@ export default function ServiceDepartments({
                             fontSize: '0.78rem',
                             fontWeight: 600,
                             cursor: 'pointer',
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.35rem',
+                            whiteSpace: 'nowrap',
+                            transition: 'all 0.15s ease',
                           }}
                           title="Edit Department"
                         >
-                          <IconEdit size={14} />
-                          <span>Edit</span>
+                          <IconEdit size={14} style={{ flexShrink: 0 }} />
+                          <span style={{ whiteSpace: 'nowrap' }}>Edit</span>
                         </button>
                         <button
                           type="button"
@@ -864,13 +888,15 @@ export default function ServiceDepartments({
                             fontSize: '0.78rem',
                             fontWeight: 600,
                             cursor: 'pointer',
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.35rem',
+                            whiteSpace: 'nowrap',
+                            transition: 'all 0.15s ease',
                           }}
                           title="Delete Department"
                         >
-                          <IconTrash size={14} />
+                          <IconTrash size={14} style={{ flexShrink: 0 }} />
                         </button>
                       </div>
                     </td>
@@ -1050,7 +1076,7 @@ export default function ServiceDepartments({
                 padding: '0.65rem 1.5rem',
                 borderRadius: '8px',
                 border: 'none',
-                background: isSubmitting ? '#93c5fd' : '#2563eb',
+                background: isSubmitting ? '#c4b5fd' : '#7f22fe',
                 color: '#ffffff',
                 fontWeight: 700,
                 fontSize: '0.86rem',
@@ -1183,7 +1209,7 @@ export default function ServiceDepartments({
                 padding: '0.65rem 1.5rem',
                 borderRadius: '8px',
                 border: 'none',
-                background: isSubmitting ? '#93c5fd' : '#2563eb',
+                background: isSubmitting ? '#c4b5fd' : '#7f22fe',
                 color: '#ffffff',
                 fontWeight: 700,
                 fontSize: '0.86rem',
@@ -1264,7 +1290,7 @@ export default function ServiceDepartments({
                       </div>
                     </div>
                     {isSelected && (
-                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2563eb' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#7f22fe' }}>
                         Selected
                       </span>
                     )}
@@ -1302,7 +1328,7 @@ export default function ServiceDepartments({
                   padding: '0.65rem 1.5rem',
                   borderRadius: '8px',
                   border: 'none',
-                  background: isSubmitting ? '#93c5fd' : '#2563eb',
+                  background: isSubmitting ? '#c4b5fd' : '#7f22fe',
                   color: '#ffffff',
                   fontWeight: 700,
                   fontSize: '0.86rem',

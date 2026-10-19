@@ -7,7 +7,18 @@
 export const clientAccessInclude = {
   serviceAccess: {
     include: {
-      service: true,
+      service: {
+        include: {
+          modules: {
+            include: {
+              subModules: {
+                orderBy: { orderNo: 'asc' },
+              },
+            },
+            orderBy: { orderNo: 'asc' },
+          },
+        },
+      },
     },
   },
   moduleAccess: {
@@ -144,43 +155,114 @@ export function formatDepartment(d) {
 
 /**
  * Format Client / Tenant record with permission tree
+ * Enforces the global hierarchy rule:
+ * Effective availability = Item is ACTIVE && all required parents are ACTIVE && company assignment is valid.
+ * Preserves raw assignment data for management while providing effective availability.
  */
 export function formatClient(c) {
   if (!c) return null;
   const servicesAccess = (c.serviceAccess || []).map((sa) => {
     const sId = sa.serviceId.toString();
+    const service = sa.service;
+    const isServiceActive = service ? service.status === 'ACTIVE' : true;
+    const serviceStatus = service?.status || 'ACTIVE';
+    const isServiceAllowed = Boolean(sa.isAllowed !== false && isServiceActive);
     const modAccesses = (c.moduleAccess || []).filter((ma) => ma.serviceId.toString() === sId);
-    return {
-      service_id: sId,
-      serviceId: sId,
-      code: sa.service?.code || '',
-      name: sa.service?.name || '',
-      full_service: sa.isFullService,
-      isFullService: sa.isFullService,
-      isAllowed: sa.isAllowed !== undefined ? sa.isAllowed : true,
-      modules: modAccesses.map((ma) => {
+    const isFullService = Boolean(sa.isFullService);
+
+    let formattedModules = [];
+
+    if (isFullService && service?.modules && service.modules.length > 0) {
+      // Under full service grant, modules and submodules are derived from the service's catalog
+      formattedModules = service.modules.map((m) => {
+        const mId = m.id.toString();
+        const isModuleActive = isServiceActive && m.status === 'ACTIVE';
+        const subModules = (m.subModules || []).map((sm) => {
+          const isSubActive = isModuleActive && sm.status === 'ACTIVE';
+          return {
+            id: sm.id.toString(),
+            code: sm.code || '',
+            name: sm.name || '',
+            route: sm.route || '',
+            status: sm.status || 'ACTIVE',
+            isAllowed: isSubActive,
+            rawIsAllowed: true,
+          };
+        });
+
+        return {
+          module_id: mId,
+          moduleId: mId,
+          code: m.code || '',
+          name: m.name || '',
+          status: m.status || 'ACTIVE',
+          access_mode: 'FULL',
+          accessMode: 'FULL',
+          isAllowed: isModuleActive,
+          rawIsAllowed: true,
+          sub_module_ids: subModules.filter((sm) => sm.isAllowed).map((sm) => sm.id),
+          subModules,
+        };
+      });
+    } else {
+      // Custom module access mappings
+      formattedModules = modAccesses.map((ma) => {
         const mId = ma.moduleId.toString();
+        const isModuleActive = isServiceActive && (ma.module ? ma.module.status === 'ACTIVE' : true);
         const subAccesses = (c.subModuleAccess || []).filter(
           (sma) => sma.serviceId.toString() === sId && sma.moduleId.toString() === mId
         );
+        const subModules = subAccesses.map((sma) => {
+          const isSubActive = isModuleActive && (sma.subModule ? sma.subModule.status === 'ACTIVE' : true);
+          return {
+            id: sma.subModuleId.toString(),
+            code: sma.subModule?.code || '',
+            name: sma.subModule?.name || '',
+            route: sma.subModule?.route || '',
+            status: sma.subModule?.status || 'ACTIVE',
+            isAllowed: Boolean(sma.isAllowed !== false && isSubActive),
+            rawIsAllowed: sma.isAllowed !== false,
+          };
+        });
+
         return {
           module_id: mId,
           moduleId: mId,
           code: ma.module?.code || '',
           name: ma.module?.name || '',
+          status: ma.module?.status || 'ACTIVE',
           access_mode: ma.accessMode,
           accessMode: ma.accessMode,
-          isAllowed: ma.isAllowed !== undefined ? ma.isAllowed : true,
+          isAllowed: Boolean(ma.isAllowed !== false && isModuleActive),
+          rawIsAllowed: ma.isAllowed !== false,
           sub_module_ids: subAccesses.map((sma) => sma.subModuleId.toString()),
-          subModules: subAccesses.map((sma) => ({
-            id: sma.subModuleId.toString(),
-            code: sma.subModule?.code || '',
-            name: sma.subModule?.name || '',
-            route: sma.subModule?.route || '',
-            isAllowed: sma.isAllowed !== undefined ? sma.isAllowed : true,
-          })),
+          subModules,
         };
-      }),
+      });
+    }
+
+    // Section 3 Requirement: Exclude modules & submodules whose global status is INACTIVE from active client availability
+    const activeFormattedModules = formattedModules
+      .filter((m) => m.status === 'ACTIVE')
+      .map((m) => ({
+        ...m,
+        sub_modules: (m.subModules || []).filter((sm) => sm.isAllowed && sm.status === 'ACTIVE'),
+        subModules: (m.subModules || []).filter((sm) => sm.isAllowed && sm.status === 'ACTIVE'),
+      }));
+
+    return {
+      service_id: sId,
+      serviceId: sId,
+      code: service?.code || '',
+      name: service?.name || '',
+      status: serviceStatus,
+      full_service: isFullService,
+      isFullService: isFullService,
+      isAllowed: isServiceAllowed,
+      rawIsAllowed: sa.isAllowed !== false,
+      modules: activeFormattedModules,
+      all_modules: formattedModules,
+      allModules: formattedModules,
     };
   });
 
@@ -192,6 +274,8 @@ export function formatClient(c) {
     organization_name: c.organizationName,
     organizationName: c.organizationName,
     status: c.status,
+    theme_color: c.themeColor || '#7f22fe',
+    themeColor: c.themeColor || '#7f22fe',
     created_at: c.createdAt,
     updated_at: c.updatedAt,
     access: {

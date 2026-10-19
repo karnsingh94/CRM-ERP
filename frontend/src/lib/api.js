@@ -37,15 +37,21 @@ export async function apiRequest(endpoint, options = {}) {
     ...(options.headers || {}),
   };
 
+  const controller = new AbortController();
+  const timeoutMs = options.timeout || 6000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   const config = {
     ...options,
     headers: defaultHeaders,
     credentials: 'include',
+    signal: options.signal || controller.signal,
   };
 
   const fetchPromise = (async () => {
     try {
       const response = await fetch(url, config);
+      clearTimeout(timeoutId);
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
@@ -58,6 +64,7 @@ export async function apiRequest(endpoint, options = {}) {
 
       return data;
     } catch (error) {
+      clearTimeout(timeoutId);
       if (error.status) throw error;
       const networkErr = new Error(error.message || 'Network connection failed. Ensure backend server is running.');
       networkErr.status = 0;

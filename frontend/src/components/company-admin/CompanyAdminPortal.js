@@ -31,6 +31,8 @@ import TeamModule from '@/components/modules/TeamModule';
 import SettingsModule from '@/components/modules/SettingsModule';
 import ServiceDepartments from '@/components/departments/ServiceDepartments';
 
+import { resolveCanonicalUrl } from '@/config/routes.config';
+
 export function resolveTabFromPathname(pathname) {
   if (!pathname || pathname === '/' || pathname === '/dashboard') return 'dashboard';
   if (pathname === '/settings') return 'settings';
@@ -73,16 +75,63 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     logout,
   } = useCompanyAuth();
 
+  // Instant fallback to currentUser company data so dashboard and sidebar render immediately
+  const effectiveCompany = activeCompany || (currentUser?.organizationName ? {
+    id: String(currentUser.companyId || currentUser.id || 'default'),
+    name: currentUser.organizationName || currentUser.name,
+    organizationName: currentUser.organizationName || currentUser.name,
+    email: currentUser.email,
+    themeColor: currentUser.themeColor || currentUser.theme_color || '#7f22fe',
+    theme_color: currentUser.theme_color || currentUser.themeColor || '#7f22fe',
+    access: currentUser.access || { services: [] },
+    status: 'ACTIVE',
+  } : null);
+
   const {
     permittedServices,
     hasServiceAccess,
     hasModuleAccess,
-  } = useCompanyAccess(activeCompany);
+    hasSubModuleAccess,
+  } = useCompanyAccess(effectiveCompany);
 
+  const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState(() => initialTab || resolveTabFromPathname(pathname));
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState([]);
+  const [isSuperAdminSwitched, setIsSuperAdminSwitched] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isSwitched =
+        localStorage.getItem('is_super_admin_impersonating') === 'true' ||
+        Boolean(currentUser?.isImpersonated) ||
+        Boolean(currentUser?.switchedBySuperAdmin);
+      setIsSuperAdminSwitched(isSwitched);
+    }
+  }, [currentUser]);
+
+  const handleReturnToSuperAdmin = () => {
+    if (typeof window !== 'undefined') {
+      const backupSuperToken = localStorage.getItem('azzuniqe_super_token_backup');
+      if (backupSuperToken) {
+        localStorage.setItem('azzuniqe_super_token', backupSuperToken);
+        localStorage.removeItem('azzuniqe_super_token_backup');
+      }
+      localStorage.removeItem('is_super_admin_impersonating');
+      localStorage.removeItem('impersonated_client_name');
+      localStorage.removeItem('azzuniqe_client_token');
+      localStorage.removeItem('company_user');
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('active_company_id');
+
+      window.location.href = '/super-admin';
+    }
+  };
 
   // Keep activeTab synchronized when pathname changes (browser back/forward, direct link)
   useEffect(() => {
@@ -92,6 +141,16 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       setActiveTab(resolveTabFromPathname(pathname));
     }
   }, [pathname, initialTab]);
+
+  // Navigate reliably while keeping URL in lockstep
+  const handleNavigate = (target) => {
+    const canonical = resolveCanonicalUrl(target);
+    if (canonical && canonical !== pathname) {
+      router.push(canonical);
+    } else {
+      setActiveTab(resolveTabFromPathname(canonical || pathname));
+    }
+  };
 
   // Toast notification helper
   const showToast = (title, message, type = 'success') => {
@@ -139,7 +198,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
             style={{
               padding: '0.65rem 1.35rem',
               borderRadius: '8px',
-              background: '#2563eb',
+              background: '#7f22fe',
               color: '#ffffff',
               fontWeight: 700,
               fontSize: '0.85rem',
@@ -152,7 +211,15 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     }
 
     // 3. No Company Context State
-    if (!activeCompany) {
+    if (!effectiveCompany) {
+      if (isLoading) {
+        return (
+          <div style={{ padding: '2rem 0' }}>
+            <LoadingSkeleton rows={5} height="48px" />
+          </div>
+        );
+      }
+
       // 3A. Multiple authorized companies exist, none chosen yet
       if (hasMultipleCompanies && authorizedCompanies.length > 1) {
         return (
@@ -186,8 +253,8 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
                     transition: 'all 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#3b82f6';
-                    e.currentTarget.style.background = '#eff6ff';
+                    e.currentTarget.style.borderColor = '#7f22fe';
+                    e.currentTarget.style.background = '#f5f0ff';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = '#cbd5e1';
@@ -198,7 +265,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
                     <div>{c.organizationName}</div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>Admin: {c.name}</div>
                   </div>
-                  <span style={{ color: '#2563eb', fontWeight: 800 }}>→</span>
+                  <span style={{ color: '#7f22fe', fontWeight: 800 }}>→</span>
                 </button>
               ))}
             </div>
@@ -227,9 +294,9 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     if (activeTab === 'dashboard') {
       return (
         <CompanyDashboard
-          activeCompany={activeCompany}
+          activeCompany={effectiveCompany}
           permittedServices={permittedServices}
-          onNavigate={(tab) => setActiveTab(tab)}
+          onNavigate={handleNavigate}
         />
       );
     }
@@ -260,12 +327,12 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
             </p>
             <button
               type="button"
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => handleNavigate('dashboard')}
               style={{
                 marginTop: '1.5rem',
                 padding: '0.65rem 1.35rem',
                 borderRadius: '8px',
-                background: '#2563eb',
+                background: '#7f22fe',
                 color: '#ffffff',
                 fontWeight: 700,
                 fontSize: '0.85rem',
@@ -283,7 +350,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
           activeCompany={activeCompany}
           serviceCode={targetServiceCode}
           showToast={showToast}
-          onNavigate={(tab) => setActiveTab(tab)}
+          onNavigate={handleNavigate}
         />
       );
     }
@@ -306,12 +373,12 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
           </p>
           <button
             type="button"
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => handleNavigate('dashboard')}
             style={{
               marginTop: '1.5rem',
               padding: '0.65rem 1.35rem',
               borderRadius: '8px',
-              background: '#2563eb',
+              background: '#7f22fe',
               color: '#ffffff',
               fontWeight: 700,
               fontSize: '0.85rem',
@@ -323,73 +390,243 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       );
     }
 
+    const renderModuleRestricted = (moduleName) => (
+      <div style={{ background: '#ffffff', borderRadius: '14px', padding: '3.5rem 2rem', textAlign: 'center', border: '1px solid #fed7aa', margin: '1rem 0' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '0.85rem' }}>🔒</div>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#9a3412', marginBottom: '0.5rem' }}>
+          Module Unavailable
+        </h3>
+        <p style={{ fontSize: '0.88rem', color: '#7c2d12', maxWidth: '520px', margin: '0 auto', lineHeight: 1.6 }}>
+          The module <strong>{moduleName}</strong> is currently deactivated by Super Admin or not permitted for <strong>{activeCompany.organizationName}</strong>.
+        </p>
+        <button
+          type="button"
+          onClick={() => handleNavigate('dashboard')}
+          style={{
+            marginTop: '1.5rem',
+            padding: '0.65rem 1.35rem',
+            borderRadius: '8px',
+            background: '#7f22fe',
+            color: '#ffffff',
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+
+    const renderFeatureRestricted = (featureName) => (
+      <div style={{ background: '#ffffff', borderRadius: '14px', padding: '3.5rem 2rem', textAlign: 'center', border: '1px solid #fed7aa', margin: '1rem 0' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '0.85rem' }}>🔒</div>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#9a3412', marginBottom: '0.5rem' }}>
+          Feature Screen Unavailable
+        </h3>
+        <p style={{ fontSize: '0.88rem', color: '#7c2d12', maxWidth: '520px', margin: '0 auto', lineHeight: 1.6 }}>
+          The feature screen <strong>{featureName}</strong> is currently deactivated by Super Admin or not permitted for <strong>{activeCompany.organizationName}</strong>.
+        </p>
+        <button
+          type="button"
+          onClick={() => handleNavigate('dashboard')}
+          style={{
+            marginTop: '1.5rem',
+            padding: '0.65rem 1.35rem',
+            borderRadius: '8px',
+            background: '#7f22fe',
+            color: '#ffffff',
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+
     // Route to permitted module component
     switch (baseServiceCode) {
       case 'crm_sales':
         if (subModuleCode === 'product') {
-          return <ProductsModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          if (!hasModuleAccess('product')) return renderModuleRestricted('Products & Catalogue');
+          return <ProductsModule key={`prod-${initialSubTab || 'all'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
         if (subModuleCode === 'sales') {
-          return <SalesModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          if (!hasModuleAccess('sales')) return renderModuleRestricted('Sales Operations');
+          return <SalesModule key={`sales-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
-        return <CrmModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        if (!hasModuleAccess('crm')) return renderModuleRestricted('CRM Management');
+
+        // Check if the specific requested screen/submodule is permitted
+        if (
+          (pathname === '/crm/leads' || initialSubTab === 'leads') &&
+          !hasSubModuleAccess('leads') &&
+          !hasSubModuleAccess('/crm/leads')
+        ) {
+          return renderFeatureRestricted('Leads Pipeline');
+        }
+
+        return <CrmModule key={`crm-${initialSubTab || 'leads'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} />;
 
       case 'purchase_vendor':
         if (subModuleCode === 'grn') {
-          return <GrnModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          if (!hasModuleAccess('grn')) return renderModuleRestricted('Goods Receipt Notes');
+          return <GrnModule key={`grn-${initialSubTab || 'list'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
-        return <PurchaseModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        if (!hasModuleAccess('vendor') && !hasModuleAccess('purchase')) return renderModuleRestricted('Purchase & Vendor');
+        return <PurchaseModule key={`pur-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'inventory_warehouse':
         if (subModuleCode === 'gate_pass') {
-          return <GatePassModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          if (!hasModuleAccess('gate_pass')) return renderModuleRestricted('Gate Pass Operations');
+          return <GatePassModule key={`gate-${initialSubTab || 'all'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
-        return <InventoryModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        if (!hasModuleAccess('inventory')) return renderModuleRestricted('Inventory & Warehouse');
+        return <InventoryModule key={`inv-${initialSubTab || 'stock'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'manufacturing_production':
-        return <ProductionModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        if (!hasModuleAccess('production') && !hasModuleAccess('manufacturing')) return renderModuleRestricted('Manufacturing & Production');
+        return <ProductionModule key={`mfg-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'dispatch_returns':
-        return <DispatchModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        if (!hasModuleAccess('dispatch')) return renderModuleRestricted('Dispatch & Logistics');
+        return <DispatchModule key={`disp-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'accounts_banking':
-        return <AccountsModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        if (!hasModuleAccess('accounts') && !hasModuleAccess('banking')) return renderModuleRestricted('Accounts & Banking');
+        return <AccountsModule key={`acc-${initialSubTab || 'invoices'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'permission_controls':
-        return <TeamModule activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        if (!hasModuleAccess('team') && !hasModuleAccess('permission_controls')) return renderModuleRestricted('Team & Permissions');
+        return <TeamModule key={`team-${initialSubTab || 'members'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       default:
         return (
           <CompanyDashboard
-            activeCompany={activeCompany}
+            activeCompany={effectiveCompany}
             permittedServices={permittedServices}
-            onNavigate={(tab) => setActiveTab(tab)}
+            onNavigate={handleNavigate}
           />
         );
     }
   };
 
-  if (isLoading || !currentUser) {
+  if (!isMounted || isLoading || !currentUser) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b1329', color: '#94a3b8' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#18181b', color: '#a1a1aa' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.95rem' }}>
-          <div style={{ width: '18px', height: '18px', border: '2px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <div style={{ width: '18px', height: '18px', border: '2px solid #7f22fe', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           Verifying workspace session...
         </div>
       </div>
     );
   }
 
+  const companyAccent =
+    effectiveCompany?.theme_color ||
+    effectiveCompany?.themeColor ||
+    currentUser?.theme_color ||
+    currentUser?.themeColor ||
+    '#7f22fe';
+
   return (
-    <div className={styles.appContainer}>
+    <div
+      className={styles.appContainer}
+      style={{
+        '--primary': companyAccent,
+        '--primary-hover': companyAccent,
+        '--primary-glow': `${companyAccent}33`,
+        '--primary-light': `${companyAccent}14`,
+        '--sidebar-active-bg': companyAccent,
+        '--sidebar-active-border': companyAccent,
+        '--sidebar-active-parent': `${companyAccent}20`,
+        paddingTop: isSuperAdminSwitched ? '44px' : 0,
+      }}
+    >
+      {/* Super Admin Switch Mode Notice Bar */}
+      {isSuperAdminSwitched && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '44px',
+            background: 'linear-gradient(90deg, #09090b 0%, #18181b 100%)',
+            borderBottom: `2px solid ${companyAccent}`,
+            color: '#f4f4f5',
+            padding: '0 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '0.84rem',
+            fontWeight: 600,
+            zIndex: 999999,
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.45)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.15rem' }}>🛡️</span>
+            <span>
+              <strong>Super Admin Mode:</strong> Managing real live workspace for{' '}
+              <strong style={{ color: companyAccent }}>
+                {activeCompany?.organizationName || currentUser?.organizationName || 'Client'}
+              </strong>
+            </span>
+            <span
+              style={{
+                fontSize: '0.7rem',
+                background: `${companyAccent}29`,
+                color: companyAccent,
+                border: `1px solid ${companyAccent}`,
+                padding: '2px 8px',
+                borderRadius: '12px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Real Live Panel
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleReturnToSuperAdmin}
+            style={{
+              background: companyAccent,
+              color: '#ffffff',
+              border: 'none',
+              padding: '0.38rem 1rem',
+              borderRadius: '7px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              boxShadow: `0 2px 8px ${companyAccent}55`,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            ← Return to Super Admin Portal
+          </button>
+        </div>
+      )}
+
       {/* Toast Notification Container */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       {/* Collapsible Left Navigation Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        activeCompany={activeCompany}
+        activeCompany={effectiveCompany}
         permittedServices={permittedServices}
+        hasSubModuleAccess={hasSubModuleAccess}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
       />
@@ -399,12 +636,12 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         {/* Top Header Navbar */}
         <Topbar
           activeTab={activeTab}
-          activeCompany={activeCompany}
+          activeCompany={effectiveCompany}
           allCompanies={allCompanies}
           hasMultipleCompanies={hasMultipleCompanies}
           currentUser={currentUser}
           onSelectCompany={selectCompany}
-          onSelectTab={(tab) => setActiveTab(tab)}
+          onSelectTab={handleNavigate}
           onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -413,9 +650,9 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
 
         {/* Content Body */}
         <main className={styles.contentArea}>
-          {activeCompany && (
+          {effectiveCompany && (
             <div style={{ marginBottom: '1.35rem' }}>
-              <CompanyAdminBreadcrumbs activeCompany={activeCompany} />
+              <CompanyAdminBreadcrumbs activeCompany={effectiveCompany} />
             </div>
           )}
           {children || renderContent()}

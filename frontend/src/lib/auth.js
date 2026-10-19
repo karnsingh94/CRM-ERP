@@ -4,6 +4,14 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export function getStoredToken() {
   if (typeof window === 'undefined') return null;
+  const isImpersonating = localStorage.getItem('is_super_admin_impersonating') === 'true';
+  if (isImpersonating) {
+    return (
+      localStorage.getItem('azzuniqe_client_token') ||
+      sessionStorage.getItem('azzuniqe_client_token') ||
+      localStorage.getItem('azzuniqe_super_token')
+    );
+  }
   return (
     localStorage.getItem('azzuniqe_super_token') ||
     localStorage.getItem('azzuniqe_client_token') ||
@@ -14,13 +22,26 @@ export function getStoredToken() {
 
 export function getStoredUser() {
   if (typeof window === 'undefined') return null;
+  const isImpersonating = localStorage.getItem('is_super_admin_impersonating') === 'true';
   try {
-    const raw =
-      localStorage.getItem('auth_user') ||
+    if (isImpersonating) {
+      const compRaw = localStorage.getItem('company_user') || sessionStorage.getItem('company_user');
+      if (compRaw) return JSON.parse(compRaw);
+    }
+    const superToken = localStorage.getItem('azzuniqe_super_token') || sessionStorage.getItem('azzuniqe_super_token');
+    if (superToken) {
+      const superRaw = localStorage.getItem('auth_user') || sessionStorage.getItem('auth_user');
+      if (superRaw) {
+        const u = JSON.parse(superRaw);
+        if (u.role === 'SUPER_ADMIN' || u.role === 'Super Admin') return u;
+      }
+    }
+    const clientRaw =
       localStorage.getItem('company_user') ||
-      sessionStorage.getItem('auth_user') ||
-      sessionStorage.getItem('company_user');
-    return raw ? JSON.parse(raw) : null;
+      sessionStorage.getItem('company_user') ||
+      localStorage.getItem('auth_user') ||
+      sessionStorage.getItem('auth_user');
+    return clientRaw ? JSON.parse(clientRaw) : null;
   } catch {
     return null;
   }
@@ -46,10 +67,14 @@ export async function verifyCurrentSession(forceRefresh = false) {
     const token = getStoredToken();
     try {
       if (token) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
         const res = await fetch(`${API_BASE}/auth/me`, {
           credentials: 'include',
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
           const verified = data?.data?.user || data?.data || null;
@@ -93,10 +118,14 @@ export async function logoutUser() {
 
   if (typeof window !== 'undefined') {
     localStorage.removeItem('azzuniqe_super_token');
+    localStorage.removeItem('azzuniqe_super_token_backup');
     localStorage.removeItem('azzuniqe_client_token');
     localStorage.removeItem('auth_user');
     localStorage.removeItem('company_user');
     localStorage.removeItem('active_company_id');
+    localStorage.removeItem('cached_company_data');
+    localStorage.removeItem('is_super_admin_impersonating');
+    localStorage.removeItem('impersonated_client_name');
     sessionStorage.clear();
     document.cookie = 'azzuniqe_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
     window.location.href = '/login';

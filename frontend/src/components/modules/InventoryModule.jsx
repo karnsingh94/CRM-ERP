@@ -8,12 +8,7 @@ import ServiceDepartments from '../departments/ServiceDepartments';
 
 export default function InventoryModule({ activeCompany, showToast }) {
   const [activeTab, setActiveTab] = useState('stock'); // 'stock', 'departments'
-  const [stockItems, setStockItems] = useState([
-    { id: 1, sku: 'PRD-RAW-001', name: 'High-Density Polymer Resin A4', warehouse: 'Central Depot Bay 1', stock: 450, uom: 'KG', minLevel: 100 },
-    { id: 2, sku: 'PRD-FIN-102', name: 'Industrial Valve Coupling 50mm', warehouse: 'Finished Goods Bay 3', stock: 64, uom: 'PCS', minLevel: 25 },
-    { id: 3, sku: 'PRD-PKG-033', name: 'Reinforced Corrugated Box Type-B', warehouse: 'Packaging Depot', stock: 1200, uom: 'BOX', minLevel: 300 },
-    { id: 4, sku: 'PRD-WIP-088', name: 'Machined Brass Cylinder Core', warehouse: 'Shopfloor WIP Rack', stock: 18, uom: 'PCS', minLevel: 30 },
-  ]);
+  const [stockItems, setStockItems] = useState([]);
 
   const [adjustModalItem, setAdjustModalItem] = useState(null);
   const [adjustQty, setAdjustQty] = useState('');
@@ -52,8 +47,8 @@ export default function InventoryModule({ activeCompany, showToast }) {
           style={{
             padding: '0.65rem 1.25rem',
             fontWeight: activeTab === 'stock' ? 800 : 600,
-            color: activeTab === 'stock' ? '#2563eb' : '#64748b',
-            borderBottom: activeTab === 'stock' ? '2px solid #2563eb' : '2px solid transparent',
+            color: activeTab === 'stock' ? '#7f22fe' : '#64748b',
+            borderBottom: activeTab === 'stock' ? '2px solid #7f22fe' : '2px solid transparent',
             fontSize: '0.88rem',
           }}
         >
@@ -65,8 +60,8 @@ export default function InventoryModule({ activeCompany, showToast }) {
           style={{
             padding: '0.65rem 1.25rem',
             fontWeight: activeTab === 'departments' ? 800 : 600,
-            color: activeTab === 'departments' ? '#2563eb' : '#64748b',
-            borderBottom: activeTab === 'departments' ? '2px solid #2563eb' : '2px solid transparent',
+            color: activeTab === 'departments' ? '#7f22fe' : '#64748b',
+            borderBottom: activeTab === 'departments' ? '2px solid #7f22fe' : '2px solid transparent',
             fontSize: '0.88rem',
             display: 'flex',
             alignItems: 'center',
@@ -83,6 +78,12 @@ export default function InventoryModule({ activeCompany, showToast }) {
           activeCompany={activeCompany}
           serviceCode="inventory_warehouse"
           showToast={showToast}
+        />
+      ) : stockItems.length === 0 ? (
+        <EmptyState
+          icon="📦"
+          title="No Stock Items Recorded"
+          description="Manage warehouse stock balances, bin allocations, and physical inventory reconciliations."
         />
       ) : (
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
@@ -103,7 +104,7 @@ export default function InventoryModule({ activeCompany, showToast }) {
                 const isLow = item.stock < item.minLevel;
                 return (
                   <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800, color: '#2563eb' }}>
+                    <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800, color: '#7f22fe' }}>
                       {item.sku}
                     </td>
                     <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>
@@ -134,7 +135,7 @@ export default function InventoryModule({ activeCompany, showToast }) {
                           borderRadius: '6px',
                           border: '1px solid #cbd5e1',
                           background: '#ffffff',
-                          color: '#2563eb',
+                          color: '#7f22fe',
                           fontWeight: 700,
                           fontSize: '0.78rem',
                         }}
@@ -201,7 +202,7 @@ export default function InventoryModule({ activeCompany, showToast }) {
             </button>
             <button
               type="submit"
-              style={{ padding: '0.6rem 1.35rem', borderRadius: '6px', border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 700 }}
+              style={{ padding: '0.6rem 1.35rem', borderRadius: '6px', border: 'none', background: '#7f22fe', color: '#ffffff', fontWeight: 700 }}
             >
               Save Adjustment
             </button>

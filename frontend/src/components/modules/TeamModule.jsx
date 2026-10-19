@@ -88,14 +88,14 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
             alignItems: 'center',
             gap: '0.5rem',
             padding: '0.65rem 1.25rem',
-            background: '#2563eb',
+            background: '#7f22fe',
             color: '#ffffff',
             borderRadius: '8px',
             fontWeight: 700,
             fontSize: '0.86rem',
             border: 'none',
             cursor: 'pointer',
-            boxShadow: '0 4px 6px rgba(37, 99, 235, 0.25)',
+            boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
           }}
         >
           <IconPlus size={16} /> Add Employee
@@ -110,8 +110,8 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
           style={{
             padding: '0.65rem 1.25rem',
             fontWeight: activeTab === 'members' ? 800 : 600,
-            color: activeTab === 'members' ? '#2563eb' : '#64748b',
-            borderBottom: activeTab === 'members' ? '2px solid #2563eb' : '2px solid transparent',
+            color: activeTab === 'members' ? '#7f22fe' : '#64748b',
+            borderBottom: activeTab === 'members' ? '2px solid #7f22fe' : '2px solid transparent',
             fontSize: '0.88rem',
             cursor: 'pointer',
             background: 'none',
@@ -128,8 +128,8 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
           style={{
             padding: '0.65rem 1.25rem',
             fontWeight: activeTab === 'departments' ? 800 : 600,
-            color: activeTab === 'departments' ? '#2563eb' : '#64748b',
-            borderBottom: activeTab === 'departments' ? '2px solid #2563eb' : '2px solid transparent',
+            color: activeTab === 'departments' ? '#7f22fe' : '#64748b',
+            borderBottom: activeTab === 'departments' ? '2px solid #7f22fe' : '2px solid transparent',
             fontSize: '0.88rem',
             cursor: 'pointer',
             background: 'none',
@@ -179,7 +179,7 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
                         <span style={{ color: '#94a3b8' }}>General / Unallocated</span>
                       )}
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#2563eb' }}>{m.role}</td>
+                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#7f22fe' }}>{m.role}</td>
                     <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>
                       <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
                         {m.status || 'ACTIVE'}
@@ -287,7 +287,7 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
                 padding: '0.65rem 1.5rem',
                 borderRadius: '8px',
                 border: 'none',
-                background: isSubmitting ? '#93c5fd' : '#2563eb',
+                background: isSubmitting ? '#c4b5fd' : '#7f22fe',
                 color: '#ffffff',
                 fontWeight: 700,
                 fontSize: '0.86rem',

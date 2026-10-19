@@ -11,12 +11,16 @@ import departmentService from './department.service.js';
  */
 export const catalogService = {
   // ==================== SERVICES ====================
-  async getServices() {
+  async getServices(includeInactive = true) {
+    const where = includeInactive ? {} : { status: 'ACTIVE' };
     const services = await prisma.service.findMany({
+      where,
       include: {
         modules: {
+          where: includeInactive ? {} : { status: 'ACTIVE' },
           include: {
             subModules: {
+              where: includeInactive ? {} : { status: 'ACTIVE' },
               orderBy: { orderNo: 'asc' },
             },
           },
@@ -28,9 +32,14 @@ export const catalogService = {
     return services.map(formatService);
   },
 
-  async getServiceById(id) {
-    const service = await prisma.service.findUnique({
-      where: { id: BigInt(id) },
+  async getServiceById(idOrCode) {
+    const isNumeric = /^\d+$/.test(String(idOrCode));
+    const whereClause = isNumeric
+      ? { id: BigInt(idOrCode) }
+      : { code: String(idOrCode).replace(/-/g, '_') };
+
+    const service = await prisma.service.findFirst({
+      where: whereClause,
       include: {
         modules: {
           include: {

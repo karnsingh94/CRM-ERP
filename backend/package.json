@@ -9,6 +9,7 @@
     "start": "node src/server.js",
     "test": "node tests/integration/suite.test.js",
     "test:departments": "node tests/integration/departments.test.js",
+    "test:activation": "node tests/integration/activation_deactivation.test.js",
     "check:db": "node scripts/check-db.js",
     "prisma:generate": "node node_modules/prisma/build/index.js generate",
     "prisma:migrate": "node node_modules/prisma/build/index.js migrate dev",

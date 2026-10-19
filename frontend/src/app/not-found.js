@@ -33,7 +33,7 @@ export default function NotFound() {
             fontSize: '4.5rem',
             fontWeight: 900,
             letterSpacing: '-2px',
-            color: '#3b82f6',
+            color: '#7f22fe',
             lineHeight: 1,
             marginBottom: '1rem',
           }}
@@ -69,12 +69,12 @@ export default function NotFound() {
               gap: '0.5rem',
               padding: '0.75rem 1.5rem',
               borderRadius: '8px',
-              backgroundColor: '#2563eb',
+              backgroundColor: '#7f22fe',
               color: '#ffffff',
               fontWeight: 700,
               fontSize: '0.88rem',
               textDecoration: 'none',
-              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+              boxShadow: '0 4px 12px rgba(127, 34, 254, 0.35)',
               transition: 'background 0.15s ease',
             }}
           >
