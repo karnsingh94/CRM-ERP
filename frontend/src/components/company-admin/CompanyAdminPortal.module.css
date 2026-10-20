@@ -4,7 +4,7 @@
   width: 100%;
   min-width: 0;
   overflow-x: clip;
-  background-color: var(--bg-body, #f8fafc);
+  background-color: #ffffff;
   color: var(--text-main, #0f172a);
 }
 
@@ -14,13 +14,13 @@
   flex-direction: column;
   min-width: 0;
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: #ffffff;
 }
 
 .contentArea {
   flex: 1;
-  padding: 1.75rem 2.25rem 3rem;
-  max-width: 1600px;
+  padding: calc(1.75rem + 3px) 2.25rem calc(3rem + 3px);
+  max-width: 1800px;
   width: 100%;
   margin: 0 auto;
 }
@@ -183,6 +183,94 @@
 
 .appContainer[data-theme="dark"] .breadcrumbLink {
   color: #a5b4fc !important;
+}
+
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background: #ffffff"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background:#ffffff"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color: #ffffff"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color:#ffffff"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background: #fff"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background:#fff"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background: rgb(255, 255, 255)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color: rgb(255, 255, 255)"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #e4e4e7 !important;
+}
+
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background: #f8fafc"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background:#f8fafc"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color: #f8fafc"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color:#f8fafc"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background: #f1f5f9"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background:#f1f5f9"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color: #f1f5f9"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color:#f1f5f9"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background: rgb(248, 250, 252)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color: rgb(248, 250, 252)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background: rgb(241, 245, 249)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="background-color: rgb(241, 245, 249)"] {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #0f172a"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#0f172a"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #111827"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#111827"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #18181b"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#18181b"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #1e293b"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#1e293b"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #1f2937"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#1f2937"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #27272a"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#27272a"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #334155"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#334155"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #374151"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#374151"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #475569"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#475569"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #52525b"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#52525b"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(15, 23, 42)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(17, 24, 39)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(24, 24, 27)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(30, 41, 59)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(31, 41, 55)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(39, 39, 42)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(51, 65, 85)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(55, 65, 81)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(71, 85, 105)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(82, 82, 91)"] {
+  color: #1e293b !important;
+}
+
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #64748b"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#64748b"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: #71717a"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color:#71717a"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(100, 116, 139)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(113, 113, 122)"],
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main [style*="color: rgb(148, 163, 184)"] {
+  color: #64748b !important;
+}
+
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main select,
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main textarea {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #111827 !important;
+  color-scheme: light !important;
+}
+
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main input::placeholder,
+:global(:root[data-theme="dark"]) .appContainer[data-theme="light"] main textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1;
 }
 
 @media (max-width: 900px) {

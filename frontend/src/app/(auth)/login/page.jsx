@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { clearStoredSession, getStoredToken, rememberVerifiedSession, verifyCurrentSession } from '@/lib/auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const ALLOWED_ORIGINS = ['http://localhost:3000', 'http://localhost:3001'];
@@ -39,11 +40,13 @@ function LoginForm() {
             const body = await res.json();
             const user = body?.data?.user || body?.data;
             if (user) {
+              clearStoredSession();
               if (user.role === 'SUPER_ADMIN') {
                 localStorage.setItem('azzuniqe_super_token', authTokenParam);
                 sessionStorage.setItem('azzuniqe_super_token', authTokenParam);
                 localStorage.setItem('auth_user', JSON.stringify(user));
                 const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/super-admin';
+                rememberVerifiedSession(authTokenParam, user);
                 router.replace(target);
                 return;
               } else {
@@ -51,11 +54,13 @@ function LoginForm() {
                 sessionStorage.setItem('azzuniqe_client_token', authTokenParam);
                 localStorage.setItem('company_user', JSON.stringify(user));
                 const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/dashboard';
+                rememberVerifiedSession(authTokenParam, user);
                 router.replace(target);
                 return;
               }
             }
           }
+          if (res.status === 401) clearStoredSession();
         } catch {
           // Fall through to existing session check
         }
@@ -63,51 +68,25 @@ function LoginForm() {
 
       // 2. Check existing local session
       try {
-        const storedToken =
-          typeof window !== 'undefined'
-            ? localStorage.getItem('azzuniqe_super_token') ||
-              sessionStorage.getItem('azzuniqe_super_token') ||
-              localStorage.getItem('azzuniqe_client_token') ||
-              sessionStorage.getItem('azzuniqe_client_token')
-            : null;
-
+        const storedToken = getStoredToken();
         if (!storedToken) {
           setVerifyingSession(false);
           return;
         }
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          credentials: 'include',
-          headers: { Authorization: `Bearer ${storedToken}` },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-          const body = await res.json();
-          const user = body?.data?.user || body?.data;
-          if (user) {
-            if (user.role === 'SUPER_ADMIN') {
-              const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login' && redirectParam !== '/dashboard';
-              const target = isValid ? redirectParam : '/super-admin';
-              router.replace(target);
-              return;
-            } else if (
-              user.role === 'COMPANY_ADMIN' ||
-              user.role === 'DEPARTMENT_HEAD' ||
-              user.role === 'SERVICE_HEAD' ||
-              user.role === 'TEAM_LEADER' ||
-              user.role === 'EMPLOYEE'
-            ) {
-              const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
-              const target = isValid ? redirectParam : '/dashboard';
-              router.replace(target);
-              return;
-            }
-          }
+        const user = await verifyCurrentSession();
+        if (user?.role === 'SUPER_ADMIN') {
+          const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login' && redirectParam !== '/dashboard';
+          router.replace(isValid ? redirectParam : '/super-admin');
+          return;
+        }
+        if (
+          user &&
+          ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(user.role)
+        ) {
+          const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
+          router.replace(isValid ? redirectParam : '/dashboard');
+          return;
         }
       } catch {
         // Not authenticated
@@ -158,31 +137,15 @@ function LoginForm() {
       const { user, token, redirectUrl, targetOrigin } = data.data || data;
 
       // 1. Wipe all previous session items to prevent cross-role collisions
-      const keysToClean = [
-        'azzuniqe_super_token',
-        'azzuniqe_super_token_backup',
-        'azzuniqe_client_token',
-        'auth_user',
-        'company_user',
-        'active_company_id',
-        'cached_company_data',
-        'is_super_admin_impersonating',
-        'impersonated_client_name',
-      ];
-      keysToClean.forEach(k => {
-        localStorage.removeItem(k);
-        sessionStorage.removeItem(k);
-      });
+      clearStoredSession();
 
       // 2. Persist fresh session
       const storage = formData.rememberMe ? localStorage : sessionStorage;
       if (user.role === 'SUPER_ADMIN') {
-        localStorage.setItem('azzuniqe_super_token', token);
-        sessionStorage.setItem('azzuniqe_super_token', token);
+        storage.setItem('azzuniqe_super_token', token);
         storage.setItem('auth_user', JSON.stringify(user));
       } else {
-        localStorage.setItem('azzuniqe_client_token', token);
-        sessionStorage.setItem('azzuniqe_client_token', token);
+        storage.setItem('azzuniqe_client_token', token);
         storage.setItem('company_user', JSON.stringify(user));
         storage.setItem('auth_user', JSON.stringify(user));
         if (user.companyId) {
@@ -202,6 +165,7 @@ function LoginForm() {
           storage.setItem('cached_company_data', JSON.stringify(compData));
         }
       }
+      rememberVerifiedSession(token, user);
 
       setSuccessMessage(`Welcome back, ${user.name || user.email}! Routing to workspace...`);
 
@@ -264,12 +228,37 @@ function LoginForm() {
         fontFamily: "'Plus Jakarta Sans', sans-serif",
       }}
     >
+      <style>{`
+        [data-theme="dark"] .login-form-panel.login-form-panel {
+          background: #ffffff !important;
+          color: #111827 !important;
+        }
+        [data-theme="dark"] .login-form-panel.login-form-panel h1,
+        [data-theme="dark"] .login-form-panel.login-form-panel label {
+          color: #1e293b !important;
+        }
+        [data-theme="dark"] .login-form-panel.login-form-panel p {
+          color: #64748b !important;
+        }
+        [data-theme="dark"] .login-form-panel.login-form-panel input:not([type="checkbox"]) {
+          background: #ffffff !important;
+          border-color: #e2e8f0 !important;
+          color: #111827 !important;
+          color-scheme: light;
+        }
+        [data-theme="dark"] .login-form-panel.login-form-panel input::placeholder {
+          color: #94a3b8 !important;
+        }
+        [data-theme="dark"] .login-form-panel.login-form-panel button[aria-label] {
+          color: #64748b !important;
+        }
+      `}</style>
       {/* Two-Column Responsive Enterprise Card */}
       <div
         style={{
           width: '100%',
-          maxWidth: '880px',
-          background: '#ffffff',
+          maxWidth: '1000px',
+          background: 'white',
           borderRadius: '20px',
           boxShadow: '0 20px 50px -15px rgba(127, 34, 254, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9)',
           overflow: 'hidden',
@@ -284,7 +273,7 @@ function LoginForm() {
           style={{
             flex: '1 1 380px',
             background: 'linear-gradient(145deg, #18181b 0%, #2e1065 55%, #4c1d95 100%)',
-            padding: '2.25rem 2rem',
+            padding: '2.4375rem 2rem',
             color: '#ffffff',
             display: 'flex',
             flexDirection: 'column',
@@ -431,9 +420,11 @@ function LoginForm() {
 
         {/* Right Form Card Panel */}
         <div
+          className="login-form-panel"
           style={{
             flex: '1 1 420px',
-            padding: '2.25rem 2.5rem',
+            padding: '2.4375rem 2.5rem',
+            background: 'white',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
@@ -445,14 +436,14 @@ function LoginForm() {
               style={{
                 fontSize: '1.5rem',
                 fontWeight: 800,
-                color: '#111827',
+                color: 'black',
                 margin: '0 0 0.35rem 0',
                 letterSpacing: '-0.02em',
               }}
             >
               Sign In to AZZUNIQE
             </h1>
-            <p style={{ fontSize: '0.84rem', color: '#64748b', margin: 0 }}>
+            <p style={{ fontSize: '0.84rem', color: 'slategray', margin: 0 }}>
               Unified access point for all platform and company accounts
             </p>
           </div>
@@ -512,7 +503,7 @@ function LoginForm() {
                   display: 'block',
                   fontSize: '0.8rem',
                   fontWeight: 700,
-                  color: '#1e293b',
+                  color: 'black',
                   marginBottom: '0.35rem',
                 }}
               >
@@ -532,9 +523,9 @@ function LoginForm() {
                   padding: '0.72rem 0.9rem',
                   borderRadius: '9px',
                   border: '1.5px solid #e2e8f0',
-                  background: '#f8fafc',
+                  background: 'white',
                   fontSize: '0.88rem',
-                  color: '#111827',
+                  color: 'black',
                   boxSizing: 'border-box',
                   transition: 'all 0.2s ease',
                 }}
@@ -548,7 +539,7 @@ function LoginForm() {
                   style={{
                     fontSize: '0.8rem',
                     fontWeight: 700,
-                    color: '#1e293b',
+                    color: 'black',
                   }}
                 >
                   Password
@@ -569,9 +560,9 @@ function LoginForm() {
                     padding: '0.72rem 2.85rem 0.72rem 0.9rem',
                     borderRadius: '9px',
                     border: '1.5px solid #e2e8f0',
-                    background: '#f8fafc',
+                    background: 'white',
                     fontSize: '0.88rem',
-                    color: '#111827',
+                    color: 'black',
                     boxSizing: 'border-box',
                     transition: 'all 0.2s ease',
                   }}
@@ -587,7 +578,7 @@ function LoginForm() {
                     transform: 'translateY(-50%)',
                     background: 'none',
                     border: 'none',
-                    color: '#64748b',
+                    color: 'slategray',
                     cursor: 'pointer',
                     fontSize: '0.78rem',
                     fontWeight: 600,
@@ -628,7 +619,7 @@ function LoginForm() {
                   alignItems: 'center',
                   gap: '0.5rem',
                   fontSize: '0.8rem',
-                  color: '#475569',
+                  color: 'slategray',
                   cursor: 'pointer',
                   userSelect: 'none',
                 }}

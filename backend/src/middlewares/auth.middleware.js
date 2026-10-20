@@ -92,6 +92,41 @@ export function requireCompanyAdmin(req, res, next) {
   });
 }
 
+export function requireServiceTeamPermission(permission) {
+  return async (req, res, next) => {
+    if (req.user?.role === 'COMPANY_ADMIN' && req.user.companyId) return next();
+    if (req.user?.role !== 'SERVICE_HEAD' || !req.user.userId || !req.user.companyId) {
+      return res.status(403).json({
+        success: false,
+        code: 'TEAM_PERMISSION_REQUIRED',
+        message: 'Access denied: the required Service Team permission is not assigned.',
+      });
+    }
+
+    try {
+      const { prisma } = await import('../config/prisma.js');
+      const employee = await prisma.companyEmployee.findFirst({
+        where: {
+          id: BigInt(req.user.userId),
+          companyId: BigInt(req.user.companyId),
+          status: 'ACTIVE',
+          team: { headEmployeeId: BigInt(req.user.userId) },
+        },
+        select: { permissions: true },
+      });
+      const requiredPermissions = Array.isArray(permission) ? permission : [permission];
+      if (requiredPermissions.some((key) => employee?.permissions?.[key] === true)) return next();
+      return res.status(403).json({
+        success: false,
+        code: 'TEAM_PERMISSION_REQUIRED',
+        message: 'Access denied: the required Service Team permission is not assigned.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
 /**
  * Tenant Isolation & Company Ownership Guard
  * Verifies that the authenticated user belongs to the target companyId
@@ -269,6 +304,17 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
               message: 'Access denied: This feature is outside your assigned service team.',
             });
           }
+          if (
+            employee.team.headEmployeeId === employee.id &&
+            !['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
+            employee.permissions?.manageServiceRecords !== true
+          ) {
+            return res.status(403).json({
+              success: false,
+              code: 'TEAM_PERMISSION_REQUIRED',
+              message: 'Access denied: the Service Head does not have permission to manage service records.',
+            });
+          }
         }
 
         if (!serviceAccess.isFullService) {
@@ -322,6 +368,7 @@ export default {
   requireSuperAdmin,
   requireCompanyUser,
   requireCompanyAdmin,
+  requireServiceTeamPermission,
   validateCompanyAccess,
   validateSubModuleAccess,
 };

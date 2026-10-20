@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStoredUser, verifyCurrentSession } from '@/lib/auth';
+import { verifyCurrentSession } from '@/lib/auth';
 
 export default function SuperAdminLayout({ children }) {
   const router = useRouter();
@@ -18,22 +18,14 @@ export default function SuperAdminLayout({ children }) {
         if (!mounted) return;
 
         if (!user || user.role !== 'SUPER_ADMIN') {
-          const fallback = getStoredUser();
-          if (fallback && fallback.role === 'SUPER_ADMIN') {
-            setAuthorized(true);
-          } else {
-            router.replace('/login?redirect=/super-admin');
-            return;
-          }
+          router.replace('/login?redirect=/super-admin');
+          return;
         } else {
           setAuthorized(true);
         }
       } catch (err) {
         console.error('Super Admin session error:', err);
-        const fallback = getStoredUser();
-        if (mounted && fallback && fallback.role === 'SUPER_ADMIN') {
-          setAuthorized(true);
-        } else if (mounted) {
+        if (mounted) {
           router.replace('/login?redirect=/super-admin');
         }
       } finally {

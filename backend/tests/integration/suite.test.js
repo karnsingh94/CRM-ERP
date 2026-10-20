@@ -1,6 +1,14 @@
 import prisma from '../../src/config/prisma.js';
+import { signToken } from '../../src/utils/token.js';
 
 const BASE_URL = process.env.API_BASE || 'http://localhost:5000/api';
+const TEST_AUTHORIZATION = `Bearer ${signToken({ id: 'integration-test', role: 'SUPER_ADMIN' })}`;
+
+function authenticatedFetch(url, options = {}) {
+  const headers = new Headers(options.headers || {});
+  headers.set('Authorization', TEST_AUTHORIZATION);
+  return fetch(url, { ...options, headers });
+}
 
 export async function runIntegrationTestSuite() {
   console.log('🧪 Starting Automated Verification Test Suite...\n');
@@ -28,8 +36,16 @@ export async function runIntegrationTestSuite() {
     }
   });
 
+  await test('Protected APIs reject requests without a valid token', async () => {
+    const res = await fetch(`${BASE_URL}/services`);
+    const data = await res.json();
+    if (res.status !== 401 || data.code !== 'UNAUTHENTICATED') {
+      throw new Error(`Expected unauthenticated response, received ${res.status}: ${JSON.stringify(data)}`);
+    }
+  });
+
   await test('Database status reports connected to MySQL', async () => {
-    const res = await fetch(`${BASE_URL}/db-status`);
+    const res = await authenticatedFetch(`${BASE_URL}/db-status`);
     const data = await res.json();
     if (!data.connected || data.database !== 'MySQL') {
       throw new Error(`DB status not connected: ${JSON.stringify(data)}`);
@@ -38,7 +54,7 @@ export async function runIntegrationTestSuite() {
 
   // 2. 7-Service Catalogue
   await test('Exactly 7 fixed services are returned from MySQL', async () => {
-    const res = await fetch(`${BASE_URL}/services`);
+    const res = await authenticatedFetch(`${BASE_URL}/services`);
     const data = await res.json();
     if (!data.success || !Array.isArray(data.data) || data.data.length < 7) {
       throw new Error(`Services count expected >= 7, got ${data.data?.length}`);
@@ -61,7 +77,7 @@ export async function runIntegrationTestSuite() {
   // 3. Service CRUD
   let tempServiceId = null;
   await test('Create new service in database', async () => {
-    const res = await fetch(`${BASE_URL}/services`, {
+    const res = await authenticatedFetch(`${BASE_URL}/services`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -77,7 +93,7 @@ export async function runIntegrationTestSuite() {
   });
 
   await test('Toggle service status between ACTIVE and INACTIVE', async () => {
-    const res = await fetch(`${BASE_URL}/services/${tempServiceId}/status`, { method: 'PATCH' });
+    const res = await authenticatedFetch(`${BASE_URL}/services/${tempServiceId}/status`, { method: 'PATCH' });
     const data = await res.json();
     if (!data.success || data.data.status !== 'INACTIVE') {
       throw new Error(`Status toggle failed: ${JSON.stringify(data)}`);
@@ -87,7 +103,7 @@ export async function runIntegrationTestSuite() {
   // 4. Module & Sub-Module CRUD
   let tempModuleId = null;
   await test('Create module under service', async () => {
-    const res = await fetch(`${BASE_URL}/services/${tempServiceId}/modules`, {
+    const res = await authenticatedFetch(`${BASE_URL}/services/${tempServiceId}/modules`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -104,7 +120,7 @@ export async function runIntegrationTestSuite() {
 
   let tempSubModuleId = null;
   await test('Create sub-module under module', async () => {
-    const res = await fetch(`${BASE_URL}/modules/${tempModuleId}/sub-modules`, {
+    const res = await authenticatedFetch(`${BASE_URL}/modules/${tempModuleId}/sub-modules`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -121,7 +137,7 @@ export async function runIntegrationTestSuite() {
   // 5. Tenant Provisioning & Permission Engine
   let tempClientId = null;
   await test('Provision new tenant with custom permission tree', async () => {
-    const res = await fetch(`${BASE_URL}/clients`, {
+    const res = await authenticatedFetch(`${BASE_URL}/clients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -158,7 +174,7 @@ export async function runIntegrationTestSuite() {
   });
 
   await test('Verify saved permissions match database records', async () => {
-    const res = await fetch(`${BASE_URL}/clients/${tempClientId}/access`);
+    const res = await authenticatedFetch(`${BASE_URL}/clients/${tempClientId}/access`);
     const data = await res.json();
     if (!data.success || !data.data?.services?.length) {
       throw new Error('Tenant has no access records');
@@ -174,7 +190,7 @@ export async function runIntegrationTestSuite() {
   });
 
   await test('Revoke permission transactionally and verify removal', async () => {
-    const res = await fetch(`${BASE_URL}/clients/${tempClientId}/access`, {
+    const res = await authenticatedFetch(`${BASE_URL}/clients/${tempClientId}/access`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -192,7 +208,7 @@ export async function runIntegrationTestSuite() {
 
   // 6. Audit Logging Verification
   await test('Audit logs persisted every action with actor, IP, timestamp and details', async () => {
-    const res = await fetch(`${BASE_URL}/audit-logs`);
+    const res = await authenticatedFetch(`${BASE_URL}/audit-logs`);
     const data = await res.json();
     if (!data.success || !Array.isArray(data.data) || data.data.length < 5) {
       throw new Error(`Insufficient audit logs recorded: ${data.data?.length}`);
@@ -205,7 +221,7 @@ export async function runIntegrationTestSuite() {
 
   // 7. Error Handling & Validation
   await test('Invalid service creation without name rejected with 400 status', async () => {
-    const res = await fetch(`${BASE_URL}/services`, {
+    const res = await authenticatedFetch(`${BASE_URL}/services`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: '' }),
@@ -218,7 +234,7 @@ export async function runIntegrationTestSuite() {
   });
 
   await test('Invalid client creation without organization rejected with 400 status', async () => {
-    const res = await fetch(`${BASE_URL}/clients`, {
+    const res = await authenticatedFetch(`${BASE_URL}/clients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Incomplete User', email: 'test@incomplete.com' }),

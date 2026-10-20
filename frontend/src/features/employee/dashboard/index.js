@@ -3,6 +3,7 @@
 import { useCompanyAuthContext } from '@/context/CompanyAuthContext';
 import Card from '@/components/ui/Card';
 import StaffPasswordForm from '@/components/modules/StaffPasswordForm';
+import ServiceWorkBoard from '@/components/departments/ServiceWorkBoard';
 
 export default function EmployeeDashboardFeature() {
   const { currentUser, activeCompany } = useCompanyAuthContext();
@@ -10,6 +11,7 @@ export default function EmployeeDashboardFeature() {
   const modules = service?.modules || [];
   const isTeamLeader = currentUser?.role === 'TEAM_LEADER';
   const serviceName = currentUser?.serviceName || service?.name || 'Assigned Service';
+  const serviceCode = currentUser?.serviceCode || service?.code;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -50,6 +52,14 @@ export default function EmployeeDashboardFeature() {
         ) : (
           <p style={{ margin: 0, color: '#64748b' }}>No active modules are currently assigned to this service.</p>
         )}
+      </Card>
+
+      <Card title="Assigned Work" subtitle="Work items assigned to you in your service team">
+        <ServiceWorkBoard
+          activeCompany={activeCompany}
+          serviceCode={serviceCode}
+          currentUser={currentUser}
+        />
       </Card>
 
       <StaffPasswordForm />

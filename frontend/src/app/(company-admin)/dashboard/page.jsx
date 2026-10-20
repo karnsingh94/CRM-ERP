@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyCurrentSession, getStoredUser } from '@/lib/auth';
+import { verifyCurrentSession } from '@/lib/auth';
 import SuperAdminPortal from '@/components/super-admin/SuperAdminPortal';
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
@@ -11,8 +11,8 @@ import EmployeeDashboardFeature from '@/features/employee/dashboard';
 export default function UnifiedRoleDashboardPage() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
-  const [currentUser, setCurrentUser] = useState(() => getStoredUser());
-  const [isResolving, setIsResolving] = useState(() => !getStoredUser());
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isResolving, setIsResolving] = useState(true);
 
   useEffect(() => {
     setIsMounted(true);
@@ -28,12 +28,7 @@ export default function UnifiedRoleDashboardPage() {
         }
         setCurrentUser(user);
       } catch {
-        const fallback = getStoredUser();
-        if (mounted && fallback) {
-          setCurrentUser(fallback);
-        } else if (mounted) {
-          router.replace('/login?redirect=/dashboard');
-        }
+        if (mounted) router.replace('/login?redirect=/dashboard');
       } finally {
         if (mounted) setIsResolving(false);
       }

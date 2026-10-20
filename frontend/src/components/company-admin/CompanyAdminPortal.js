@@ -383,7 +383,13 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
 
     // 3. Service Team View (initiated from authorized service context)
     if (activeTab.startsWith('services:') && activeTab.endsWith(':departments')) {
-      if (currentUser?.role !== 'COMPANY_ADMIN' && !isSuperAdminSwitched) {
+      const canManageServiceTeam = currentUser?.role === 'COMPANY_ADMIN' ||
+        (currentUser?.role === 'SERVICE_HEAD' && (
+          currentUser.permissions?.manageMembers ||
+          currentUser.permissions?.assignWork ||
+          currentUser.permissions?.updateWork
+        ));
+      if (!canManageServiceTeam && !isSuperAdminSwitched) {
         return renderAdminRestricted('Service team management');
       }
       const targetServiceCode = activeTab.split(':')[1];
@@ -422,6 +428,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         <ServiceDepartments
           activeCompany={activeCompany}
           serviceCode={targetServiceCode}
+          currentUser={currentUser}
           showToast={showToast}
           onNavigate={handleNavigate}
         />

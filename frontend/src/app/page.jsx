@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyCurrentSession, getStoredUser } from '@/lib/auth';
+import { verifyCurrentSession } from '@/lib/auth';
 import SuperAdminPortal from '@/components/super-admin/SuperAdminPortal';
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
@@ -31,10 +31,7 @@ export default function RootHomePage() {
         setCurrentUser(user);
       } catch (err) {
         console.error('Session check error:', err);
-        const fallback = getStoredUser();
-        if (mounted && fallback) {
-          setCurrentUser(fallback);
-        } else if (mounted) {
+        if (mounted) {
           router.replace('/login');
         }
       } finally {

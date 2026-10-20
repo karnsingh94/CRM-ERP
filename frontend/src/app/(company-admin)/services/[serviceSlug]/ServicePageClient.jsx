@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyCurrentSession, getStoredUser } from '@/lib/auth';
+import { verifyCurrentSession } from '@/lib/auth';
 import SuperAdminPortal from '@/components/super-admin/SuperAdminPortal';
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
@@ -15,12 +15,6 @@ export default function ServicePageClient({ serviceSlug }) {
   useEffect(() => {
     setIsMounted(true);
     let mounted = true;
-    const cachedUser = getStoredUser();
-    if (cachedUser) {
-      setCurrentUser(cachedUser);
-      setIsResolving(false);
-    }
-
     async function resolveSession() {
       try {
         const user = await verifyCurrentSession();
@@ -31,7 +25,7 @@ export default function ServicePageClient({ serviceSlug }) {
         }
         setCurrentUser(user);
       } catch {
-        if (mounted && !cachedUser && !currentUser) router.replace(`/login?redirect=/services/${serviceSlug}`);
+        if (mounted) router.replace(`/login?redirect=/services/${serviceSlug}`);
       } finally {
         if (mounted) setIsResolving(false);
       }
