@@ -88,8 +88,8 @@ export function verifyToken(token) {
     const payload = JSON.parse(base64UrlDecode(encodedPayload));
     const now = Math.floor(Date.now() / 1000);
 
-    // Check expiration
-    if (payload.exp && payload.exp < now) {
+    // Tokens without an expiry are not valid sessions.
+    if (!Number.isFinite(payload.exp) || payload.exp <= now) {
       return null;
     }
 
@@ -152,10 +152,14 @@ export function setAuthCookie(res, token, name = 'azzuniqe_session') {
  * Clear session cookie
  */
 export function clearAuthCookie(res, name = 'azzuniqe_session') {
-  res.setHeader(
-    'Set-Cookie',
-    `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`
-  );
+  const clearedCookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`;
+  const existingCookies = res.getHeader('Set-Cookie');
+  const cookies = existingCookies
+    ? Array.isArray(existingCookies)
+      ? existingCookies
+      : [existingCookies]
+    : [];
+  res.setHeader('Set-Cookie', [...cookies, clearedCookie]);
 }
 
 export default {

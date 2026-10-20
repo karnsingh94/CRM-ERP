@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import authController from '../controllers/auth.controller.js';
-import { authenticate, requireCompanyAdmin, requireCompanyUser, requireSuperAdmin } from '../middlewares/auth.middleware.js';
+import { requireAuth, requireCompanyAdmin, requireCompanyUser, requireSuperAdmin } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -21,8 +21,8 @@ router.put('/auth/user/password', requireCompanyUser, authController.updateCompa
 router.post('/auth/login', authController.loginCompanyUser);
 
 // Profile inspection (matches /auth/me and /auth/profile)
-router.get('/auth/me', authenticate, authController.getMe);
-router.get('/auth/profile', authenticate, authController.getMe);
+router.get('/auth/me', requireAuth, authController.getMe);
+router.get('/auth/profile', requireAuth, authController.getMe);
 
 // Session termination
 router.post('/auth/logout', authController.logout);

@@ -1,3 +1,5 @@
+import { normalizeTeamPermissions } from './team-permissions.js';
+
 /**
  * Data transformation and formatting utilities for AZZUNIQE CRM & ERP.
  * Ensures consistent, backward-compatible API payloads across frontends and tests.
@@ -151,6 +153,7 @@ export function formatEmployee(e) {
         : e.accessRole === 'SERVICE_HEAD'
           ? 'EMPLOYEE'
           : e.accessRole || 'EMPLOYEE',
+    permissions: normalizeTeamPermissions(e.permissions),
     status: e.status,
     created_at: e.createdAt,
     updated_at: e.updatedAt,

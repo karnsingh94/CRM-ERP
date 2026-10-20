@@ -3,6 +3,7 @@
 import { useCompanyAuthContext } from '@/context/CompanyAuthContext';
 import Card from '@/components/ui/Card';
 import StaffPasswordForm from '@/components/modules/StaffPasswordForm';
+import ServiceDepartments from '@/components/departments/ServiceDepartments';
 
 export default function ServiceHeadDashboardFeature() {
   const { currentUser, activeCompany } = useCompanyAuthContext();
@@ -10,6 +11,8 @@ export default function ServiceHeadDashboardFeature() {
   const modules = service?.modules || [];
   const subModuleCount = modules.reduce((total, module) => total + (module.subModules || module.sub_modules || []).length, 0);
   const serviceName = currentUser?.serviceName || service?.name || 'Assigned Service';
+  const canManageTeam = currentUser?.permissions?.manageMembers === true;
+  const canManageWork = currentUser?.permissions?.assignWork === true || currentUser?.permissions?.updateWork === true;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -49,6 +52,16 @@ export default function ServiceHeadDashboardFeature() {
           <p style={{ margin: 0, color: '#64748b' }}>No active modules are currently assigned to this service.</p>
         )}
       </Card>
+
+      {(canManageTeam || canManageWork) && (
+        <Card title="Service Team Workspace" subtitle="Manage members and team work using the permissions granted by your Company Admin">
+          <ServiceDepartments
+            activeCompany={activeCompany}
+            serviceCode={currentUser?.serviceCode || service?.code}
+            currentUser={currentUser}
+          />
+        </Card>
+      )}
 
       <StaffPasswordForm />
     </div>
