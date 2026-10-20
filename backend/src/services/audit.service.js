@@ -1,5 +1,23 @@
 import prisma from '../config/prisma.js';
 import logger from '../utils/logger.js';
+import { normalizeClientIp } from '../utils/clientIp.js';
+
+function getEntityName(log) {
+  for (const value of [log.newValue, log.oldValue]) {
+    if (!value) continue;
+
+    try {
+      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      if (typeof parsed?.name === 'string' && parsed.name.trim()) {
+        return parsed.name.trim();
+      }
+    } catch {
+      // Values that are not JSON do not provide a display name.
+    }
+  }
+
+  return log.entityId ? `#${log.entityId}` : '—';
+}
 
 /**
  * Service for logging and retrieving audit trail entries
@@ -22,10 +40,11 @@ export const auditService = {
       action: l.action,
       entity_type: l.entityType,
       entity_id: l.entityId ? l.entityId.toString() : null,
+      entity_name: getEntityName(l),
       old_value: l.oldValue,
       new_value: l.newValue,
       reason: l.reason,
-      ip_address: l.ipAddress,
+      ip_address: normalizeClientIp(l.ipAddress) || 'Unknown',
       user_agent: l.userAgent,
       created_at: l.createdAt,
       createdAt: l.createdAt,
@@ -43,7 +62,7 @@ export const auditService = {
     oldValue = null,
     newValue = null,
     reason = null,
-    ipAddress = '127.0.0.1',
+    ipAddress = 'Unknown',
     userAgent = null,
   }) {
     try {
@@ -55,7 +74,7 @@ export const auditService = {
           oldValue: typeof oldValue === 'object' ? JSON.stringify(oldValue) : oldValue,
           newValue: typeof newValue === 'object' ? JSON.stringify(newValue) : newValue,
           reason,
-          ipAddress,
+          ipAddress: normalizeClientIp(ipAddress) || 'Unknown',
           userAgent,
         },
       });

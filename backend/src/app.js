@@ -1,4 +1,5 @@
 import express from 'express';
+import env from './config/env.js';
 import { securityHeadersMiddleware, corsMiddleware } from './middlewares/cors.middleware.js';
 import notFoundMiddleware from './middlewares/notFound.middleware.js';
 import errorHandlerMiddleware from './middlewares/errorHandler.middleware.js';
@@ -6,6 +7,8 @@ import apiRoutes from './routes/api.routes.js';
 import './config/prisma.js'; // Ensure BigInt JSON serialization is registered
 
 const app = express();
+
+app.set('trust proxy', env.trustProxy);
 
 // 1. Security baseline headers
 app.use(securityHeadersMiddleware);

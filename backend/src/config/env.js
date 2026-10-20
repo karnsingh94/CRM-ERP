@@ -12,10 +12,21 @@ function validateConfig() {
   const port = parseInt(process.env.PORT || '5000', 10);
   const databaseUrl = process.env.DATABASE_URL;
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const trustProxyValue = process.env.TRUST_PROXY?.trim();
 
   if (isNaN(port) || port <= 0 || port > 65535) {
     throw new Error(`[Config] Invalid PORT specification: "${process.env.PORT}". Must be a valid TCP port (1-65535).`);
   }
+
+  if (trustProxyValue?.toLowerCase() === 'true') {
+    throw new Error('[Config] TRUST_PROXY must name trusted proxy IPs/CIDRs or a hop count; do not use "true".');
+  }
+
+  const trustProxy = !trustProxyValue || trustProxyValue.toLowerCase() === 'false'
+    ? false
+    : /^\d+$/.test(trustProxyValue)
+      ? Number(trustProxyValue)
+      : trustProxyValue.split(',').map((value) => value.trim()).filter(Boolean);
 
   // Pre-configured allowed origins for CORS
   const defaultAllowedOrigins = [
@@ -41,6 +52,7 @@ function validateConfig() {
     isTest: nodeEnv === 'test',
     databaseUrl,
     clientUrl,
+    trustProxy,
     allowedOrigins,
   };
 }

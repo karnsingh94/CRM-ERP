@@ -2528,20 +2528,22 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                           <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', color: '#64748b' }}>
                             {new Date(log.created_at).toLocaleString()}
                           </td>
-                          <td style={{ whiteSpace: 'nowrap' }}><strong>{log.actor}</strong></td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <strong>{log.actor_name || log.actor || 'System / Platform Admin'}</strong>
+                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.55rem', borderRadius: '4px', background: '#eff6ff', color: '#1e40af' }}>
                               {log.action}
                             </span>
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{log.entity_type}</td>
-                          <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.entity_name}>
-                            <strong>{log.entity_name}</strong>
+                          <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.entity_name || log.entity_id || '—'}>
+                            <strong>{log.entity_name || (log.entity_id ? `#${log.entity_id}` : '—')}</strong>
                           </td>
                           <td style={{ maxWidth: '440px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.details}>
                             {log.details}
                           </td>
-                          <td style={{ fontFamily: 'monospace', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{log.ip_address}</td>
+                          <td style={{ fontFamily: 'monospace', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{log.ip_address || 'Unknown'}</td>
                         </tr>
                       ))}
                     </tbody>

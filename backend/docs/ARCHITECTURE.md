@@ -120,6 +120,7 @@ backend/
 - [ ] **Environment Configuration**:
   - Configure `PORT` (e.g. 5000 or platform assigned).
   - Set `NODE_ENV=production`.
+  - If deployed behind a reverse proxy, set `TRUST_PROXY` to the proxy IP/CIDR (or the exact trusted hop count) so audit logs record the client IP. Leave it unset when the backend is accessed directly. Do not use `TRUST_PROXY=true`.
   - Set `LOG_LEVEL=info` or `warn`.
   - Set `DATABASE_URL` with production credentials and SSL params if required (`sslmode=require`).
   - Set `CLIENT_URL` and `ADDITIONAL_CORS_ORIGINS` to the exact frontend production domains.
