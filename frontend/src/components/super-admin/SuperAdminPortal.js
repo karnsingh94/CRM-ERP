@@ -2305,11 +2305,14 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredClients.map(c => {
+                        {filteredClients.map((c, index) => {
                           const isAct = c.status === 'ACTIVE';
+                          const clientKey = c.id != null
+                            ? `${c.id}-${c.email || c.organization_name || index}`
+                            : c.email || c.organization_name || `client-${index}`;
 
                           return (
-                            <tr key={c.id}>
+                            <tr key={clientKey}>
                               <td className={styles.colCompany} title={c.organization_name}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <span

@@ -108,10 +108,10 @@ export function useCompanyAccess(activeCompany) {
       // Find matching assigned service by code or by numeric ID
       const srvAssignment = assignedServices.find(srv => {
         if (srv.status === 'INACTIVE' || srv.isAllowed === false) return false;
-        if (srv.code && srv.code === coreSrv.code) return true;
-        if (srv.service_id && String(srv.service_id) === String(coreSrv.id)) return true;
-        if (srv.serviceId && String(srv.serviceId) === String(coreSrv.id)) return true;
-        return false;
+        if (srv.code) return srv.code === coreSrv.code;
+
+        const assignedServiceId = srv.service_id || srv.serviceId;
+        return Boolean(assignedServiceId && String(assignedServiceId) === String(coreSrv.id));
       });
 
       if (!srvAssignment) return null;
