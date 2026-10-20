@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { api, API_BASE } from '../lib/api';
+import { api } from '../lib/api';
+import { clearStoredSession, getStoredToken, verifyCurrentSession } from '../lib/auth';
 
 const CompanyAuthContext = createContext(null);
 const COMPANY_USER_ROLES = ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
@@ -23,64 +24,11 @@ function scopeCompanyAccessForUser(company, user) {
   };
 }
 
-let globalActiveCompany = null;
-let globalAuthorizedCompanies = [];
 let globalCurrentUser = null;
-let globalIsLoaded = false;
-let globalInFlightPromise = null;
 
 export function CompanyAuthProvider({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-
-  // Helper to read cached token
-  const getStoredToken = () => {
-    if (typeof window === 'undefined') return null;
-    return (
-      localStorage.getItem('azzuniqe_client_token') ||
-      sessionStorage.getItem('azzuniqe_client_token')
-    );
-  };
-
-  // Helper to read cached session payload
-  const getStoredSession = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const raw =
-        localStorage.getItem('company_user') ||
-        sessionStorage.getItem('company_user');
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  };
-
-  // Helper to read cached company structure
-  const getStoredCompany = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const raw =
-        localStorage.getItem('cached_company_data') ||
-        localStorage.getItem('company_user');
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (parsed && (parsed.organizationName || parsed.name)) {
-        return {
-          id: String(parsed.companyId || parsed.id),
-          name: parsed.organizationName || parsed.name,
-          organizationName: parsed.organizationName || parsed.name,
-          email: parsed.email,
-          themeColor: parsed.themeColor || parsed.theme_color || '#7f22fe',
-          theme_color: parsed.themeColor || parsed.theme_color || '#7f22fe',
-          access: parsed.access || { services: [] },
-          status: parsed.status || 'ACTIVE',
-        };
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
 
   // Format role display label
   const formatRoleTitle = (role, departmentName) => {
@@ -99,41 +47,14 @@ export function CompanyAuthProvider({ children }) {
     }
   };
 
-  const initialComp = globalActiveCompany || getStoredCompany();
-  const initialUser = (() => {
-    if (globalCurrentUser) return globalCurrentUser;
-    const session = getStoredSession();
-    if (session) {
-      return {
-        ...session,
-        roleTitle: formatRoleTitle(session.role, session.departmentName),
-        isCompanyAdmin: session.role === 'COMPANY_ADMIN',
-        isDepartmentHead: session.role === 'DEPARTMENT_HEAD' || session.role === 'SERVICE_HEAD',
-        isServiceHead: session.role === 'SERVICE_HEAD' || session.role === 'DEPARTMENT_HEAD',
-        isTeamLeader: session.role === 'TEAM_LEADER',
-        isEmployee: session.role === 'EMPLOYEE',
-      };
-    }
-    return null;
-  })();
-
-  const [activeCompany, setActiveCompany] = useState(initialComp);
-  const [authorizedCompanies, setAuthorizedCompanies] = useState(() => {
-    if (globalAuthorizedCompanies.length > 0) return globalAuthorizedCompanies;
-    return initialComp ? [initialComp] : [];
-  });
-  const [currentUser, setCurrentUser] = useState(initialUser);
-  const [isLoading, setIsLoading] = useState(() => !globalIsLoaded && !initialComp);
+  const [activeCompany, setActiveCompany] = useState(null);
+  const [authorizedCompanies, setAuthorizedCompanies] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const isInitialLoadDone = useRef(globalIsLoaded);
-
-  // Load and verify company user session ONCE (does NOT repeat on every pathname change)
-  const loadCompanySession = useCallback(async (force = false) => {
-    if ((globalIsLoaded || isInitialLoadDone.current) && !force) {
-      return;
-    }
-
+  // Verify the company session on entry and whenever the page regains focus.
+  const loadCompanySession = useCallback(async () => {
     if (pathname.startsWith('/super-admin')) {
       setIsLoading(false);
       return;
@@ -145,7 +66,7 @@ export function CompanyAuthProvider({ children }) {
     }
 
     // Never show full loading skeleton if user/company is already known
-    if (!globalCurrentUser && !getStoredSession()) {
+    if (!globalCurrentUser) {
       setIsLoading(true);
     }
     setError(null);
@@ -153,51 +74,20 @@ export function CompanyAuthProvider({ children }) {
     try {
       const token = getStoredToken();
       let verifiedUser = null;
-
-      // 1. Verify session with backend /api/auth/me
-      if (token) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3500);
-          const res = await fetch(`${API_BASE}/auth/me`, {
-            credentials: 'include',
-            headers: { Authorization: `Bearer ${token}` },
-            signal: controller.signal,
-          });
-          clearTimeout(timeoutId);
-
-          if (res.ok) {
-            const body = await res.json();
-            const userCandidate = body?.data?.user || body?.data;
-            if (userCandidate) {
-              if (userCandidate.role === 'SUPER_ADMIN') {
-                router.replace('/super-admin');
-                return;
-              }
-              if (COMPANY_USER_ROLES.includes(userCandidate.role)) {
-                verifiedUser = userCandidate;
-              }
-            }
-          }
-        } catch {
-          // Network or backend unavailable
-        }
+      const userCandidate = token ? await verifyCurrentSession() : null;
+      if (userCandidate?.role === 'SUPER_ADMIN') {
+        router.replace('/super-admin');
+        return;
       }
-
-      // 2. Fallback to cached session
-      if (!verifiedUser) {
-        const cached = getStoredSession();
-        if (
-          cached &&
-          COMPANY_USER_ROLES.includes(cached.role) &&
-          token
-        ) {
-          verifiedUser = cached;
-        }
+      if (COMPANY_USER_ROLES.includes(userCandidate?.role)) {
+        verifiedUser = userCandidate;
       }
 
       // 3. If unauthenticated, redirect to /login
       if (!verifiedUser) {
+        if (token !== getStoredToken()) return;
+        clearStoredSession();
+        globalCurrentUser = null;
         setIsLoading(false);
         setCurrentUser(null);
         setActiveCompany(null);
@@ -268,10 +158,6 @@ export function CompanyAuthProvider({ children }) {
       }
 
       globalCurrentUser = userProfile;
-      globalActiveCompany = finalCompany;
-      globalAuthorizedCompanies = finalAuthorizedList;
-      globalIsLoaded = true;
-      isInitialLoadDone.current = true;
     } catch (err) {
       console.error('Company auth load failure:', err);
       setError(err.message || 'Failed to authenticate company session');
@@ -282,35 +168,11 @@ export function CompanyAuthProvider({ children }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      let cachedCompany = globalActiveCompany;
-      if (!cachedCompany) {
-        try {
-          const raw = localStorage.getItem('cached_company_data');
-          if (raw) cachedCompany = JSON.parse(raw);
-        } catch {}
-      }
-      const cached = globalCurrentUser || getStoredSession();
-      if (cached) {
-        const roleTitle = formatRoleTitle(cached.role, cached.departmentName);
-        const profile = {
-          ...cached,
-          roleTitle,
-          isCompanyAdmin: cached.role === 'COMPANY_ADMIN',
-          isDepartmentHead: cached.role === 'DEPARTMENT_HEAD' || cached.role === 'SERVICE_HEAD',
-          isServiceHead: cached.role === 'SERVICE_HEAD' || cached.role === 'DEPARTMENT_HEAD',
-          isTeamLeader: cached.role === 'TEAM_LEADER',
-          isEmployee: cached.role === 'EMPLOYEE',
-        };
-        setCurrentUser(profile);
-        if (cachedCompany) {
-          setActiveCompany(cachedCompany);
-        }
-        setIsLoading(false);
-      }
+      loadCompanySession();
 
       // Revalidate automatically on tab focus or catalog update storage event
       const handleRevalidate = () => {
-        loadCompanySession(true);
+        loadCompanySession();
       };
       window.addEventListener('focus', handleRevalidate);
       window.addEventListener('storage', handleRevalidate);
@@ -362,7 +224,6 @@ export function CompanyAuthProvider({ children }) {
       if (profile.name) {
         setActiveCompany((previous) => {
           const updated = { ...previous, name: profile.name };
-          globalActiveCompany = updated;
           if (typeof window !== 'undefined') {
             localStorage.setItem('cached_company_data', JSON.stringify(updated));
           }
@@ -373,7 +234,6 @@ export function CompanyAuthProvider({ children }) {
     if (company) {
       setActiveCompany((previous) => {
         const updated = { ...previous, ...company };
-        globalActiveCompany = updated;
         if (typeof window !== 'undefined') {
           localStorage.setItem('cached_company_data', JSON.stringify(updated));
         }
@@ -395,22 +255,10 @@ export function CompanyAuthProvider({ children }) {
       // Invalidation attempted
     }
 
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('azzuniqe_client_token');
-      sessionStorage.removeItem('azzuniqe_client_token');
-      localStorage.removeItem('company_user');
-      sessionStorage.removeItem('company_user');
-      localStorage.removeItem('active_company_id');
-      sessionStorage.removeItem('active_company_id');
-      document.cookie = 'azzuniqe_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
-    }
+    clearStoredSession();
 
-    globalActiveCompany = null;
-    globalAuthorizedCompanies = [];
     globalCurrentUser = null;
-    globalIsLoaded = false;
 
-    isInitialLoadDone.current = false;
     setActiveCompany(null);
     setCurrentUser(null);
     router.replace('/login');
@@ -427,7 +275,7 @@ export function CompanyAuthProvider({ children }) {
     selectCompany,
     updateCompanyAdminState,
     logout,
-    refreshSession: () => loadCompanySession(true),
+    refreshSession: () => loadCompanySession(),
   };
 
   return (

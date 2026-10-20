@@ -6,6 +6,7 @@ import { clientAccessInclude, formatClient } from '../utils/formatters.js';
 import auditService from './audit.service.js';
 import logger from '../utils/logger.js';
 import { sendPasswordResetEmail } from '../utils/mailer.js';
+import { normalizeTeamPermissions } from '../utils/team-permissions.js';
 
 // In-memory store for active password reset tokens
 // key: tokenHash (SHA-256), value: { email, userId, userType, expiresAt, used }
@@ -412,6 +413,7 @@ export const authService = {
           role: resolvedRole,
           rawRole: employee.role,
           accessRole: employee.accessRole,
+          permissions: normalizeTeamPermissions(employee.permissions),
           companyId: employee.companyId.toString(),
           departmentId: employee.departmentId ? employee.departmentId.toString() : null,
           teamId: employee.teamId ? employee.teamId.toString() : null,
@@ -606,6 +608,7 @@ export const authService = {
             role,
             rawRole: employee.role,
             accessRole: employee.accessRole,
+            permissions: normalizeTeamPermissions(employee.permissions),
             companyId: employee.companyId.toString(),
             departmentId: employee.departmentId ? employee.departmentId.toString() : null,
             teamId: employee.teamId ? employee.teamId.toString() : null,

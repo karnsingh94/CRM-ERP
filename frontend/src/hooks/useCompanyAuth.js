@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { api, API_BASE } from '../lib/api';
+import { clearStoredSession } from '../lib/auth';
 import { useCompanyAuthContext } from '../context/CompanyAuthContext';
 
 const COMPANY_USER_ROLES = ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
@@ -45,19 +46,6 @@ export function useCompanyAuth() {
       localStorage.getItem('azzuniqe_client_token') ||
       sessionStorage.getItem('azzuniqe_client_token')
     );
-  };
-
-  // Helper to read cached session payload
-  const getStoredSession = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const raw =
-        localStorage.getItem('company_user') ||
-        sessionStorage.getItem('company_user');
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
   };
 
   // Format role display label
@@ -116,20 +104,10 @@ export function useCompanyAuth() {
         // Network or backend unavailable
       }
 
-      // 2. Fallback to cached session if backend returned unparseable or error
-      if (!verifiedUser) {
-        const cached = getStoredSession();
-        if (
-          cached &&
-          COMPANY_USER_ROLES.includes(cached.role) &&
-          token
-        ) {
-          verifiedUser = cached;
-        }
-      }
-
       // 3. If unauthenticated, redirect to /login
       if (!verifiedUser) {
+        if (token !== getStoredToken()) return;
+        clearStoredSession();
         setIsLoading(false);
         setCurrentUser(null);
         setActiveCompany(null);
@@ -248,17 +226,7 @@ export function useCompanyAuth() {
       // Invalidation attempted
     }
 
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('azzuniqe_client_token');
-      sessionStorage.removeItem('azzuniqe_client_token');
-      localStorage.removeItem('company_user');
-      sessionStorage.removeItem('company_user');
-      localStorage.removeItem('active_company_id');
-      sessionStorage.removeItem('active_company_id');
-
-      // Clear cookie
-      document.cookie = 'azzuniqe_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
-    }
+    clearStoredSession();
 
     setActiveCompany(null);
     setCurrentUser(null);

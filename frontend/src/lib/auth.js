@@ -1,6 +1,24 @@
 'use client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const AUTH_STORAGE_KEYS = [
+  'azzuniqe_super_token',
+  'azzuniqe_super_token_backup',
+  'azzuniqe_client_token',
+  'auth_user',
+  'company_user',
+  'active_company_id',
+  'cached_company_data',
+  'is_super_admin_impersonating',
+  'impersonated_client_name',
+];
+
+const SESSION_CACHE_MS = 30_000;
+let cachedSessionUser = null;
+let cachedSessionToken = null;
+let cachedSessionAt = 0;
+let inFlightSessionPromise = null;
+let inFlightSessionToken = null;
 
 export function getStoredToken() {
   if (typeof window === 'undefined') return null;
@@ -9,125 +27,102 @@ export function getStoredToken() {
     return (
       localStorage.getItem('azzuniqe_client_token') ||
       sessionStorage.getItem('azzuniqe_client_token') ||
-      localStorage.getItem('azzuniqe_super_token')
+      localStorage.getItem('azzuniqe_super_token') ||
+      sessionStorage.getItem('azzuniqe_super_token')
     );
   }
   return (
     localStorage.getItem('azzuniqe_super_token') ||
-    localStorage.getItem('azzuniqe_client_token') ||
     sessionStorage.getItem('azzuniqe_super_token') ||
+    localStorage.getItem('azzuniqe_client_token') ||
     sessionStorage.getItem('azzuniqe_client_token')
   );
 }
 
-export function getStoredUser() {
-  if (typeof window === 'undefined') return null;
-  const isImpersonating = localStorage.getItem('is_super_admin_impersonating') === 'true';
-  try {
-    if (isImpersonating) {
-      const compRaw = localStorage.getItem('company_user') || sessionStorage.getItem('company_user');
-      if (compRaw) return JSON.parse(compRaw);
-    }
-    const superToken = localStorage.getItem('azzuniqe_super_token') || sessionStorage.getItem('azzuniqe_super_token');
-    if (superToken) {
-      const superRaw = localStorage.getItem('auth_user') || sessionStorage.getItem('auth_user');
-      if (superRaw) {
-        const u = JSON.parse(superRaw);
-        if (u.role === 'SUPER_ADMIN' || u.role === 'Super Admin') return u;
-      }
-    }
-    const clientRaw =
-      localStorage.getItem('company_user') ||
-      sessionStorage.getItem('company_user') ||
-      localStorage.getItem('auth_user') ||
-      sessionStorage.getItem('auth_user');
-    return clientRaw ? JSON.parse(clientRaw) : null;
-  } catch {
-    return null;
-  }
+export function clearStoredSession() {
+  cachedSessionUser = null;
+  cachedSessionToken = null;
+  cachedSessionAt = 0;
+  inFlightSessionPromise = null;
+  inFlightSessionToken = null;
+
+  if (typeof window === 'undefined') return;
+  AUTH_STORAGE_KEYS.forEach((key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
+  document.cookie = 'azzuniqe_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
+  document.cookie = 'azzuniqe_super_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
 }
 
-let cachedSessionUser = null;
-let lastSessionVerifyTime = 0;
-let inFlightSessionPromise = null;
+export function rememberVerifiedSession(token, user) {
+  if (!token || !user) return;
+  cachedSessionToken = token;
+  cachedSessionUser = user;
+  cachedSessionAt = Date.now();
+}
 
-export async function verifyCurrentSession(forceRefresh = false) {
-  const now = Date.now();
-  // Return cached session if verified within last 30 seconds and not forced
-  if (!forceRefresh && cachedSessionUser && (now - lastSessionVerifyTime < 30000)) {
+export function getStoredUser() {
+  const token = getStoredToken();
+  const cacheAge = Date.now() - cachedSessionAt;
+  if (
+    token &&
+    token === cachedSessionToken &&
+    cacheAge >= 0 &&
+    cacheAge < SESSION_CACHE_MS
+  ) {
     return cachedSessionUser;
   }
+  return null;
+}
 
-  // Deduplicate concurrent calls
-  if (inFlightSessionPromise && !forceRefresh) {
+export async function verifyCurrentSession() {
+  const token = getStoredToken();
+  if (!token) {
+    clearStoredSession();
+    return null;
+  }
+
+  const cachedUser = getStoredUser();
+  if (cachedUser) return cachedUser;
+
+  if (inFlightSessionPromise && inFlightSessionToken === token) {
     return inFlightSessionPromise;
   }
 
+  inFlightSessionToken = token;
   inFlightSessionPromise = (async () => {
-    const token = getStoredToken();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
     try {
-      if (token) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          credentials: 'include',
-          headers: { Authorization: `Bearer ${token}` },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        if (res.ok) {
-          const data = await res.json();
-          const verified = data?.data?.user || data?.data || null;
-          if (verified) {
-            cachedSessionUser = verified;
-            lastSessionVerifyTime = Date.now();
-            return verified;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Session verification network error:', err);
-    } finally {
-      inFlightSessionPromise = null;
-    }
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        credentials: 'include',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
 
-    const fallbackUser = getStoredUser();
-    if (fallbackUser) {
-      cachedSessionUser = fallbackUser;
-      lastSessionVerifyTime = Date.now();
+      if (!res.ok) {
+        if (res.status === 401 && getStoredToken() === token) clearStoredSession();
+        return null;
+      }
+
+      const data = await res.json();
+      const verified = data?.data?.user || data?.data || null;
+      if (!verified || getStoredToken() !== token) return null;
+
+      rememberVerifiedSession(token, verified);
+      return verified;
+    } catch (err) {
+      console.warn('Session verification failed:', err);
+      return null;
+    } finally {
+      clearTimeout(timeoutId);
+      if (inFlightSessionToken === token) {
+        inFlightSessionPromise = null;
+        inFlightSessionToken = null;
+      }
     }
-    return fallbackUser;
   })();
 
   return inFlightSessionPromise;
-}
-
-export async function logoutUser() {
-  const token = getStoredToken();
-  try {
-    await fetch(`${API_BASE}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    }).catch(() => null);
-  } catch {}
-
-  cachedSessionUser = null;
-  lastSessionVerifyTime = 0;
-  inFlightSessionPromise = null;
-
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('azzuniqe_super_token');
-    localStorage.removeItem('azzuniqe_super_token_backup');
-    localStorage.removeItem('azzuniqe_client_token');
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('company_user');
-    localStorage.removeItem('active_company_id');
-    localStorage.removeItem('cached_company_data');
-    localStorage.removeItem('is_super_admin_impersonating');
-    localStorage.removeItem('impersonated_client_name');
-    sessionStorage.clear();
-    document.cookie = 'azzuniqe_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
-    window.location.href = '/login';
-  }
 }

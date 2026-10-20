@@ -3,37 +3,60 @@
  * Centralized HTTP client reusing the existing backend API conventions.
  */
 
+import { clearStoredSession, getStoredToken } from './auth';
+
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// In-flight deduplication cache for concurrent GET requests
 const inFlightGetRequests = new Map();
 
-/**
- * Standard fetch wrapper with centralized error handling and request deduplication
- */
+function redirectToLogin() {
+  if (typeof window === 'undefined' || window.location.pathname === '/login') return;
+  const redirectTarget = `${window.location.pathname}${window.location.search}`;
+  window.location.replace(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
+}
+
+export async function authenticatedFetch(input, options = {}) {
+  const token = getStoredToken();
+  const headers = new Headers(options.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(input, {
+    ...options,
+    headers,
+    credentials: options.credentials || 'include',
+  });
+
+  if (response.status === 401 && token === getStoredToken()) {
+    clearStoredSession();
+    redirectToLogin();
+  }
+
+  return response;
+}
+
 export async function apiRequest(endpoint, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+  const storedToken = getStoredToken();
 
-  // Deduplicate concurrent GET requests for the same URL
-  if (method === 'GET' && !options.noCache) {
-    if (inFlightGetRequests.has(url)) {
-      return inFlightGetRequests.get(url);
-    }
+  if (!storedToken) {
+    clearStoredSession();
+    redirectToLogin();
+    const err = new Error('Authentication required. Please log in to continue.');
+    err.status = 401;
+    throw err;
   }
 
-  const storedToken =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('azzuniqe_client_token') ||
-        sessionStorage.getItem('azzuniqe_client_token') ||
-        localStorage.getItem('azzuniqe_super_token') ||
-        sessionStorage.getItem('azzuniqe_super_token')
-      : null;
+  const requestKey = `${url}:${storedToken}`;
+  if (method === 'GET' && !options.noCache && inFlightGetRequests.has(requestKey)) {
+    return inFlightGetRequests.get(requestKey);
+  }
 
   const defaultHeaders = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+    Accept: 'application/json',
     ...(options.headers || {}),
   };
 
@@ -50,7 +73,7 @@ export async function apiRequest(endpoint, options = {}) {
 
   const fetchPromise = (async () => {
     try {
-      const response = await fetch(url, config);
+      const response = await authenticatedFetch(url, config);
       clearTimeout(timeoutId);
       const data = await response.json().catch(() => null);
 
@@ -71,13 +94,13 @@ export async function apiRequest(endpoint, options = {}) {
       throw networkErr;
     } finally {
       if (method === 'GET') {
-        inFlightGetRequests.delete(url);
+        inFlightGetRequests.delete(requestKey);
       }
     }
   })();
 
   if (method === 'GET' && !options.noCache) {
-    inFlightGetRequests.set(url, fetchPromise);
+    inFlightGetRequests.set(requestKey, fetchPromise);
   }
 
   return fetchPromise;
@@ -90,4 +113,3 @@ export const api = {
   patch: (endpoint, body, options) => apiRequest(endpoint, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined, ...options }),
   delete: (endpoint, options) => apiRequest(endpoint, { method: 'DELETE', ...options }),
 };
-

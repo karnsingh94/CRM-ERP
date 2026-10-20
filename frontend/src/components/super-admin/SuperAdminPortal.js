@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { authenticatedFetch as fetch } from '@/lib/api';
+import { clearStoredSession } from '@/lib/auth';
 import styles from './SuperAdminPortal.module.css';
 import SuperAdminBreadcrumbs from '@/components/navigation/SuperAdminBreadcrumbs';
 
@@ -305,14 +307,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
     try {
       await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
     } catch {}
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('azzuniqe_super_token');
-      sessionStorage.removeItem('azzuniqe_super_token');
-      localStorage.removeItem('auth_user');
-      sessionStorage.removeItem('auth_user');
-      document.cookie = 'azzuniqe_super_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      document.cookie = 'azzuniqe_super_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    }
+    clearStoredSession();
     showToast('Session Terminated', 'Super Admin logged out safely.', 'info');
     router.replace('/login');
   };
