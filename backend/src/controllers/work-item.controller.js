@@ -6,7 +6,8 @@ const workItemController = {
       const items = await workItemService.list(
         req.params.companyId,
         req.params.serviceCode,
-        req.user
+        req.user,
+        req.query.teamId
       );
       res.json({ success: true, data: items });
     } catch (error) {

@@ -699,7 +699,7 @@ export default function CompanyDashboard({
                   </div>
                 </div>
 
-                {/* Service Department Management Quick Action */}
+                {/* Service Team Management Quick Action */}
                 <div
                   style={{
                     display: 'flex',
@@ -741,10 +741,10 @@ export default function CompanyDashboard({
                       e.currentTarget.style.background = '#eff6ff';
                       e.currentTarget.style.borderColor = '#bfdbfe';
                     }}
-                    title={`Manage departments under ${srv.name}`}
+                    title={`Manage teams under ${srv.name}`}
                   >
                     <span>🏢</span>
-                    <span>Departments</span>
+                    <span>Service Team</span>
                   </button>
                 </div>
               </div>

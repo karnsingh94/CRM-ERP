@@ -143,13 +143,13 @@ export function formatEmployee(e) {
     serviceId: service?.id ? service.id.toString() : null,
     serviceCode: service?.code || null,
     serviceName: service?.name || e.department?.name || null,
-    departmentName: e.team?.service?.name || e.department?.name || null,
+    departmentName: e.team?.name || e.team?.service?.name || e.department?.name || null,
     name: e.name,
     email: e.email,
     role: e.role,
     accessRole:
       e.team?.headEmployeeId === e.id
-        ? 'SERVICE_HEAD'
+        ? 'TEAM_LEADER'
         : e.accessRole === 'SERVICE_HEAD'
           ? 'EMPLOYEE'
           : e.accessRole || 'EMPLOYEE',

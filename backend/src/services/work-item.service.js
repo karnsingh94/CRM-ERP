@@ -87,7 +87,7 @@ function requireHeadPermission(employee, permission) {
     employee?.team?.headEmployeeId !== employee.id ||
     employee.permissions?.[permission] !== true
   ) {
-    throw httpError('The required Service Head permission is not assigned.', 403, 'TEAM_PERMISSION_REQUIRED');
+    throw httpError('The required Team Leader permission is not assigned.', 403, 'TEAM_PERMISSION_REQUIRED');
   }
 }
 
@@ -124,15 +124,39 @@ function validateProgress(progress) {
 }
 
 const workItemService = {
-  async list(companyId, serviceCode, actor) {
+  async list(companyId, serviceCode, actor, requestedTeamId = null) {
     const service = await resolveService(companyId, serviceCode);
     const employee = await resolveEmployee(actor, companyId);
-    const where = { companyId: String(companyId), serviceId: service.id };
+    const where = { companyId: BigInt(companyId), serviceId: service.id };
+    let teamId = null;
     if (employee) {
       if (employee.team.serviceId !== service.id) {
         throw httpError('This work board is outside your assigned service.', 403, 'SERVICE_SCOPE_VIOLATION');
       }
-      if (employee.team.headEmployeeId !== employee.id) where.assignedToId = employee.id;
+      teamId = employee.team.id;
+      if (employee.team.headEmployeeId === employee.id) {
+        const teamMembers = await prisma.companyEmployee.findMany({
+          where: { teamId: employee.team.id, status: 'ACTIVE' },
+          select: { id: true },
+        });
+        where.assignedToId = { in: teamMembers.map((member) => member.id) };
+      } else {
+        where.assignedToId = employee.id;
+      }
+    } else if (requestedTeamId) {
+      teamId = parseId(requestedTeamId, 'Team');
+      const team = await prisma.companyServiceTeam.findFirst({
+        where: { id: teamId, companyId: BigInt(companyId), serviceId: service.id },
+        select: { id: true },
+      });
+      if (!team) throw httpError('Choose a team belonging to this service.', 404, 'TEAM_NOT_FOUND');
+    }
+    if (teamId && !employee) {
+      const teamMembers = await prisma.companyEmployee.findMany({
+        where: { teamId, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      where.assignedToId = { in: teamMembers.map((member) => member.id) };
     }
     const items = await prisma.serviceWorkItem.findMany({
       where,
@@ -149,11 +173,15 @@ const workItemService = {
     const cid = String(companyId);
     const service = await resolveService(companyId, serviceCode);
     const employee = await resolveEmployee(actor, companyId);
+    let targetTeamId = employee?.team.id || null;
     if (employee) {
       if (employee.team.serviceId !== service.id) {
         throw httpError('You can only create work for your assigned service.', 403, 'SERVICE_SCOPE_VIOLATION');
       }
       requireHeadPermission(employee, 'assignWork');
+    }
+    if (!employee && data.teamId) {
+      targetTeamId = parseId(data.teamId, 'Team');
     }
 
     const title = typeof data.title === 'string' ? data.title.trim() : '';
@@ -164,7 +192,9 @@ const workItemService = {
       where: {
         id: assigneeId,
         companyId: cid,
-        team: { companyId: cid, serviceId: service.id },
+        team: targetTeamId
+          ? { id: targetTeamId, companyId: cid, serviceId: service.id }
+          : { companyId: cid, serviceId: service.id },
         status: 'ACTIVE',
       },
       select: { id: true },
@@ -228,10 +258,13 @@ const workItemService = {
     const isAssignee = employee?.id === item.assignedToId;
 
     if (!isAdmin && !isAssignee && !(isHead && employee.permissions?.updateWork === true)) {
-      throw httpError('Only the assignee, permitted Service Head, or Company Admin can update this work.', 403, 'WORK_UPDATE_FORBIDDEN');
+      throw httpError('Only the assignee, permitted Team Leader, or Company Admin can update this work.', 403, 'WORK_UPDATE_FORBIDDEN');
     }
     if (employee && employee.team.serviceId !== item.serviceId) {
       throw httpError('This work item is outside your assigned service.', 403, 'SERVICE_SCOPE_VIOLATION');
+    }
+    if (isHead && item.assignee.teamId !== employee.team.id) {
+      throw httpError('This work item is outside your team.', 403, 'TEAM_SCOPE_VIOLATION');
     }
 
     const changes = {};
@@ -252,7 +285,7 @@ const workItemService = {
     }
     if (data.title !== undefined || data.description !== undefined || data.dueDate !== undefined) {
       if (!hasManagerPermission) {
-        throw httpError('Only a permitted Service Head or Company Admin can edit work details.', 403, 'WORK_UPDATE_FORBIDDEN');
+        throw httpError('Only a permitted Team Leader or Company Admin can edit work details.', 403, 'WORK_UPDATE_FORBIDDEN');
       }
       if (data.title !== undefined) {
         if (typeof data.title !== 'string' || !data.title.trim() || data.title.trim().length > 180) {
@@ -270,7 +303,7 @@ const workItemService = {
     }
     if (data.assignedToId !== undefined) {
       if (!isAdmin && !(isHead && employee.permissions?.assignWork === true)) {
-        throw httpError('Only a permitted Service Head or Company Admin can reassign work.', 403, 'WORK_ASSIGN_FORBIDDEN');
+        throw httpError('Only a permitted Team Leader or Company Admin can reassign work.', 403, 'WORK_ASSIGN_FORBIDDEN');
       }
       const newAssigneeId = parseId(data.assignedToId, 'Assignee');
       const validAssignee = await prisma.companyEmployee.findFirst({
@@ -278,7 +311,9 @@ const workItemService = {
           id: newAssigneeId,
           companyId: String(companyId),
           status: 'ACTIVE',
-          team: { companyId: String(companyId), serviceId: item.serviceId },
+          team: isHead
+            ? { id: employee.team.id, companyId: BigInt(companyId), serviceId: item.serviceId }
+            : { companyId: BigInt(companyId), serviceId: item.serviceId },
         },
         select: { id: true },
       });

@@ -28,7 +28,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     customers: '/crm/customers',
     contacts: '/crm/contacts',
     opportunities: '/crm/opportunities',
-    departments: '/services/crm-sales/departments',
+    departments: '/services/crm-sales/service-team',
   };
 
   // Permission checks
@@ -550,7 +550,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
           }}
         >
           <span>🏢</span>
-          <span>Departments</span>
+          <span>Service Team</span>
         </button>
       </div>
 

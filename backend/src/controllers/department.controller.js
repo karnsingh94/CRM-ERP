@@ -62,13 +62,47 @@ export const departmentController = {
     }
   },
 
+  async getServiceTeams(req, res, next) {
+    try {
+      const teams = await departmentService.listServiceTeams(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.user
+      );
+      res.json({ success: true, data: teams });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
+  async createServiceTeam(req, res, next) {
+    try {
+      const team = await departmentService.createServiceTeam(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.body.name,
+        req.meta || {}
+      );
+      res.status(201).json({ success: true, data: team });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
   async setServiceTeamHead(req, res, next) {
     try {
       const team = await departmentService.setServiceTeamHead(
         req.params.companyId,
         req.params.serviceCode,
         req.body.headId,
-        req.meta || {}
+        req.meta || {},
+        req.body.teamId
       );
       res.json({ success: true, data: team });
     } catch (err) {
@@ -85,7 +119,8 @@ export const departmentController = {
         req.params.companyId,
         req.params.serviceCode,
         req.body.permissions,
-        req.meta || {}
+        req.meta || {},
+        req.body.teamId
       );
       res.json({ success: true, data: team });
     } catch (err) {
