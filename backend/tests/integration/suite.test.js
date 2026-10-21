@@ -247,10 +247,10 @@ export async function runIntegrationTestSuite() {
   // 8. Automated Teardown of Temporary Test Artifacts
   await test('Teardown test artifacts', async () => {
     if (tempClientId) {
-      await prisma.clientAdmin.delete({ where: { id: BigInt(tempClientId) } }).catch(() => {});
+      await prisma.clientAdmin.delete({ where: { id: String(tempClientId) } }).catch(() => {});
     }
     if (tempServiceId) {
-      await prisma.service.delete({ where: { id: BigInt(tempServiceId) } }).catch(() => {});
+      await prisma.service.delete({ where: { id: String(tempServiceId) } }).catch(() => {});
     }
     await prisma.$disconnect();
   });

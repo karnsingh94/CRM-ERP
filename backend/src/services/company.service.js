@@ -2,6 +2,7 @@ import prisma from '../config/prisma.js';
 import { hashPassword } from '../utils/hash.js';
 import { formatClient, clientAccessInclude } from '../utils/formatters.js';
 import { signToken } from '../utils/token.js';
+import { isUuid } from '../utils/uuid.js';
 import auditService from './audit.service.js';
 
 /**
@@ -25,7 +26,7 @@ export const companyService = {
    */
   async getClientById(id) {
     const client = await prisma.clientAdmin.findUnique({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       include: clientAccessInclude,
     });
     if (!client || client.deletedAt) return null;
@@ -87,7 +88,7 @@ export const companyService = {
    */
   async updateClient(id, data, meta = {}, assignedBy = null) {
     const existing = await prisma.clientAdmin.findUnique({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
     });
     if (!existing || existing.deletedAt) return null;
 
@@ -106,16 +107,16 @@ export const companyService = {
       }
 
       const client = await tx.clientAdmin.update({
-        where: { id: BigInt(id) },
+        where: { id: String(id) },
         data: updateData,
       });
 
       // Update access tree if provided
       if (data.access && Array.isArray(data.access.services)) {
         // Clear previous access records
-        await tx.clientSubModuleAccess.deleteMany({ where: { clientAdminId: client.id } });
-        await tx.clientModuleAccess.deleteMany({ where: { clientAdminId: client.id } });
-        await tx.clientServiceAccess.deleteMany({ where: { clientAdminId: client.id } });
+        await tx.clientSubModuleAccess.deleteMany({ where: { adminId: client.id } });
+        await tx.clientModuleAccess.deleteMany({ where: { adminId: client.id } });
+        await tx.clientServiceAccess.deleteMany({ where: { adminId: client.id } });
 
         // Save new permissions
         await this._saveAccessInternal(tx, client.id, data.access.services, assignedBy);
@@ -147,12 +148,12 @@ export const companyService = {
    * Toggle client company active/inactive status
    */
   async toggleClientStatus(id, meta = {}) {
-    const existing = await prisma.clientAdmin.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.clientAdmin.findUnique({ where: { id: String(id) } });
     if (!existing || existing.deletedAt) return null;
 
     const newStatus = existing.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const updated = await prisma.clientAdmin.update({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       data: { status: newStatus },
       include: clientAccessInclude,
     });
@@ -175,12 +176,12 @@ export const companyService = {
    * Soft-delete client company
    */
   async deleteClient(id, meta = {}) {
-    const existing = await prisma.clientAdmin.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.clientAdmin.findUnique({ where: { id: String(id) } });
     if (!existing || existing.deletedAt) return false;
 
     // Soft delete
     await prisma.clientAdmin.update({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       data: { deletedAt: new Date(), status: 'INACTIVE' },
     });
 
@@ -201,16 +202,16 @@ export const companyService = {
    * Overwrite client permissions transactionally
    */
   async saveClientAccess(clientId, accessData, meta = {}, assignedBy = null) {
-    const client = await prisma.clientAdmin.findUnique({ where: { id: BigInt(clientId) } });
+    const client = await prisma.clientAdmin.findUnique({ where: { id: String(clientId) } });
     if (!client || client.deletedAt) return null;
 
     const services = Array.isArray(accessData?.services) ? accessData.services : [];
 
     await prisma.$transaction(async (tx) => {
       // 1. Clear existing mappings for this client
-      await tx.clientSubModuleAccess.deleteMany({ where: { clientAdminId: client.id } });
-      await tx.clientModuleAccess.deleteMany({ where: { clientAdminId: client.id } });
-      await tx.clientServiceAccess.deleteMany({ where: { clientAdminId: client.id } });
+      await tx.clientSubModuleAccess.deleteMany({ where: { adminId: client.id } });
+      await tx.clientModuleAccess.deleteMany({ where: { adminId: client.id } });
+      await tx.clientServiceAccess.deleteMany({ where: { adminId: client.id } });
 
       // 2. Insert validated new permissions
       await this._saveAccessInternal(tx, client.id, services, assignedBy);
@@ -235,9 +236,9 @@ export const companyService = {
   /**
    * Internal helper for saving client permission tree inside a transaction
    */
-  async _saveAccessInternal(tx, clientAdminId, services, assignedBy = null) {
-    const assignedById = assignedBy != null && /^\d+$/.test(String(assignedBy))
-      ? BigInt(assignedBy)
+  async _saveAccessInternal(tx, adminId, services, assignedBy = null) {
+    const assignedById = isUuid(assignedBy)
+      ? String(assignedBy).toLowerCase()
       : null;
     if (services.length > 0 && assignedById === null) {
       throw Object.assign(new Error('A valid administrator ID is required to assign permissions.'), { statusCode: 401 });
@@ -245,10 +246,10 @@ export const companyService = {
 
     for (const s of services) {
       const rawServiceId = s.service_id || s.serviceId;
-      if (!rawServiceId || !/^\d+$/.test(String(rawServiceId))) {
+      if (!isUuid(rawServiceId)) {
         throw Object.assign(new Error('Each permission must include a valid service ID.'), { statusCode: 400 });
       }
-      const sId = BigInt(rawServiceId);
+      const sId = String(rawServiceId).toLowerCase();
       const isFull = Boolean(s.full_service);
       const service = await tx.service.findUnique({
         where: { id: sId },
@@ -260,7 +261,7 @@ export const companyService = {
 
       await tx.clientServiceAccess.create({
         data: {
-          clientAdminId,
+          adminId,
           serviceId: sId,
           accessMode: isFull ? 'FULL' : 'CUSTOM',
           isFullService: isFull,
@@ -277,10 +278,10 @@ export const companyService = {
 
       for (const moduleGrant of requestedModules) {
         const rawModuleId = moduleGrant.module_id || moduleGrant.moduleId;
-        if (!rawModuleId || !/^\d+$/.test(String(rawModuleId))) {
+        if (!isUuid(rawModuleId)) {
           throw Object.assign(new Error(`Service ${sId} contains a permission with an invalid module ID.`), { statusCode: 400 });
         }
-        const module = service.modules.find((entry) => entry.id === BigInt(rawModuleId));
+        const module = service.modules.find((entry) => entry.id === String(rawModuleId).toLowerCase());
         if (!module) {
           throw Object.assign(new Error(`Module ${rawModuleId} does not belong to service ${sId}.`), { statusCode: 400 });
         }
@@ -291,7 +292,7 @@ export const companyService = {
 
         await tx.clientModuleAccess.create({
           data: {
-            clientAdminId,
+            adminId,
             serviceId: sId,
             moduleId: module.id,
             accessMode,
@@ -307,17 +308,17 @@ export const companyService = {
             : [];
 
         for (const rawSubModuleId of requestedSubModuleIds) {
-          if (!/^\d+$/.test(rawSubModuleId)) {
+          if (!isUuid(rawSubModuleId)) {
             throw Object.assign(new Error(`Module ${module.id} contains a permission with an invalid sub-module ID.`), { statusCode: 400 });
           }
-          const subModule = module.subModules.find((entry) => entry.id === BigInt(rawSubModuleId));
+          const subModule = module.subModules.find((entry) => entry.id === rawSubModuleId.toLowerCase());
           if (!subModule) {
             throw Object.assign(new Error(`Sub-module ${rawSubModuleId} does not belong to module ${module.id}.`), { statusCode: 400 });
           }
 
           await tx.clientSubModuleAccess.create({
             data: {
-              clientAdminId,
+              adminId,
               serviceId: sId,
               moduleId: module.id,
               subModuleId: subModule.id,
@@ -335,7 +336,7 @@ export const companyService = {
    * Enforces global status rule: deactivated services are excluded for tenant clients
    */
   async getCompanyAssignedServices(companyId, includeInactive = false) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const client = await prisma.clientAdmin.findUnique({
       where: { id: cid },
       include: clientAccessInclude,
@@ -384,7 +385,7 @@ export const companyService = {
    */
   async switchToClientPanel(clientId, meta = {}) {
     const client = await prisma.clientAdmin.findUnique({
-      where: { id: BigInt(clientId) },
+      where: { id: String(clientId) },
       include: clientAccessInclude,
     });
     if (!client || client.deletedAt) {

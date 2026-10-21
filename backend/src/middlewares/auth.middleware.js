@@ -1,4 +1,5 @@
 import { extractToken, verifyToken } from '../utils/token.js';
+import { isUuid } from '../utils/uuid.js';
 
 /**
  * Optional or passive authentication middleware
@@ -107,10 +108,10 @@ export function requireServiceTeamPermission(permission) {
       const { prisma } = await import('../config/prisma.js');
       const employee = await prisma.companyEmployee.findFirst({
         where: {
-          id: BigInt(req.user.userId),
-          companyId: BigInt(req.user.companyId),
+          id: String(req.user.userId),
+          companyId: String(req.user.companyId),
           status: 'ACTIVE',
-          team: { headEmployeeId: BigInt(req.user.userId) },
+          team: { headEmployeeId: String(req.user.userId) },
         },
         select: { permissions: true },
       });
@@ -137,12 +138,10 @@ export async function validateCompanyAccess(req, res, next) {
     if (!companyId) return next();
 
     // Verify format
-    try {
-      BigInt(companyId);
-    } catch {
+    if (!isUuid(companyId)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid company ID format. Must be an integer identifier.',
+        message: 'Invalid company ID format. Must be a UUID.',
       });
     }
 
@@ -255,8 +254,8 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
         });
       }
       if (targetCompanyId && req.user?.role !== 'SUPER_ADMIN') {
-        const companyIdBig = BigInt(targetCompanyId);
-        if (String(req.user.companyId) !== String(targetCompanyId)) {
+        const companyIdUuid = String(targetCompanyId).toLowerCase();
+        if (String(req.user.companyId).toLowerCase() !== companyIdUuid) {
           return res.status(403).json({
             success: false,
             code: 'TENANT_ISOLATION_VIOLATION',
@@ -274,7 +273,7 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
 
         const serviceAccess = await prisma.clientServiceAccess.findFirst({
           where: {
-            clientAdminId: companyIdBig,
+            adminId: companyIdUuid,
             serviceId: subModule.serviceId,
             isAllowed: true,
           },
@@ -291,8 +290,8 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
         if (['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(req.user.role)) {
           const employee = await prisma.companyEmployee.findFirst({
             where: {
-              id: BigInt(req.user.userId),
-              companyId: companyIdBig,
+              id: String(req.user.userId),
+              companyId: companyIdUuid,
               status: 'ACTIVE',
             },
             include: { team: true },
@@ -341,7 +340,7 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
         if (!serviceAccess.isFullService) {
           const moduleAccess = await prisma.clientModuleAccess.findFirst({
             where: {
-              clientAdminId: companyIdBig,
+              adminId: companyIdUuid,
               serviceId: subModule.serviceId,
               moduleId: subModule.moduleId,
               isAllowed: true,
@@ -358,7 +357,7 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
           if (moduleAccess.accessMode !== 'FULL') {
             const subModuleAccess = await prisma.clientSubModuleAccess.findFirst({
               where: {
-                clientAdminId: companyIdBig,
+                adminId: companyIdUuid,
                 serviceId: subModule.serviceId,
                 moduleId: subModule.moduleId,
                 subModuleId: subModule.id,

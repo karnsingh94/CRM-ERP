@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import auditService from './audit.service.js';
+import { isUuid } from '../utils/uuid.js';
 
 const WORK_STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
 
@@ -11,13 +12,11 @@ function httpError(message, statusCode = 400, code) {
 }
 
 function parseId(value, label) {
-  try {
-    const id = BigInt(value);
-    if (id <= 0n) throw new Error('invalid');
-    return id;
-  } catch {
+  const id = String(value || '');
+  if (!isUuid(id)) {
     throw httpError(`${label} must be a valid identifier.`);
   }
+  return id;
 }
 
 function formatWorkItem(item) {
@@ -54,7 +53,7 @@ async function resolveService(companyId, serviceCodeOrId) {
     where: {
       status: 'ACTIVE',
       OR: [
-        ...( /^\d+$/.test(String(serviceCodeOrId || '')) ? [{ id: BigInt(serviceCodeOrId) }] : []),
+        ...(isUuid(serviceCodeOrId) ? [{ id: String(serviceCodeOrId).toLowerCase() }] : []),
         { code: String(serviceCodeOrId) },
         { code: normalizedCode },
       ],
@@ -62,7 +61,7 @@ async function resolveService(companyId, serviceCodeOrId) {
   });
   if (!service) throw httpError('Service not found or inactive.', 404, 'SERVICE_NOT_FOUND');
   const access = await prisma.clientServiceAccess.findFirst({
-    where: { clientAdminId: BigInt(companyId), serviceId: service.id, isAllowed: true },
+    where: { adminId: String(companyId), serviceId: service.id, isAllowed: true },
   });
   if (!access) throw httpError('This service is not assigned to the company.', 403, 'SERVICE_NOT_ASSIGNED');
   return service;
@@ -72,8 +71,8 @@ async function resolveEmployee(actor, companyId) {
   if (actor?.role === 'COMPANY_ADMIN') return null;
   const employee = await prisma.companyEmployee.findFirst({
     where: {
-      id: BigInt(actor?.userId || 0),
-      companyId: BigInt(companyId),
+      id: String(actor?.userId || ''),
+      companyId: String(companyId),
       status: 'ACTIVE',
       team: { isNot: null },
     },
@@ -93,14 +92,9 @@ function requireHeadPermission(employee, permission) {
 }
 
 async function loadWorkItem(companyId, workItemId) {
-  let id;
-  try {
-    id = BigInt(workItemId);
-  } catch {
-    throw httpError('Invalid work item ID.', 400);
-  }
+  const id = parseId(workItemId, 'Work item');
   const item = await prisma.serviceWorkItem.findFirst({
-    where: { id, companyId: BigInt(companyId) },
+    where: { id, companyId: String(companyId) },
     include: {
       assignee: true,
       updates: { orderBy: { createdAt: 'desc' }, take: 10 },
@@ -176,7 +170,7 @@ const workItemService = {
   },
 
   async create(companyId, serviceCode, data, actor, meta = {}) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const service = await resolveService(companyId, serviceCode);
     const employee = await resolveEmployee(actor, companyId);
     let targetTeamId = employee?.team.id || null;
@@ -315,7 +309,7 @@ const workItemService = {
       const validAssignee = await prisma.companyEmployee.findFirst({
         where: {
           id: newAssigneeId,
-          companyId: BigInt(companyId),
+          companyId: String(companyId),
           status: 'ACTIVE',
           team: isHead
             ? { id: employee.team.id, companyId: BigInt(companyId), serviceId: item.serviceId }

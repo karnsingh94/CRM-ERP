@@ -31,7 +31,7 @@ HTTP Request
 [ src/services/ ] (Business Rules, Transactions, Tenant & Access Isolation)
      │
      ▼
-[ src/config/prisma.js ] (Prisma Client Singleton + BigInt serialization)
+[ src/config/prisma.js ] (Prisma Client Singleton)
      │
      ▼
 [ MySQL Database ]
@@ -52,7 +52,7 @@ backend/
 │   ├── server.js                     # HTTP server entrypoint & graceful shutdown
 │   ├── config/
 │   │   ├── env.js                    # Validated environment configuration
-│   │   └── prisma.js                 # PrismaClient singleton with BigInt serialization
+│   │   └── prisma.js                 # PrismaClient singleton
 │   ├── routes/
 │   │   ├── api.routes.js             # Central router aggregator
 │   │   ├── system.routes.js          # Health, stats, and catalog metadata
@@ -79,7 +79,7 @@ backend/
 │   │   ├── notFound.middleware.js     # Standard 404 handler
 │   │   └── errorHandler.middleware.js # Centralized safe error handler
 │   └── utils/
-│       ├── formatters.js              # BigInt to string & model formatters
+│       ├── formatters.js              # ID and model formatters
 │       ├── hash.js                    # Password hashing utilities
 │       └── logger.js                  # Structured, environment-aware logger
 ├── tests/
@@ -100,12 +100,14 @@ backend/
 ## 3. Security & Multi-Tenant Isolation
 
 1. **Company Ownership Enforcement**:
-   - Company IDs are strictly validated as BigInts.
+   - Company IDs are UUIDs and are validated before tenant-scoped access.
    - Cross-company resource queries or mutations are rejected with `403 Forbidden` (`TENANT_ISOLATION_VIOLATION` or `CROSS_COMPANY_FORBIDDEN`).
 2. **Service Assignment Verification**:
    - Creating or accessing departments within a service strictly checks `ClientServiceAccess`.
    - If Super Admin has not assigned that service to the company, API rejects request with `403 Forbidden` (`SERVICE_NOT_ASSIGNED`).
    - Permission grants record the assigning administrator ID at service, module, and sub-module level. Full-service and full-module grants are materialized into their module/sub-module access tables; custom grants persist only the selected modules and sub-modules.
+   - The three admin permission tables use composite primary keys made from their admin/service/module/sub-module IDs and have no separate auto-increment IDs.
+   - Prisma entity IDs are UUID strings; the UUID migration converts existing primary keys and related identifiers while preserving record relationships.
 3. **Department Head Integrity**:
    - Department Heads must be active employees of the same tenant company.
 4. **Credential Protection**:

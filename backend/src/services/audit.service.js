@@ -70,7 +70,7 @@ export const auditService = {
         data: {
           action,
           entityType,
-          entityId: entityId ? BigInt(entityId) : null,
+          entityId: entityId ? String(entityId) : null,
           oldValue: typeof oldValue === 'object' ? JSON.stringify(oldValue) : oldValue,
           newValue: typeof newValue === 'object' ? JSON.stringify(newValue) : newValue,
           reason,

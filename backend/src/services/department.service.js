@@ -3,6 +3,7 @@ import { formatEmployee, formatDepartment } from '../utils/formatters.js';
 import { hashPassword } from '../utils/hash.js';
 import auditService from './audit.service.js';
 import { validateTeamPermissions } from '../utils/team-permissions.js';
+import { isUuid } from '../utils/uuid.js';
 
 const TEAM_LEADER_ROLES = ['SERVICE_HEAD', 'TEAM_LEADER'];
 
@@ -92,10 +93,10 @@ export const departmentService = {
    * Get eligible employees for a company
    */
   async getCompanyEmployees(companyId, actor) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const where = { companyId: cid };
     if (actor?.role !== 'COMPANY_ADMIN') {
-      const employeeId = BigInt(actor?.userId || 0);
+      const employeeId = String(actor?.userId || '');
       const team = await prisma.companyServiceTeam.findFirst({
         where: { companyId: cid, headEmployeeId: employeeId },
         select: { id: true },
@@ -121,7 +122,7 @@ export const departmentService = {
    * Create a new employee for a company
    */
   async createCompanyEmployee(companyId, data, meta = {}, actor) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const company = await prisma.clientAdmin.findUnique({ where: { id: cid } });
     if (!company) {
       const error = new Error('Company not found');
@@ -154,7 +155,7 @@ export const departmentService = {
     }
 
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
-      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
     });
     if (!serviceAccess) {
       const error = new Error('The selected service is not assigned to this company by Super Admin.');
@@ -168,7 +169,7 @@ export const departmentService = {
         where: {
           companyId: cid,
           serviceId: service.id,
-          headEmployeeId: BigInt(actor.userId),
+          headEmployeeId: String(actor.userId),
         },
         select: { id: true },
       });
@@ -279,14 +280,14 @@ export const departmentService = {
    */
   async _resolveService(serviceCodeOrId) {
     let service = null;
-    if (!isNaN(serviceCodeOrId)) {
-      service = await prisma.service.findUnique({ where: { id: BigInt(serviceCodeOrId) } });
+    if (isUuid(serviceCodeOrId)) {
+      service = await prisma.service.findUnique({ where: { id: String(serviceCodeOrId).toLowerCase() } });
     }
     if (!service) {
-      const normalizedCode = serviceCodeOrId.replace(/-/g, '_');
+      const normalizedCode = String(serviceCodeOrId).replace(/-/g, '_');
       service = await prisma.service.findFirst({
         where: {
-          OR: [{ code: serviceCodeOrId }, { code: normalizedCode }],
+          OR: [{ code: String(serviceCodeOrId) }, { code: normalizedCode }],
         },
       });
     }
@@ -403,7 +404,7 @@ export const departmentService = {
     }
 
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
-      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
     });
     if (!serviceAccess) {
       const error = new Error(`Service "${service.name}" is not assigned to this company.`);
@@ -416,7 +417,7 @@ export const departmentService = {
     if (actor?.role !== 'COMPANY_ADMIN') {
       const employee = await prisma.companyEmployee.findFirst({
         where: {
-          id: BigInt(actor?.userId || 0),
+          id: String(actor?.userId || ''),
           companyId: cid,
           status: 'ACTIVE',
           team: { serviceId: service.id },
@@ -477,7 +478,7 @@ export const departmentService = {
       throw error;
     }
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
-      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
     });
     if (!serviceAccess) {
       const error = new Error('This service is not assigned to the company.');
@@ -545,7 +546,7 @@ export const departmentService = {
       error.statusCode = 400;
       throw error;
     }
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service) throw serviceError('Service not found in catalogue.', 404);
     if (!teamId) throw serviceError('Choose a team before configuring its permissions.', 400);
@@ -609,7 +610,7 @@ export const departmentService = {
       throw error;
     }
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
-      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
     });
     if (!serviceAccess) {
       const error = new Error('The selected service is not assigned to this company.');
@@ -623,7 +624,7 @@ export const departmentService = {
         where: {
           companyId: cid,
           serviceId: service.id,
-          headEmployeeId: BigInt(actor.userId),
+          headEmployeeId: String(actor.userId),
         },
         select: { id: true },
       });
@@ -716,7 +717,7 @@ export const departmentService = {
    * Get departments under a specific assigned service
    */
   async getDepartmentsByService(companyId, serviceCodeOrId) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const service = await this._resolveService(serviceCodeOrId);
 
     if (!service) {
@@ -736,7 +737,7 @@ export const departmentService = {
     // MANDATORY REQUIREMENT: Verify service is assigned to the company by Super Admin
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
       where: {
-        clientAdminId: cid,
+        adminId: cid,
         serviceId: service.id,
         isAllowed: true,
       },
@@ -777,7 +778,7 @@ export const departmentService = {
    * Get all departments for a company across all assigned active services
    */
   async getAllDepartmentsForCompany(companyId, includeInactiveServices = false) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const where = { companyId: cid };
     if (!includeInactiveServices) {
       where.service = { status: 'ACTIVE' };
@@ -800,7 +801,7 @@ export const departmentService = {
    * Create a new department under an assigned service
    */
   async createDepartment(companyId, serviceCodeOrId, data, meta = {}) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
 
     // 1. Validate Company Exists
     const company = await prisma.clientAdmin.findUnique({ where: { id: cid } });
@@ -829,7 +830,7 @@ export const departmentService = {
     // 3. MANDATORY REQUIREMENT: Server-side validation of assigned-service permission
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
       where: {
-        clientAdminId: cid,
+        adminId: cid,
         serviceId: service.id,
         isAllowed: true,
       },
@@ -868,7 +869,7 @@ export const departmentService = {
     // 6. MANDATORY REQUIREMENT: Department Head MUST belong to the SAME company!
     let validatedHeadId = null;
     if (data.headId || data.head_id) {
-      const candidateHeadId = BigInt(data.headId || data.head_id);
+      const candidateHeadId = String(data.headId || data.head_id);
       const headEmployee = await prisma.companyEmployee.findUnique({
         where: { id: candidateHeadId },
       });
@@ -941,8 +942,8 @@ export const departmentService = {
    * Update an existing department
    */
   async updateDepartment(companyId, departmentId, data, meta = {}) {
-    const cid = BigInt(companyId);
-    const did = BigInt(departmentId);
+    const cid = String(companyId);
+    const did = String(departmentId);
 
     const existingDept = await prisma.department.findFirst({
       where: { id: did, companyId: cid },
@@ -968,7 +969,7 @@ export const departmentService = {
       if (hId === null || hId === '') {
         validatedHeadId = null;
       } else {
-        const candidateHeadId = BigInt(hId);
+        const candidateHeadId = String(hId);
         const headEmployee = await prisma.companyEmployee.findUnique({
           where: { id: candidateHeadId },
         });
@@ -1024,8 +1025,8 @@ export const departmentService = {
    * Delete department
    */
   async deleteDepartment(companyId, departmentId, meta = {}) {
-    const cid = BigInt(companyId);
-    const did = BigInt(departmentId);
+    const cid = String(companyId);
+    const did = String(departmentId);
 
     const existingDept = await prisma.department.findFirst({
       where: { id: did, companyId: cid },
@@ -1071,8 +1072,8 @@ export const departmentService = {
    * Assign employees to a department
    */
   async assignDepartmentEmployees(companyId, departmentId, employeeIds = [], meta = {}) {
-    const cid = BigInt(companyId);
-    const did = BigInt(departmentId);
+    const cid = String(companyId);
+    const did = String(departmentId);
 
     const existingDept = await prisma.department.findFirst({
       where: { id: did, companyId: cid },
@@ -1092,10 +1093,10 @@ export const departmentService = {
       throw error;
     }
 
-    // Convert to BigInts and verify all belong to same company
-    const bigIntIds = employeeIds.map((id) => BigInt(id));
+    // Verify all selected employees belong to the same company.
+    const employeeIdList = employeeIds.map(String);
     const employees = await prisma.companyEmployee.findMany({
-      where: { id: { in: bigIntIds } },
+      where: { id: { in: employeeIdList } },
     });
 
     for (const emp of employees) {
@@ -1107,9 +1108,9 @@ export const departmentService = {
     }
 
     // Assign these employees to this department
-    if (bigIntIds.length > 0) {
+    if (employeeIdList.length > 0) {
       await prisma.companyEmployee.updateMany({
-        where: { id: { in: bigIntIds } },
+        where: { id: { in: employeeIdList } },
         data: { departmentId: did },
       });
     }

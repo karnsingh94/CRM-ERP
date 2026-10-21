@@ -53,7 +53,7 @@ export function formatServicesInDisplayOrder(services) {
       if (leftSeedOrder && rightSeedOrder) return leftSeedOrder - rightSeedOrder;
       if (leftSeedOrder) return -1;
       if (rightSeedOrder) return 1;
-      return left.orderNo - right.orderNo || Number(left.id - right.id);
+      return left.orderNo - right.orderNo || left.id.localeCompare(right.id);
     })
     .map((service, index) => ({
       ...formatService(service),

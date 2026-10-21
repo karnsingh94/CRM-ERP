@@ -4,7 +4,7 @@ import { securityHeadersMiddleware, corsMiddleware } from './middlewares/cors.mi
 import notFoundMiddleware from './middlewares/notFound.middleware.js';
 import errorHandlerMiddleware from './middlewares/errorHandler.middleware.js';
 import apiRoutes from './routes/api.routes.js';
-import './config/prisma.js'; // Ensure BigInt JSON serialization is registered
+import './config/prisma.js';
 
 const app = express();
 
