@@ -4,6 +4,7 @@ import auditService from './audit.service.js';
 import systemService from './system.service.js';
 import companyService from './company.service.js';
 import departmentService from './department.service.js';
+import { isUuid } from '../utils/uuid.js';
 
 const requestedOrder = (value, nextOrder) => {
   const order = Number(value);
@@ -89,7 +90,7 @@ const normalizeServiceOrders = async (tx) => {
     if (leftSeedOrder !== -1 && rightSeedOrder !== -1) return leftSeedOrder - rightSeedOrder;
     if (leftSeedOrder !== -1) return -1;
     if (rightSeedOrder !== -1) return 1;
-    return left.orderNo - right.orderNo || Number(left.id - right.id);
+    return left.orderNo - right.orderNo || left.id.localeCompare(right.id);
   });
 
   for (const [index, service] of services.entries()) {
@@ -135,9 +136,9 @@ export const catalogService = {
   },
 
   async getServiceById(idOrCode) {
-    const isNumeric = /^\d+$/.test(String(idOrCode));
-    const whereClause = isNumeric
-      ? { id: BigInt(idOrCode) }
+    const isId = isUuid(idOrCode);
+    const whereClause = isId
+      ? { id: String(idOrCode).toLowerCase() }
       : { code: String(idOrCode).replace(/-/g, '_') };
 
     const service = await prisma.service.findFirst({
@@ -204,11 +205,11 @@ export const catalogService = {
   },
 
   async updateService(id, data, meta = {}) {
-    const existing = await prisma.service.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.service.findUnique({ where: { id: String(id) } });
     if (!existing) return null;
 
     const updated = await prisma.service.update({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       data: {
         name: data.name !== undefined ? data.name.trim() : existing.name,
         code: data.code !== undefined ? data.code.trim() : existing.code,
@@ -238,12 +239,12 @@ export const catalogService = {
   },
 
   async toggleServiceStatus(id, meta = {}) {
-    const existing = await prisma.service.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.service.findUnique({ where: { id: String(id) } });
     if (!existing) return null;
 
     const newStatus = existing.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const updated = await prisma.service.update({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       data: { status: newStatus },
       include: {
         modules: {
@@ -267,12 +268,12 @@ export const catalogService = {
   },
 
   async deleteService(id, meta = {}) {
-    const existing = await prisma.service.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.service.findUnique({ where: { id: String(id) } });
     if (!existing) return null;
     if (SEEDED_SERVICE_CODES.has(existing.code)) return false;
 
     await prisma.$transaction(async (tx) => {
-      await tx.service.delete({ where: { id: BigInt(id) } });
+      await tx.service.delete({ where: { id: String(id) } });
       await normalizeServiceOrders(tx);
     });
 
@@ -291,26 +292,26 @@ export const catalogService = {
 
   // ==================== MODULES ====================
   async createModule(serviceId, data, meta = {}) {
-    const parentService = await prisma.service.findUnique({ where: { id: BigInt(serviceId) } });
+    const parentService = await prisma.service.findUnique({ where: { id: String(serviceId) } });
     if (!parentService) return null;
 
     const code = data.code ? slugifyCode(data.code) : slugifyCode(data.name);
     const module = await prisma.$transaction(async (tx) => {
       const maxOrder = await tx.module.aggregate({
-        where: { serviceId: BigInt(serviceId) },
+        where: { serviceId: String(serviceId) },
         _max: { orderNo: true },
       });
       const nextOrder = (maxOrder._max.orderNo || 0) + 1;
       const orderNo = requestedOrder(data.order_no, nextOrder);
 
       await tx.module.updateMany({
-        where: { serviceId: BigInt(serviceId), orderNo: { gte: orderNo } },
+        where: { serviceId: String(serviceId), orderNo: { gte: orderNo } },
         data: { orderNo: { increment: 1 } },
       });
 
       return tx.module.create({
         data: {
-          serviceId: BigInt(serviceId),
+          serviceId: String(serviceId),
           name: data.name.trim(),
           code,
           description: data.description || '',
@@ -338,11 +339,11 @@ export const catalogService = {
   },
 
   async updateModule(id, data, meta = {}) {
-    const existing = await prisma.module.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.module.findUnique({ where: { id: String(id) } });
     if (!existing) return null;
 
     const updated = await prisma.module.update({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       data: {
         name: data.name !== undefined ? data.name.trim() : existing.name,
         code: data.code !== undefined ? data.code.trim() : existing.code,
@@ -371,12 +372,12 @@ export const catalogService = {
   },
 
   async toggleModuleStatus(id, meta = {}) {
-    const existing = await prisma.module.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.module.findUnique({ where: { id: String(id) } });
     if (!existing) return null;
 
     const newStatus = existing.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const updated = await prisma.module.update({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       data: { status: newStatus },
       include: {
         subModules: true,
@@ -400,7 +401,7 @@ export const catalogService = {
   // ==================== SUB-MODULES ====================
   async createSubModule(moduleId, data, meta = {}) {
     const parentModule = await prisma.module.findUnique({
-      where: { id: BigInt(moduleId) },
+      where: { id: String(moduleId) },
       include: { service: true },
     });
     if (!parentModule) return null;
@@ -408,20 +409,20 @@ export const catalogService = {
     const code = data.code ? slugifyCode(data.code) : slugifyCode(data.name);
     const subModule = await prisma.$transaction(async (tx) => {
       const maxOrder = await tx.subModule.aggregate({
-        where: { moduleId: BigInt(moduleId) },
+        where: { moduleId: String(moduleId) },
         _max: { orderNo: true },
       });
       const nextOrder = (maxOrder._max.orderNo || 0) + 1;
       const orderNo = requestedOrder(data.order_no, nextOrder);
 
       await tx.subModule.updateMany({
-        where: { moduleId: BigInt(moduleId), orderNo: { gte: orderNo } },
+        where: { moduleId: String(moduleId), orderNo: { gte: orderNo } },
         data: { orderNo: { increment: 1 } },
       });
 
       return tx.subModule.create({
         data: {
-          moduleId: BigInt(moduleId),
+          moduleId: String(moduleId),
           serviceId: parentModule.serviceId,
           name: data.name.trim(),
           code,
@@ -446,11 +447,11 @@ export const catalogService = {
   },
 
   async updateSubModule(id, data, meta = {}) {
-    const existing = await prisma.subModule.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.subModule.findUnique({ where: { id: String(id) } });
     if (!existing) return null;
 
     const updated = await prisma.subModule.update({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       data: {
         name: data.name !== undefined ? data.name.trim() : existing.name,
         code: data.code !== undefined ? data.code.trim() : existing.code,
@@ -475,12 +476,12 @@ export const catalogService = {
   },
 
   async toggleSubModuleStatus(id, meta = {}) {
-    const existing = await prisma.subModule.findUnique({ where: { id: BigInt(id) } });
+    const existing = await prisma.subModule.findUnique({ where: { id: String(id) } });
     if (!existing) return null;
 
     const newStatus = existing.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const updated = await prisma.subModule.update({
-      where: { id: BigInt(id) },
+      where: { id: String(id) },
       data: { status: newStatus },
     });
 

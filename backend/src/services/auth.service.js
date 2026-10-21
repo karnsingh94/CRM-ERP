@@ -292,7 +292,7 @@ export const authService = {
         where: {
           email: cleanEmail,
           deletedAt: null,
-          ...(companyId ? { id: BigInt(companyId) } : {}),
+          ...(companyId ? { id: String(companyId) } : {}),
         },
         include: clientAccessInclude,
       });
@@ -363,7 +363,7 @@ export const authService = {
         where: {
           email: cleanEmail,
           status: 'ACTIVE',
-          ...(companyId ? { companyId: BigInt(companyId) } : {}),
+          ...(companyId ? { companyId: String(companyId) } : {}),
         },
         include: {
           clientAdmin: {
@@ -527,7 +527,7 @@ export const authService = {
     if (userPayload.role === 'SUPER_ADMIN') {
       try {
         const superAdmin = await prisma.superAdmin.findUnique({
-          where: { id: BigInt(userPayload.userId) },
+          where: { id: String(userPayload.userId) },
         });
         if (superAdmin) {
           return {
@@ -553,7 +553,7 @@ export const authService = {
     if (userPayload.role === 'COMPANY_ADMIN') {
       try {
         const client = await prisma.clientAdmin.findUnique({
-          where: { id: BigInt(userPayload.companyId || userPayload.userId) },
+          where: { id: String(userPayload.companyId || userPayload.userId) },
           include: clientAccessInclude,
         });
 
@@ -587,7 +587,7 @@ export const authService = {
     if (COMPANY_STAFF_ROLES.includes(userPayload.role)) {
       try {
         const employee = await prisma.companyEmployee.findUnique({
-          where: { id: BigInt(userPayload.userId) },
+          where: { id: String(userPayload.userId) },
           include: {
             clientAdmin: { include: clientAccessInclude },
             department: { include: { service: true } },
@@ -858,7 +858,7 @@ export const authService = {
     } else if (record.userType === 'COMPANY_EMPLOYEE') {
       try {
         await prisma.companyEmployee.update({
-          where: { id: BigInt(record.userId) },
+          where: { id: String(record.userId) },
           data: { passwordHash: newPasswordHash },
         });
       } catch (err) {
@@ -900,7 +900,7 @@ export const authService = {
     let updatedUser = null;
     try {
       const updated = await prisma.superAdmin.update({
-        where: { id: BigInt(userPayload.userId) },
+        where: { id: String(userPayload.userId) },
         data: { name: cleanName },
       });
       updatedUser = {
@@ -966,7 +966,7 @@ export const authService = {
     let superAdmin = null;
     try {
       superAdmin = await prisma.superAdmin.findUnique({
-        where: { id: BigInt(userPayload.userId) },
+        where: { id: String(userPayload.userId) },
       });
     } catch {}
 
@@ -1032,7 +1032,7 @@ export const authService = {
       throw error;
     }
 
-    const companyId = BigInt(userPayload.companyId);
+    const companyId = String(userPayload.companyId);
     const existing = await prisma.clientAdmin.findUnique({ where: { id: companyId } });
     if (!existing || existing.deletedAt || existing.status !== 'ACTIVE') {
       const error = new Error('Active company admin account not found.');
@@ -1085,7 +1085,7 @@ export const authService = {
       throw error;
     }
 
-    const companyId = BigInt(userPayload.companyId);
+    const companyId = String(userPayload.companyId);
     const existing = await prisma.clientAdmin.findUnique({ where: { id: companyId } });
     if (!existing || existing.deletedAt || existing.status !== 'ACTIVE') {
       const error = new Error('Active company admin account not found.');
@@ -1141,8 +1141,8 @@ export const authService = {
 
     const employee = await prisma.companyEmployee.findFirst({
       where: {
-        id: BigInt(userPayload.userId),
-        companyId: BigInt(userPayload.companyId),
+        id: String(userPayload.userId),
+        companyId: String(userPayload.companyId),
         status: 'ACTIVE',
       },
       include: { clientAdmin: true },
@@ -1204,7 +1204,7 @@ export const authService = {
       throw error;
     }
 
-    const companyId = BigInt(userPayload.companyId);
+    const companyId = String(userPayload.companyId);
     const existing = await prisma.clientAdmin.findUnique({ where: { id: companyId } });
     if (!existing || existing.deletedAt || existing.status !== 'ACTIVE') {
       const error = new Error('Active company admin account not found.');

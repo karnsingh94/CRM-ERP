@@ -29,7 +29,7 @@ enum WorkItemStatus {
 
 // 7.8 Super Admin (Platform Owner)
 model SuperAdmin {
-  id           BigInt    @id @default(autoincrement())
+  id           String    @id @default(uuid()) @db.Char(36)
   name         String    @db.VarChar(150)
   email        String    @unique @db.VarChar(180)
   passwordHash String    @map("password_hash") @db.VarChar(255)
@@ -49,13 +49,13 @@ model SuperAdmin {
 
 // 7.1 Services (e.g. CRM & Sales, Purchase & Vendor, Inventory, Accounts)
 model Service {
-  id          BigInt   @id @default(autoincrement())
+  id          String   @id @default(uuid()) @db.Char(36)
   name        String   @db.VarChar(150)
   code        String   @unique @db.VarChar(80)
   description String?  @db.Text
   status      Status   @default(ACTIVE)
   orderNo     Int      @default(0) @map("order_no")
-  createdBy   BigInt?  @map("created_by")
+  createdBy   String?  @map("created_by") @db.Char(36)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -75,15 +75,15 @@ model Service {
 
 // 7.2 Main Modules (e.g. CRM, Product, Sales under CRM & Sales)
 model Module {
-  id          BigInt   @id @default(autoincrement())
-  serviceId   BigInt   @map("service_id")
+  id          String   @id @default(uuid()) @db.Char(36)
+  serviceId   String   @map("service_id") @db.Char(36)
   name        String   @db.VarChar(150)
   code        String   @unique @db.VarChar(80)
   description String?  @db.Text
   icon        String?  @db.VarChar(120)
   orderNo     Int      @default(0) @map("order_no")
   status      Status   @default(ACTIVE)
-  createdBy   BigInt?  @map("created_by")
+  createdBy   String?  @map("created_by") @db.Char(36)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -99,16 +99,16 @@ model Module {
 
 // 7.3 Sub-Modules (Feature / Screen level, e.g. Leads, Quotation, PI, Sales Order)
 model SubModule {
-  id        BigInt   @id @default(autoincrement())
-  moduleId  BigInt   @map("module_id")
-  serviceId BigInt   @map("service_id")
+  id        String   @id @default(uuid()) @db.Char(36)
+  moduleId  String   @map("module_id") @db.Char(36)
+  serviceId String   @map("service_id") @db.Char(36)
   name      String   @db.VarChar(150)
   code      String   @unique @db.VarChar(80)
   route     String?  @db.VarChar(255)
   icon      String?  @db.VarChar(120)
   orderNo   Int      @default(0) @map("order_no")
   status    Status   @default(ACTIVE)
-  createdBy BigInt?  @map("created_by")
+  createdBy String?  @map("created_by") @db.Char(36)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -123,7 +123,7 @@ model SubModule {
 
 // 7.4 Client / Admin / Company (PDF's Super Admin - Tenant Provisioned by Platform Super Admin)
 model ClientAdmin {
-  id               BigInt    @id @default(autoincrement())
+  id               String    @id @default(uuid()) @db.Char(36)
   name             String    @db.VarChar(150)
   email            String    @unique @db.VarChar(180)
   mobile           String?   @db.VarChar(30)
@@ -131,7 +131,7 @@ model ClientAdmin {
   passwordHash     String    @map("password_hash") @db.VarChar(255)
   status           Status    @default(ACTIVE)
   themeColor       String?   @default("#7f22fe") @map("theme_color") @db.VarChar(30)
-  createdBy        BigInt?   @map("created_by")
+  createdBy        String?   @map("created_by") @db.Char(36)
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   deletedAt        DateTime? @map("deleted_at")
@@ -151,71 +151,68 @@ model ClientAdmin {
 
 // 7.5 Client Service Access Mapping
 model ClientServiceAccess {
-  id            BigInt   @id @default(autoincrement())
-  clientAdminId BigInt   @map("client_admin_id")
-  serviceId     BigInt   @map("service_id")
+  adminId       String     @map("admin_id") @db.Char(36)
+  serviceId     String     @map("service_id") @db.Char(36)
   accessMode    AccessMode @default(CUSTOM) @map("access_mode")
-  isFullService Boolean  @default(false) @map("is_full_service")
-  isAllowed     Boolean  @default(true) @map("is_allowed")
-  assignedBy    BigInt?  @map("assigned_by")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  isFullService Boolean    @default(false) @map("is_full_service")
+  isAllowed     Boolean    @default(true) @map("is_allowed")
+  assignedBy    String?    @map("assigned_by") @db.Char(36)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin @relation(fields: [clientAdminId], references: [id], onDelete: Cascade)
-  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  admin   ClientAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  service Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
-  @@unique([clientAdminId, serviceId])
+  @@id([adminId, serviceId])
   @@map("Admin_service_access")
 }
 
 // 7.6 Client Module Access Mapping
 model ClientModuleAccess {
-  id            BigInt     @id @default(autoincrement())
-  clientAdminId BigInt     @map("client_admin_id")
-  serviceId     BigInt     @map("service_id")
-  moduleId      BigInt     @map("module_id")
-  accessMode    AccessMode @default(FULL) @map("access_mode")
-  isAllowed     Boolean    @default(true) @map("is_allowed")
-  assignedBy    BigInt?    @map("assigned_by")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  adminId    String     @map("admin_id") @db.Char(36)
+  serviceId  String     @map("service_id") @db.Char(36)
+  moduleId   String     @map("module_id") @db.Char(36)
+  accessMode AccessMode @default(FULL) @map("access_mode")
+  isAllowed  Boolean    @default(true) @map("is_allowed")
+  assignedBy String?    @map("assigned_by") @db.Char(36)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin @relation(fields: [clientAdminId], references: [id], onDelete: Cascade)
-  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  module      Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  admin   ClientAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  service Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  module  Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
-  @@unique([clientAdminId, serviceId, moduleId])
+  @@id([adminId, serviceId, moduleId])
   @@map("Admin_module_access")
 }
 
 // 7.7 Client Sub-Module Access Mapping
 model ClientSubModuleAccess {
-  id            BigInt   @id @default(autoincrement())
-  clientAdminId BigInt   @map("client_admin_id")
-  serviceId     BigInt   @map("service_id")
-  moduleId      BigInt   @map("module_id")
-  subModuleId   BigInt   @map("sub_module_id")
-  isAllowed     Boolean  @default(true) @map("is_allowed")
-  assignedBy    BigInt?  @map("assigned_by")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  adminId     String   @map("admin_id") @db.Char(36)
+  serviceId   String   @map("service_id") @db.Char(36)
+  moduleId    String   @map("module_id") @db.Char(36)
+  subModuleId String   @map("sub_module_id") @db.Char(36)
+  isAllowed   Boolean  @default(true) @map("is_allowed")
+  assignedBy  String?  @map("assigned_by") @db.Char(36)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin @relation(fields: [clientAdminId], references: [id], onDelete: Cascade)
-  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  module      Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  subModule   SubModule   @relation(fields: [subModuleId], references: [id], onDelete: Cascade)
+  admin     ClientAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  service   Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  module    Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  subModule SubModule   @relation(fields: [subModuleId], references: [id], onDelete: Cascade)
 
-  @@unique([clientAdminId, serviceId, moduleId, subModuleId])
+  @@id([adminId, serviceId, moduleId, subModuleId])
   @@map("Admin_sub_module_access")
 }
 
 // 7.10 Audit Logs
 model AuditLog {
-  id         BigInt   @id @default(autoincrement())
-  actorId    BigInt?  @map("actor_id")
+  id         String   @id @default(uuid()) @db.Char(36)
+  actorId    String?  @map("actor_id") @db.Char(36)
   action     String   @db.VarChar(100) // CREATE, UPDATE, STATUS, ACCESS
   entityType String   @map("entity_type") @db.VarChar(100) // SERVICE, MODULE, SUB_MODULE, CLIENT_ADMIN, ACCESS
-  entityId   BigInt?  @map("entity_id")
+  entityId   String?  @map("entity_id") @db.Char(36)
   oldValue   String?  @map("old_value") @db.Text
   newValue   String?  @map("new_value") @db.Text
   reason     String?  @db.Text
@@ -230,13 +227,13 @@ model AuditLog {
 
 // 7.11 Service-Based Departments (Enforces company and assigned-service isolation)
 model Department {
-  id          BigInt   @id @default(autoincrement())
-  companyId   BigInt   @map("company_id")
-  serviceId   BigInt   @map("service_id")
+  id          String   @id @default(uuid()) @db.Char(36)
+  companyId   String   @map("company_id") @db.Char(36)
+  serviceId   String   @map("service_id") @db.Char(36)
   name        String   @db.VarChar(150)
   code        String   @db.VarChar(80)
   description String?  @db.Text
-  headId      BigInt?  @map("head_id")
+  headId      String?  @map("head_id") @db.Char(36)
   status      Status   @default(ACTIVE)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -252,10 +249,10 @@ model Department {
 
 // One system-managed team per company and assigned service
 model CompanyServiceTeam {
-  id             BigInt   @id @default(autoincrement())
-  companyId      BigInt   @map("company_id")
-  serviceId      BigInt   @map("service_id")
-  headEmployeeId BigInt?  @unique @map("head_employee_id")
+  id             String   @id @default(uuid()) @db.Char(36)
+  companyId      String   @map("company_id") @db.Char(36)
+  serviceId      String   @map("service_id") @db.Char(36)
+  headEmployeeId String?  @unique @map("head_employee_id") @db.Char(36)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -270,10 +267,10 @@ model CompanyServiceTeam {
 
 // 7.12 Company Employees & Internal Staff Members
 model CompanyEmployee {
-  id           BigInt   @id @default(autoincrement())
-  companyId    BigInt   @map("company_id")
-  departmentId BigInt?  @map("department_id")
-  teamId       BigInt?  @map("team_id")
+  id           String   @id @default(uuid()) @db.Char(36)
+  companyId    String   @map("company_id") @db.Char(36)
+  departmentId String?  @map("department_id") @db.Char(36)
+  teamId       String?  @map("team_id") @db.Char(36)
   name         String   @db.VarChar(150)
   email        String   @db.VarChar(180)
   role         String   @db.VarChar(100)
@@ -298,12 +295,12 @@ model CompanyEmployee {
 }
 
 model ServiceWorkItem {
-  id            BigInt         @id @default(autoincrement())
-  companyId     BigInt         @map("company_id")
-  serviceId     BigInt         @map("service_id")
-  createdById   BigInt?        @map("created_by_id")
+  id            String         @id @default(uuid()) @db.Char(36)
+  companyId     String         @map("company_id") @db.Char(36)
+  serviceId     String         @map("service_id") @db.Char(36)
+  createdById   String?        @map("created_by_id") @db.Char(36)
   createdByName String         @map("created_by_name") @db.VarChar(180)
-  assignedToId  BigInt         @map("assigned_to_id")
+  assignedToId  String         @map("assigned_to_id") @db.Char(36)
   title         String         @db.VarChar(180)
   description   String?        @db.Text
   status        WorkItemStatus @default(TODO)
@@ -324,9 +321,9 @@ model ServiceWorkItem {
 }
 
 model ServiceWorkUpdate {
-  id         BigInt          @id @default(autoincrement())
-  workItemId BigInt          @map("work_item_id")
-  authorId   BigInt?         @map("author_id")
+  id         String          @id @default(uuid()) @db.Char(36)
+  workItemId String          @map("work_item_id") @db.Char(36)
+  authorId   String?         @map("author_id") @db.Char(36)
   authorName String          @map("author_name") @db.VarChar(180)
   status     WorkItemStatus?
   progress   Int?

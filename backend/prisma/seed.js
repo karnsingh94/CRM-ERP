@@ -9,11 +9,6 @@ const initialSuperAdmin = {
   password: process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@2026!',
 };
 
-// Support BigInt serialization
-BigInt.prototype.toJSON = function () {
-  return this.toString();
-};
-
 export const SEED_CATALOG = [
   {
     name: 'CRM & Sales',
