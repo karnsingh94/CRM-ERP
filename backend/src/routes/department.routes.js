@@ -24,6 +24,16 @@ router.put('/companies/:companyId/employees/:employeeId/team', requireServiceTea
 
 // ==================== SERVICE TEAMS ====================
 router.get(
+  '/companies/:companyId/services/:serviceCode/teams',
+  requireServiceTeamPermission(['manageMembers', 'assignWork', 'updateWork']),
+  departmentController.getServiceTeams
+);
+router.post(
+  '/companies/:companyId/services/:serviceCode/teams',
+  requireCompanyAdmin,
+  departmentController.createServiceTeam
+);
+router.get(
   '/companies/:companyId/services/:serviceCode/team',
   requireServiceTeamPermission(['manageMembers', 'assignWork', 'updateWork']),
   departmentController.getServiceTeam

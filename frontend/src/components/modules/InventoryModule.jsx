@@ -69,7 +69,7 @@ export default function InventoryModule({ activeCompany, showToast }) {
           }}
         >
           <span>🏢</span>
-          <span>Departments</span>
+          <span>Service Team</span>
         </button>
       </div>
 

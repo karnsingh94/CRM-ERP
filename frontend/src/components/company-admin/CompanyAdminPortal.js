@@ -37,7 +37,7 @@ export function resolveTabFromPathname(pathname) {
   if (!pathname || pathname === '/' || pathname === '/dashboard') return 'dashboard';
   if (pathname === '/settings') return 'settings';
 
-  const serviceDeptMatch = pathname.match(/^\/services\/([^\/]+)(\/departments)?$/);
+  const serviceDeptMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:service-team|departments))?$/);
   if (serviceDeptMatch) {
     return `services:${serviceDeptMatch[1].replace(/-/g, '_')}:departments`;
   }
@@ -384,7 +384,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     // 3. Service Team View (initiated from authorized service context)
     if (activeTab.startsWith('services:') && activeTab.endsWith(':departments')) {
       const canManageServiceTeam = currentUser?.role === 'COMPANY_ADMIN' ||
-        (currentUser?.role === 'SERVICE_HEAD' && (
+        (['SERVICE_HEAD', 'TEAM_LEADER'].includes(currentUser?.role) && (
           currentUser.permissions?.manageMembers ||
           currentUser.permissions?.assignWork ||
           currentUser.permissions?.updateWork
@@ -585,7 +585,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
           return renderAdminRestricted('Team and permission administration');
         }
         if (!hasModuleAccess('team') && !hasModuleAccess('permission_controls')) return renderModuleRestricted('Team & Permissions');
-        return <TeamModule key={`team-${initialSubTab || 'members'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        return <TeamModule key={`team-${initialSubTab || 'members'}`} activeCompany={activeCompany} currentUser={currentUser} showToast={showToast} initialSubTab={initialSubTab} />;
 
       default:
         return (
@@ -718,6 +718,11 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         permittedServices={permittedServices}
         hasSubModuleAccess={hasSubModuleAccess}
         isCompanyAdmin={currentUser?.role === 'COMPANY_ADMIN' || isSuperAdminSwitched}
+        canManageServiceTeams={
+          currentUser?.role === 'COMPANY_ADMIN' ||
+          isSuperAdminSwitched ||
+          (currentUser?.role === 'TEAM_LEADER' && currentUser.permissions?.manageMembers === true)
+        }
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
       />

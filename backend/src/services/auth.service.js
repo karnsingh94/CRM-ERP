@@ -21,19 +21,49 @@ function hashResetToken(rawToken) {
 }
 
 function getEmployeeAccessRole(employee) {
-  if (employee.team?.headEmployeeId === employee.id) return 'SERVICE_HEAD';
+  if (employee.team?.headEmployeeId === employee.id) return 'TEAM_LEADER';
   if (employee.accessRole === 'TEAM_LEADER') return 'TEAM_LEADER';
   return 'EMPLOYEE';
 }
 
-function scopeAccessToEmployeeService(access, service) {
+function scopeAccessToEmployeeService(access, service, permissions = null, isTeamLeader = false) {
   if (!service) return { ...(access || {}), services: [] };
   const serviceId = String(service.id);
+  const scopedServices = (access?.services || []).filter(
+    (entry) => String(entry.serviceId || entry.service_id || entry.id) === serviceId
+  );
+  if (!isTeamLeader) return { ...(access || {}), services: scopedServices };
+
+  const featureAccess = permissions?.featureAccess || {};
+  const permittedModules = new Set((featureAccess.moduleIds || []).map(String));
+  const permittedSubModules = new Set((featureAccess.subModuleIds || []).map(String));
   return {
     ...(access || {}),
-    services: (access?.services || []).filter(
-      (entry) => String(entry.serviceId || entry.service_id || entry.id) === serviceId
-    ),
+    services: scopedServices.map((entry) => {
+      const modules = (entry.modules || []).flatMap((module) => {
+        const moduleId = String(module.moduleId || module.module_id || module.id);
+        if (permittedModules.has(moduleId)) {
+          return [{
+            ...module,
+            access_mode: 'FULL',
+            accessMode: 'FULL',
+          }];
+        }
+        const subModules = (module.subModules || module.sub_modules || []).filter(
+          (subModule) => permittedSubModules.has(String(subModule.id))
+        );
+        if (!subModules.length) return [];
+        return [{
+          ...module,
+          access_mode: 'CUSTOM',
+          accessMode: 'CUSTOM',
+          sub_module_ids: subModules.map((subModule) => String(subModule.id)),
+          subModules,
+          sub_modules: subModules,
+        }];
+      });
+      return { ...entry, full_service: false, isFullService: false, modules };
+    }),
   };
 }
 
@@ -404,7 +434,9 @@ export const authService = {
         const resolvedRole = getEmployeeAccessRole(employee);
         const service = employee.team?.service || employee.department?.service;
         const formattedCompany = formatClient(employee.clientAdmin);
-        const scopedAccess = scopeAccessToEmployeeService(formattedCompany.access, service);
+        const isTeamLeader = resolvedRole === 'TEAM_LEADER';
+        const employeePermissions = normalizeTeamPermissions(employee.permissions);
+        const scopedAccess = scopeAccessToEmployeeService(formattedCompany.access, service, employeePermissions, isTeamLeader);
 
         const userObj = {
           id: employee.id.toString(),
@@ -413,7 +445,7 @@ export const authService = {
           role: resolvedRole,
           rawRole: employee.role,
           accessRole: employee.accessRole,
-          permissions: normalizeTeamPermissions(employee.permissions),
+          permissions: employeePermissions,
           companyId: employee.companyId.toString(),
           departmentId: employee.departmentId ? employee.departmentId.toString() : null,
           teamId: employee.teamId ? employee.teamId.toString() : null,
@@ -620,7 +652,12 @@ export const authService = {
             organizationName: employee.clientAdmin?.organizationName || '',
             themeColor: employee.clientAdmin?.themeColor || '#7f22fe',
             theme_color: employee.clientAdmin?.themeColor || '#7f22fe',
-            access: scopeAccessToEmployeeService(formattedCompany.access, service),
+            access: scopeAccessToEmployeeService(
+              formattedCompany.access,
+              service,
+              normalizeTeamPermissions(employee.permissions),
+              role === 'TEAM_LEADER'
+            ),
           };
         }
       } catch {}

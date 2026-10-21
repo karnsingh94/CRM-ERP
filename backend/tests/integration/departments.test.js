@@ -50,18 +50,33 @@ export async function runDepartmentVerification() {
       'Content-Type': 'application/json',
     };
     const teamUrl = `${API_BASE}/companies/${companyId}/services/${service.code}/team`;
+    const teamsUrl = `${API_BASE}/companies/${companyId}/services/${service.code}/teams`;
 
-    console.log(`--- TEST 1: ${service.name} resolves to one managed team ---`);
-    const teamResponse = await fetch(teamUrl, { headers });
-    const teamBody = await teamResponse.json();
-    const teamCount = await prisma.companyServiceTeam.count({
+    console.log(`--- TEST 1: ${service.name} does not create a team by default ---`);
+    const teamCountBefore = await prisma.companyServiceTeam.count({
       where: { companyId: targetClient.id, serviceId: service.id },
     });
-    if (teamResponse.ok && teamBody.success && teamBody.data.service.code === service.code && teamCount === 1) {
-      console.log('PASS: The company has one service team and the endpoint returns the matching service.');
+    const teamsResponse = await fetch(teamsUrl, { headers });
+    const teamsBody = await teamsResponse.json();
+    const singleTeamResponse = await fetch(teamUrl, { headers });
+    const teamCountAfter = await prisma.companyServiceTeam.count({
+      where: { companyId: targetClient.id, serviceId: service.id },
+    });
+    const emptyDefaultTeamIsHidden = (teamsBody.data?.teams || []).every(
+      (team) => team.name !== `${service.name} Team` || team.head || team.employees.length > 0
+    );
+    if (
+      teamsResponse.ok &&
+      teamsBody.success &&
+      teamsBody.data.service.code === service.code &&
+      singleTeamResponse.status === 400 &&
+      teamCountBefore === teamCountAfter &&
+      emptyDefaultTeamIsHidden
+    ) {
+      console.log('PASS: Listing teams leaves the database unchanged and hides an unused generated placeholder.');
       passed++;
     } else {
-      console.error('FAIL:', teamResponse.status, teamBody, 'teamCount:', teamCount);
+      console.error('FAIL:', teamsResponse.status, teamsBody, 'counts:', teamCountBefore, teamCountAfter);
     }
 
     console.log('\n--- TEST 2: Legacy department creation is no longer exposed ---');

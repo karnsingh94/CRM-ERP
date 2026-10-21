@@ -575,7 +575,7 @@ export function getCompanyAdminRoute(pathname) {
   }
 
   // Dynamic service landing and service-team routes
-  const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/departments)?$/);
+  const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:service-team|departments))?$/);
   if (serviceMatch) {
     const rawSlug = serviceMatch[1];
     const isDeptSubpath = Boolean(serviceMatch[2]);
@@ -586,7 +586,7 @@ export function getCompanyAdminRoute(pathname) {
       label: isDeptSubpath ? 'Service Team' : serviceName,
       title: isDeptSubpath ? `${serviceName} Service Team` : serviceName,
       description: isDeptSubpath
-        ? `Manage the Service Head and staff assigned to ${serviceName}`
+        ? `Manage teams and staff assigned to ${serviceName}`
         : `${serviceName} service workspace`,
       serviceCode,
       moduleCode: null,
@@ -700,8 +700,8 @@ export function getHierarchyFromPathname(pathname) {
     };
   }
 
-  // Dynamic Service Department Routes: /services/[slug]/departments
-  const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/departments)?$/);
+  // Dynamic Service Team Routes: /services/[slug]/service-team
+  const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:service-team|departments))?$/);
   if (serviceMatch) {
     const rawSlug = serviceMatch[1];
     const serviceCode = rawSlug.replace(/-/g, '_');
@@ -805,7 +805,7 @@ export function resolveCanonicalUrl(target) {
 
   if (target.startsWith('services:') && target.endsWith(':departments')) {
     const rawCode = target.split(':')[1];
-    return `/services/${rawCode.replace(/_/g, '-')}/departments`;
+    return `/services/${rawCode.replace(/_/g, '-')}/service-team`;
   }
 
   if (SERVICE_DEFAULT_ROUTES[target]) {
@@ -828,4 +828,3 @@ export {
   getSuperAdminRoute,
   getSuperAdminBreadcrumbs,
 } from './super-admin.routes.js';
-

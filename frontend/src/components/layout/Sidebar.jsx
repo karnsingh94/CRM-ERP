@@ -180,6 +180,7 @@ export default function Sidebar({
   permittedServices = [],
   hasSubModuleAccess,
   isCompanyAdmin = true,
+  canManageServiceTeams = isCompanyAdmin,
   isCollapsed = false,
   onToggleCollapse,
 }) {
@@ -219,7 +220,7 @@ export default function Sidebar({
         if (h.moduleCode) {
           setExpandedSubmodule(h.moduleCode);
         } else if (h.isDepartmentRoute) {
-          // Keep submodules compact when on department management page
+          // Keep submodules compact when on the service team page
           setExpandedSubmodule(null);
         }
       }
@@ -462,6 +463,8 @@ export default function Sidebar({
             (service.code === 'dispatch_returns' && (pathname.startsWith('/dispatch') || pathname.startsWith('/returns'))) ||
             (service.code === 'accounts_banking' && pathname.startsWith('/accounts')) ||
             (service.code === 'permission_controls' && pathname.startsWith('/team')) ||
+            pathname.startsWith(`/services/${serviceSlugKebab}/service-team`) ||
+            pathname.startsWith(`/services/${service.code}/service-team`) ||
             pathname.startsWith(`/services/${serviceSlugKebab}/departments`) ||
             pathname.startsWith(`/services/${service.code}/departments`)
           );
@@ -560,9 +563,11 @@ export default function Sidebar({
                   }}
                 >
                   {/* Level 2: Service Team Link */}
-                  {isCompanyAdmin && (() => {
-                    const deptRoute = `/services/${serviceSlugKebab}/departments`;
+                  {canManageServiceTeams && (() => {
+                    const deptRoute = `/services/${serviceSlugKebab}/service-team`;
                     const isDeptActive = (
+                      pathname.startsWith(`/services/${serviceSlugKebab}/service-team`) ||
+                      pathname.startsWith(`/services/${service.code}/service-team`) ||
                       pathname.startsWith(`/services/${serviceSlugKebab}/departments`) ||
                       pathname.startsWith(`/services/${service.code}/departments`)
                     );

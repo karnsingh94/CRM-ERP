@@ -102,7 +102,7 @@ export default function PurchaseModule({ activeCompany, showToast, initialSubTab
           }}
         >
           <span>🏢</span>
-          <span>Departments</span>
+          <span>Service Team</span>
         </button>
       </div>
 
