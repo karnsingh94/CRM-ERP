@@ -512,13 +512,15 @@ export const CatalogStore = {
   // Clients & Permission Access
   getClients: () => companyService.getClients(),
   getClientById: (id) => companyService.getClientById(id),
-  createClient: (data, meta) => companyService.createClient(data, meta),
-  updateClient: (id, data, meta) => companyService.updateClient(id, data, meta),
+  createClient: (data, meta, assignedBy) => companyService.createClient(data, meta, assignedBy),
+  updateClient: (id, data, meta, assignedBy) => companyService.updateClient(id, data, meta, assignedBy),
   toggleClientStatus: (id, meta) => companyService.toggleClientStatus(id, meta),
   deleteClient: (id, meta) => companyService.deleteClient(id, meta),
-  saveClientAccess: (clientId, accessData, meta) => companyService.saveClientAccess(clientId, accessData, meta),
+  saveClientAccess: (clientId, accessData, meta, assignedBy) =>
+    companyService.saveClientAccess(clientId, accessData, meta, assignedBy),
   _saveAccessInternal: (tx, clientAdminId, services) => companyService._saveAccessInternal(tx, clientAdminId, services),
-  getCompanyAssignedServices: (companyId) => companyService.getCompanyAssignedServices(companyId),
+  getCompanyAssignedServices: (companyId, includeInactive) =>
+    companyService.getCompanyAssignedServices(companyId, includeInactive),
 
   // Employees & Service Teams
   getCompanyEmployees: (companyId) => departmentService.getCompanyEmployees(companyId),

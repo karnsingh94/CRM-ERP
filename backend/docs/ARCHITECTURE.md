@@ -46,7 +46,7 @@ backend/
 ├── prisma/
 │   ├── schema.prisma                 # Database schema models & relationships
 │   ├── migrations/                   # Additive migration history
-│   └── seed.js                       # 7-Service catalog seeder
+│   └── seed.js                       # Initial Super Admin & 7-Service catalog seeder
 ├── src/
 │   ├── app.js                        # Express app initialization & middleware stack
 │   ├── server.js                     # HTTP server entrypoint & graceful shutdown
@@ -105,6 +105,7 @@ backend/
 2. **Service Assignment Verification**:
    - Creating or accessing departments within a service strictly checks `ClientServiceAccess`.
    - If Super Admin has not assigned that service to the company, API rejects request with `403 Forbidden` (`SERVICE_NOT_ASSIGNED`).
+   - Permission grants record the assigning administrator ID at service, module, and sub-module level. Full-service and full-module grants are materialized into their module/sub-module access tables; custom grants persist only the selected modules and sub-modules.
 3. **Department Head Integrity**:
    - Department Heads must be active employees of the same tenant company.
 4. **Credential Protection**:
@@ -127,6 +128,7 @@ backend/
 - [ ] **Prisma & Database**:
   - Run `npm run prisma:generate` during build.
   - Apply migrations: `npm run prisma:migrate:deploy` (or `node node_modules/prisma/build/index.js migrate deploy`).
+  - Seed the initial platform Super Admin and service catalog with `npm run seed`. Set `SUPER_ADMIN_NAME`, `SUPER_ADMIN_EMAIL`, and `SUPER_ADMIN_PASSWORD` in `backend/.env` to customize the initial account before seeding.
 - [ ] **Process Management**:
   - Run behind reverse proxy (e.g., NGINX, Cloudflare) with HTTPS.
   - Utilize process supervisor (PM2, Docker, or Kubernetes).

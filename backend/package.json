@@ -14,6 +14,7 @@
     "prisma:generate": "node node_modules/prisma/build/index.js generate",
     "prisma:migrate": "node node_modules/prisma/build/index.js migrate dev",
     "prisma:migrate:deploy": "node node_modules/prisma/build/index.js migrate deploy",
+    "seed": "node prisma/seed.js",
     "prisma:studio": "node node_modules/prisma/build/index.js studio"
   },
   "keywords": [

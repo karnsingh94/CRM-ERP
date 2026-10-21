@@ -1,7 +1,13 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+const initialSuperAdmin = {
+  name: process.env.SUPER_ADMIN_NAME?.trim() || 'Platform Super Admin',
+  email: (process.env.SUPER_ADMIN_EMAIL || 'admin@azzuniqe.com').trim().toLowerCase(),
+  password: process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@2026!',
+};
 
 // Support BigInt serialization
 BigInt.prototype.toJSON = function () {
@@ -264,7 +270,20 @@ export const SEED_CATALOG = [
 export async function seedDatabase() {
   console.log('🌱 Starting idempotent database seeding...');
 
-  // 1. Seed Fixed Seven-Service Catalogue
+  // 1. Seed the initial platform administrator without overwriting existing credentials.
+  await prisma.superAdmin.upsert({
+    where: { email: initialSuperAdmin.email },
+    update: {},
+    create: {
+      name: initialSuperAdmin.name,
+      email: initialSuperAdmin.email,
+      passwordHash: await bcrypt.hash(initialSuperAdmin.password, 10),
+      status: 'ACTIVE',
+    },
+  });
+  console.log(`✅ Initial Super Admin ensured: ${initialSuperAdmin.email}`);
+
+  // 2. Seed Fixed Seven-Service Catalogue
   for (const s of SEED_CATALOG) {
     const service = await prisma.service.upsert({
       where: { code: s.code },
@@ -331,10 +350,10 @@ export async function seedDatabase() {
   }
   console.log('✅ Seven-Service Catalogue seeded successfully.');
 
-  // 2. Note: Tenant companies are provisioned manually by Super Admin via Super Admin portal
+  // 3. Note: Tenant companies are provisioned manually by Super Admin via Super Admin portal
   console.log('ℹ️ Tenant seeding skipped: Client companies are managed manually by Super Admin.');
 
-  // 3. Seed Initial Audit Logs if empty
+  // 4. Seed Initial Audit Logs if empty
   const existingAuditLogsCount = await prisma.auditLog.count();
   if (existingAuditLogsCount === 0) {
     await prisma.auditLog.createMany({

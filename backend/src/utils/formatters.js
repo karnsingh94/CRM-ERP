@@ -218,8 +218,12 @@ export function formatClient(c) {
       // Under full service grant, modules and submodules are derived from the service's catalog
       formattedModules = service.modules.map((m) => {
         const mId = m.id.toString();
+        const moduleAccess = modAccesses.find((entry) => entry.moduleId.toString() === mId);
         const isModuleActive = isServiceActive && m.status === 'ACTIVE';
         const subModules = (m.subModules || []).map((sm) => {
+          const subModuleAccess = (c.subModuleAccess || []).find(
+            (entry) => entry.moduleId.toString() === mId && entry.subModuleId.toString() === sm.id.toString()
+          );
           const isSubActive = isModuleActive && sm.status === 'ACTIVE';
           return {
             id: sm.id.toString(),
@@ -229,6 +233,7 @@ export function formatClient(c) {
             status: sm.status || 'ACTIVE',
             isAllowed: isSubActive,
             rawIsAllowed: true,
+            assigned_by: subModuleAccess?.assignedBy?.toString() || null,
           };
         });
 
@@ -242,6 +247,7 @@ export function formatClient(c) {
           accessMode: 'FULL',
           isAllowed: isModuleActive,
           rawIsAllowed: true,
+          assigned_by: moduleAccess?.assignedBy?.toString() || null,
           sub_module_ids: subModules.filter((sm) => sm.isAllowed).map((sm) => sm.id),
           subModules,
         };
@@ -264,6 +270,7 @@ export function formatClient(c) {
             status: sma.subModule?.status || 'ACTIVE',
             isAllowed: Boolean(sma.isAllowed !== false && isSubActive),
             rawIsAllowed: sma.isAllowed !== false,
+            assigned_by: sma.assignedBy?.toString() || null,
           };
         });
 
@@ -277,6 +284,7 @@ export function formatClient(c) {
           accessMode: ma.accessMode,
           isAllowed: Boolean(ma.isAllowed !== false && isModuleActive),
           rawIsAllowed: ma.isAllowed !== false,
+          assigned_by: ma.assignedBy?.toString() || null,
           sub_module_ids: subAccesses.map((sma) => sma.subModuleId.toString()),
           subModules,
         };
@@ -297,11 +305,15 @@ export function formatClient(c) {
       serviceId: sId,
       code: service?.code || '',
       name: service?.name || '',
+      description: service?.description || '',
       status: serviceStatus,
       full_service: isFullService,
       isFullService: isFullService,
+      access_mode: sa.accessMode || (isFullService ? 'FULL' : 'CUSTOM'),
+      accessMode: sa.accessMode || (isFullService ? 'FULL' : 'CUSTOM'),
       isAllowed: isServiceAllowed,
       rawIsAllowed: sa.isAllowed !== false,
+      assigned_by: sa.assignedBy?.toString() || null,
       modules: activeFormattedModules,
       all_modules: formattedModules,
       allModules: formattedModules,

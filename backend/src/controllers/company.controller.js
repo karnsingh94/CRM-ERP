@@ -80,7 +80,8 @@ export const companyController = {
           themeColor: selectedThemeColor,
           theme_color: selectedThemeColor,
         },
-        req.meta || {}
+        req.meta || {},
+        req.user?.userId || req.user?.id
       );
       res.status(201).json({ success: true, data: client });
     } catch (err) {
@@ -152,7 +153,12 @@ export const companyController = {
         }
       }
 
-      const updated = await companyService.updateClient(req.params.id, req.body, req.meta || {});
+      const updated = await companyService.updateClient(
+        req.params.id,
+        req.body,
+        req.meta || {},
+        req.user?.userId || req.user?.id
+      );
       if (!updated) {
         return res.status(404).json({ success: false, message: 'Client not found' });
       }
@@ -201,7 +207,12 @@ export const companyController = {
 
   async saveClientAccess(req, res, next) {
     try {
-      const updated = await companyService.saveClientAccess(req.params.id, req.body.access, req.meta || {});
+      const updated = await companyService.saveClientAccess(
+        req.params.id,
+        req.body.access,
+        req.meta || {},
+        req.user?.userId || req.user?.id
+      );
       if (!updated) {
         return res.status(404).json({ success: false, message: 'Client not found' });
       }
