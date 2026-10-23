@@ -5,6 +5,40 @@ import auditService from './audit.service.js';
 import { validateTeamPermissions } from '../utils/team-permissions.js';
 import { isUuid } from '../utils/uuid.js';
 
+function isValidWorkEmail(value) {
+  if (value.length > 254) return false;
+
+  const parts = value.split('@');
+  if (parts.length !== 2) return false;
+
+  const [localPart, domain] = parts;
+  if (
+    !localPart ||
+    localPart.length > 64 ||
+    localPart.startsWith('.') ||
+    localPart.endsWith('.') ||
+    localPart.includes('..') ||
+    !/^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+$/.test(localPart)
+  ) {
+    return false;
+  }
+
+  const labels = domain.split('.');
+  if (
+    labels.length < 2 ||
+    labels.some((label) =>
+      !label ||
+      label.length > 63 ||
+      !/^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u.test(label)
+    )
+  ) {
+    return false;
+  }
+
+  const topLevelDomain = labels.at(-1);
+  return topLevelDomain.length >= 2 && /^\p{L}+$/u.test(topLevelDomain);
+}
+
 /**
  * Service for managing Company Employees and one team per assigned service.
  * Enforces company boundary and Super Admin assigned-service isolation.
@@ -58,9 +92,23 @@ export const departmentService = {
     const password = data.password;
     const serviceCode = data.serviceCode || data.serviceId;
     const accessRole = data.accessRole || 'EMPLOYEE';
+    const designation = typeof data.role === 'string' ? data.role.trim() : '';
 
     if (!name || !email || !serviceCode || typeof password !== 'string' || password.length < 8) {
       const error = new Error('Name, work email, assigned service, and a password of at least 8 characters are required.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (
+      name.length > 100 ||
+      !/^[\p{L}\p{M}][\p{L}\p{M}\s.'’-]*$/u.test(name) ||
+      !isValidWorkEmail(email) ||
+      password.length > 128 ||
+      designation.length > 100 ||
+      (designation && !/^[\p{L}\p{M}\p{N}\s&.,'’()/+-]*$/u.test(designation))
+    ) {
+      const error = new Error('Enter a valid employee name, work email, job designation, and password.');
       error.statusCode = 400;
       throw error;
     }
@@ -127,7 +175,7 @@ export const departmentService = {
             teamId: team.id,
             name,
             email,
-            role: typeof data.role === 'string' && data.role.trim() ? data.role.trim() : 'Team Member',
+            role: designation || 'Team Member',
             accessRole,
             passwordHash,
             status: data.status || 'ACTIVE',
@@ -180,6 +228,76 @@ export const departmentService = {
     });
 
     return formatEmployee(employee);
+  },
+
+  async removeServiceTeamEmployee(companyId, serviceCodeOrId, employeeId, meta = {}, actor) {
+    const cid = String(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service) {
+      const error = new Error('Service not found in catalogue.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const team = await prisma.companyServiceTeam.findUnique({
+      where: { companyId_serviceId: { companyId: cid, serviceId: service.id } },
+      select: { id: true, headEmployeeId: true },
+    });
+    if (!team) {
+      const error = new Error('This service team was not found for the company.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const employee = await prisma.companyEmployee.findFirst({
+      where: { id: String(employeeId), companyId: cid, teamId: team.id },
+      select: { id: true, name: true, email: true, accessRole: true },
+    });
+    if (!employee) {
+      const error = new Error('Employee was not found in this service team.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (actor?.role === 'SERVICE_HEAD' && (
+      team.headEmployeeId !== String(actor.userId) || employee.id === String(actor.userId)
+    )) {
+      const error = new Error('A Service Head can only remove other members of their own service team.');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (team.headEmployeeId === employee.id) {
+        await tx.companyServiceTeam.update({
+          where: { id: team.id },
+          data: { headEmployeeId: null },
+        });
+      }
+
+      await tx.companyEmployee.update({
+        where: { id: employee.id },
+        data: {
+          status: 'INACTIVE',
+          teamId: null,
+          accessRole: 'EMPLOYEE',
+          permissions: null,
+        },
+      });
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: employee.id,
+      oldValue: { name: employee.name, email: employee.email, service: service.code },
+      newValue: { status: 'INACTIVE', removedFromService: service.code },
+      reason: `Removed employee "${employee.name}" from "${service.name}" service team`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return this.getServiceTeam(companyId, serviceCodeOrId, actor);
   },
 
   /**

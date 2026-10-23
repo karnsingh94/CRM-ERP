@@ -129,14 +129,13 @@ export function extractToken(req) {
 /**
  * Set HTTP-only session cookie
  */
-export function setAuthCookie(res, token, name = 'azzuniqe_session') {
-  const maxAge = 86400 * 1000; // 24 hours
+export function setAuthCookie(res, token, name = 'azzuniqe_session', maxAgeSeconds = 86400) {
   const isProd = env.isProduction;
 
   // Manual cookie header to avoid third-party cookie-parser dependency
   const cookieString = [
     `${name}=${encodeURIComponent(token)}`,
-    `Max-Age=${86400}`,
+    Number.isFinite(maxAgeSeconds) && maxAgeSeconds > 0 ? `Max-Age=${maxAgeSeconds}` : '',
     `Path=/`,
     `HttpOnly`,
     `SameSite=Lax`,

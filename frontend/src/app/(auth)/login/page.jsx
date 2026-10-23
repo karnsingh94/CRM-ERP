@@ -17,7 +17,6 @@ function LoginForm() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    rememberMe: true,
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -42,17 +41,15 @@ function LoginForm() {
             if (user) {
               clearStoredSession();
               if (user.role === 'SUPER_ADMIN') {
-                localStorage.setItem('azzuniqe_super_token', authTokenParam);
                 sessionStorage.setItem('azzuniqe_super_token', authTokenParam);
-                localStorage.setItem('auth_user', JSON.stringify(user));
+                sessionStorage.setItem('auth_user', JSON.stringify(user));
                 const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/super-admin';
                 rememberVerifiedSession(authTokenParam, user);
                 router.replace(target);
                 return;
               } else {
-                localStorage.setItem('azzuniqe_client_token', authTokenParam);
                 sessionStorage.setItem('azzuniqe_client_token', authTokenParam);
-                localStorage.setItem('company_user', JSON.stringify(user));
+                sessionStorage.setItem('company_user', JSON.stringify(user));
                 const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/dashboard';
                 rememberVerifiedSession(authTokenParam, user);
                 router.replace(target);
@@ -121,6 +118,7 @@ function LoginForm() {
         body: JSON.stringify({
           email: formData.email.trim(),
           password: formData.password.trim(),
+          rememberMe: false,
         }),
       });
 
@@ -140,7 +138,7 @@ function LoginForm() {
       clearStoredSession();
 
       // 2. Persist fresh session
-      const storage = formData.rememberMe ? localStorage : sessionStorage;
+      const storage = sessionStorage;
       if (user.role === 'SUPER_ADMIN') {
         storage.setItem('azzuniqe_super_token', token);
         storage.setItem('auth_user', JSON.stringify(user));
@@ -613,25 +611,18 @@ function LoginForm() {
                 marginBottom: '1.25rem',
               }}
             >
-              <label
+              <span
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
                   fontSize: '0.8rem',
                   color: 'slategray',
-                  cursor: 'pointer',
                   userSelect: 'none',
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={formData.rememberMe}
-                  onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
-                  style={{ width: '15px', height: '15px', accentColor: '#7f22fe' }}
-                />
-                Remember session
-              </label>
+                Session ends when this tab closes
+              </span>
 
               <Link
                 href="/forgot-password"

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api';
+import { validateEmployeeForm } from '../../lib/employee-validation';
 import { IconPlus } from '../ui/Icons';
 import Modal from '../ui/Modal';
 import ServiceDepartments from '../departments/ServiceDepartments';
@@ -68,13 +69,19 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
 
   const handleCreateEmployee = async (event) => {
     event.preventDefault();
-    if (!newEmployee.name.trim() || !newEmployee.email.trim() || !newEmployee.serviceCode || newEmployee.password.length < 8) {
-      showToast?.('Validation Error', 'Name, email, service, and a password of at least 8 characters are required.', 'danger');
+    const validationError = validateEmployeeForm(newEmployee);
+    if (validationError) {
+      showToast?.('Validation Error', validationError, 'danger');
       return;
     }
     setIsSubmitting(true);
     try {
-      const response = await api.post(`/companies/${activeCompany.id}/employees`, newEmployee);
+      const response = await api.post(`/companies/${activeCompany.id}/employees`, {
+        ...newEmployee,
+        name: newEmployee.name.trim(),
+        email: newEmployee.email.trim().toLowerCase(),
+        role: newEmployee.role.trim(),
+      });
       showToast?.(
         'Employee Registered',
         `${response.data.name} can sign in using ${response.data.email} and the password you set.`,
@@ -250,11 +257,11 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
         <form onSubmit={handleCreateEmployee} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           <div>
             <label htmlFor="employee-name" style={labelStyle}>Full Name *</label>
-            <input id="employee-name" required value={newEmployee.name} onChange={(event) => setNewEmployee({ ...newEmployee, name: event.target.value })} style={inputStyle} />
+            <input id="employee-name" required maxLength={100} autoComplete="name" value={newEmployee.name} onChange={(event) => setNewEmployee({ ...newEmployee, name: event.target.value })} style={inputStyle} />
           </div>
           <div>
             <label htmlFor="employee-email" style={labelStyle}>Login ID / Work Email *</label>
-            <input id="employee-email" type="email" required value={newEmployee.email} onChange={(event) => setNewEmployee({ ...newEmployee, email: event.target.value })} style={inputStyle} />
+            <input id="employee-email" type="email" inputMode="email" autoComplete="username" maxLength={254} required value={newEmployee.email} onChange={(event) => setNewEmployee({ ...newEmployee, email: event.target.value })} style={inputStyle} />
           </div>
           <div>
             <label htmlFor="employee-service" style={labelStyle}>Assigned Service *</label>
@@ -272,11 +279,11 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
           </div>
           <div>
             <label htmlFor="employee-designation" style={labelStyle}>Job Designation</label>
-            <input id="employee-designation" placeholder="e.g. Sales Executive" value={newEmployee.role} onChange={(event) => setNewEmployee({ ...newEmployee, role: event.target.value })} style={inputStyle} />
+            <input id="employee-designation" placeholder="e.g. Sales Executive" maxLength={100} value={newEmployee.role} onChange={(event) => setNewEmployee({ ...newEmployee, role: event.target.value })} style={inputStyle} />
           </div>
           <div>
             <label htmlFor="employee-password" style={labelStyle}>Initial Password *</label>
-            <input id="employee-password" type="password" autoComplete="new-password" minLength={8} required value={newEmployee.password} onChange={(event) => setNewEmployee({ ...newEmployee, password: event.target.value })} style={inputStyle} />
+            <input id="employee-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={newEmployee.password} onChange={(event) => setNewEmployee({ ...newEmployee, password: event.target.value })} style={inputStyle} />
             <small style={{ display: 'block', marginTop: '0.3rem', color: '#64748b' }}>Give the employee this password with their Login ID. They can change it from their dashboard.</small>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', marginTop: '0.35rem' }}>

@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyCurrentSession } from '@/lib/auth';
+import {
+  getCachedStoredUser,
+  getStoredToken,
+  restoreSuperAdminSession,
+  verifyCurrentSession,
+} from '@/lib/auth';
 
 export default function SuperAdminLayout({ children }) {
   const router = useRouter();
@@ -11,21 +16,34 @@ export default function SuperAdminLayout({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    restoreSuperAdminSession();
+    const cachedUser = getCachedStoredUser();
+
+    if (cachedUser?.role === 'SUPER_ADMIN') {
+      setAuthorized(true);
+      setIsChecking(false);
+    }
 
     async function checkSuperAdmin() {
       try {
         const user = await verifyCurrentSession();
         if (!mounted) return;
 
-        if (!user || user.role !== 'SUPER_ADMIN') {
+        if (user?.role === 'SUPER_ADMIN') {
+          setAuthorized(true);
+        } else if (user) {
+          setAuthorized(false);
           router.replace('/login?redirect=/super-admin');
-          return;
+        } else if (!(getStoredToken() && cachedUser?.role === 'SUPER_ADMIN')) {
+          setAuthorized(false);
+          router.replace('/login?redirect=/super-admin');
         } else {
           setAuthorized(true);
         }
       } catch (err) {
         console.error('Super Admin session error:', err);
-        if (mounted) {
+        if (mounted && !(getStoredToken() && cachedUser?.role === 'SUPER_ADMIN')) {
+          setAuthorized(false);
           router.replace('/login?redirect=/super-admin');
         }
       } finally {
@@ -40,7 +58,7 @@ export default function SuperAdminLayout({ children }) {
     };
   }, [router]);
 
-  if (isChecking && !authorized) {
+  if (isChecking || !authorized) {
     return (
       <div
         style={{

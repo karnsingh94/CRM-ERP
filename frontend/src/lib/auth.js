@@ -23,20 +23,22 @@ let inFlightSessionToken = null;
 export function getStoredToken() {
   if (typeof window === 'undefined') return null;
   const isImpersonating = localStorage.getItem('is_super_admin_impersonating') === 'true';
-  if (isImpersonating) {
-    return (
-      localStorage.getItem('azzuniqe_client_token') ||
-      sessionStorage.getItem('azzuniqe_client_token') ||
-      localStorage.getItem('azzuniqe_super_token') ||
-      sessionStorage.getItem('azzuniqe_super_token')
-    );
-  }
-  return (
-    localStorage.getItem('azzuniqe_super_token') ||
-    sessionStorage.getItem('azzuniqe_super_token') ||
-    localStorage.getItem('azzuniqe_client_token') ||
-    sessionStorage.getItem('azzuniqe_client_token')
-  );
+  const getTabToken = (key) => {
+    const tabToken = sessionStorage.getItem(key);
+    if (tabToken) return tabToken;
+
+    const persistedToken = localStorage.getItem(key);
+    if (!persistedToken) return null;
+
+    sessionStorage.setItem(key, persistedToken);
+    localStorage.removeItem(key);
+    return persistedToken;
+  };
+
+  const tokenKeys = isImpersonating
+    ? ['azzuniqe_client_token', 'azzuniqe_super_token']
+    : ['azzuniqe_super_token', 'azzuniqe_client_token'];
+  return tokenKeys.map(getTabToken).find(Boolean) || null;
 }
 
 export function clearStoredSession() {
@@ -55,11 +57,48 @@ export function clearStoredSession() {
   document.cookie = 'azzuniqe_super_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
 }
 
+export function restoreSuperAdminSession() {
+  if (typeof window === 'undefined') return false;
+
+  const isImpersonating =
+    localStorage.getItem('is_super_admin_impersonating') === 'true' ||
+    sessionStorage.getItem('is_super_admin_impersonating') === 'true';
+  const backupToken =
+    localStorage.getItem('azzuniqe_super_token_backup') ||
+    sessionStorage.getItem('azzuniqe_super_token_backup');
+
+  if (!isImpersonating || !backupToken) return false;
+
+  sessionStorage.setItem('azzuniqe_super_token', backupToken);
+  for (const storage of [localStorage, sessionStorage]) {
+    [
+      'azzuniqe_super_token_backup',
+      'azzuniqe_client_token',
+      'company_user',
+      'auth_user',
+      'active_company_id',
+      'cached_company_data',
+      'is_super_admin_impersonating',
+      'impersonated_client_name',
+    ].forEach((key) => storage.removeItem(key));
+  }
+
+  cachedSessionUser = null;
+  cachedSessionToken = null;
+  cachedSessionAt = 0;
+  inFlightSessionPromise = null;
+  inFlightSessionToken = null;
+  return true;
+}
+
 export function rememberVerifiedSession(token, user) {
   if (!token || !user) return;
   cachedSessionToken = token;
   cachedSessionUser = user;
   cachedSessionAt = Date.now();
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('azzuniqe_login_redirect_pending');
+  }
 }
 
 export function getStoredUser() {
@@ -73,6 +112,32 @@ export function getStoredUser() {
   ) {
     return cachedSessionUser;
   }
+  return null;
+}
+
+export function getCachedStoredUser() {
+  if (!getStoredToken()) return null;
+
+  for (const key of ['auth_user', 'company_user']) {
+    for (const storage of [localStorage, sessionStorage]) {
+      try {
+        const raw = storage.getItem(key);
+        if (!raw) continue;
+
+        const parsed = JSON.parse(raw);
+        const user = parsed?.user || parsed?.data?.user || parsed?.data || parsed;
+        if (
+          user &&
+          ['SUPER_ADMIN', 'COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(user.role)
+        ) {
+          return user;
+        }
+      } catch {
+        // Ignore malformed cached profiles and check the other storage entry.
+      }
+    }
+  }
+
   return null;
 }
 

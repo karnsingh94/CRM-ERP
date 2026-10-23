@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './CompanyAdminPortal.module.css';
 import { CompanyAuthProvider } from '@/context/CompanyAuthContext';
+import { restoreSuperAdminSession } from '@/lib/auth';
 import { useCompanyAuth } from '@/hooks/useCompanyAuth';
 import { useCompanyAccess } from '@/hooks/useCompanyAccess';
 
@@ -164,19 +165,8 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
 
   const handleReturnToSuperAdmin = () => {
     if (typeof window !== 'undefined') {
-      const backupSuperToken = localStorage.getItem('azzuniqe_super_token_backup');
-      if (backupSuperToken) {
-        localStorage.setItem('azzuniqe_super_token', backupSuperToken);
-        localStorage.removeItem('azzuniqe_super_token_backup');
-      }
-      localStorage.removeItem('is_super_admin_impersonating');
-      localStorage.removeItem('impersonated_client_name');
-      localStorage.removeItem('azzuniqe_client_token');
-      localStorage.removeItem('company_user');
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('active_company_id');
-
-      window.location.href = '/super-admin';
+      restoreSuperAdminSession();
+      window.location.replace('/super-admin');
     }
   };
 

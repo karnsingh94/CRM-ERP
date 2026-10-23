@@ -3,7 +3,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { api } from '../lib/api';
-import { clearStoredSession, getStoredToken, verifyCurrentSession } from '../lib/auth';
+import {
+  clearStoredSession,
+  getCachedStoredUser,
+  getStoredToken,
+  restoreSuperAdminSession,
+  verifyCurrentSession,
+} from '../lib/auth';
 
 const CompanyAuthContext = createContext(null);
 const COMPANY_USER_ROLES = ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
@@ -56,6 +62,7 @@ export function CompanyAuthProvider({ children }) {
   // Verify the company session on entry and whenever the page regains focus.
   const loadCompanySession = useCallback(async () => {
     if (pathname.startsWith('/super-admin')) {
+      restoreSuperAdminSession();
       setIsLoading(false);
       return;
     }
@@ -70,9 +77,49 @@ export function CompanyAuthProvider({ children }) {
       setIsLoading(true);
     }
     setError(null);
+    const token = getStoredToken();
+    const cachedUser = token ? getCachedStoredUser() : null;
+
+    if (!globalCurrentUser && COMPANY_USER_ROLES.includes(cachedUser?.role)) {
+      const roleTitle = formatRoleTitle(cachedUser.role, cachedUser.departmentName);
+      const cachedProfile = {
+        ...cachedUser,
+        roleTitle,
+        isCompanyAdmin: cachedUser.role === 'COMPANY_ADMIN',
+        isDepartmentHead: cachedUser.role === 'DEPARTMENT_HEAD' || cachedUser.role === 'SERVICE_HEAD',
+        isServiceHead: cachedUser.role === 'SERVICE_HEAD' || cachedUser.role === 'DEPARTMENT_HEAD',
+        isTeamLeader: cachedUser.role === 'TEAM_LEADER',
+        isEmployee: cachedUser.role === 'EMPLOYEE',
+      };
+
+      let cachedCompany = null;
+      try {
+        cachedCompany = JSON.parse(localStorage.getItem('cached_company_data') || 'null');
+      } catch {
+        cachedCompany = null;
+      }
+
+      const targetCompanyId = cachedUser.companyId || cachedUser.clientAdminId;
+      const fallbackCompany = {
+        id: String(targetCompanyId || cachedUser.id || 'default'),
+        name: cachedUser.organizationName || cachedUser.name || 'Company Workspace',
+        organizationName: cachedUser.organizationName || cachedUser.name || 'Company Workspace',
+        email: cachedUser.email,
+        status: cachedUser.status || 'ACTIVE',
+        themeColor: cachedUser.themeColor || cachedUser.theme_color || '#7f22fe',
+        theme_color: cachedUser.theme_color || cachedUser.themeColor || '#7f22fe',
+        access: cachedUser.access || { services: [] },
+      };
+      const company = scopeCompanyAccessForUser(cachedCompany || fallbackCompany, cachedUser);
+
+      globalCurrentUser = cachedProfile;
+      setCurrentUser(cachedProfile);
+      setActiveCompany(company);
+      setAuthorizedCompanies([company]);
+      setIsLoading(false);
+    }
 
     try {
-      const token = getStoredToken();
       let verifiedUser = null;
       const userCandidate = token ? await verifyCurrentSession() : null;
       if (userCandidate?.role === 'SUPER_ADMIN') {
@@ -85,7 +132,23 @@ export function CompanyAuthProvider({ children }) {
 
       // 3. If unauthenticated, redirect to /login
       if (!verifiedUser) {
-        if (token !== getStoredToken()) return;
+        const currentToken = getStoredToken();
+        if (token !== currentToken) {
+          if (currentToken) return;
+          clearStoredSession();
+          globalCurrentUser = null;
+          setIsLoading(false);
+          setCurrentUser(null);
+          setActiveCompany(null);
+          setAuthorizedCompanies([]);
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            const currentPath = window.location.pathname;
+            const redirectTarget = currentPath && currentPath !== '/' ? currentPath : '/dashboard';
+            router.replace(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
+          }
+          return;
+        }
+        if (!userCandidate && COMPANY_USER_ROLES.includes(cachedUser?.role) && currentToken) return;
         clearStoredSession();
         globalCurrentUser = null;
         setIsLoading(false);
@@ -175,9 +238,11 @@ export function CompanyAuthProvider({ children }) {
         loadCompanySession();
       };
       window.addEventListener('focus', handleRevalidate);
+      window.addEventListener('pageshow', handleRevalidate);
       window.addEventListener('storage', handleRevalidate);
       return () => {
         window.removeEventListener('focus', handleRevalidate);
+        window.removeEventListener('pageshow', handleRevalidate);
         window.removeEventListener('storage', handleRevalidate);
       };
     }

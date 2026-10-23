@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { validateEmployeeForm } from '../../lib/employee-validation';
 import LoadingSkeleton from '../ui/LoadingSkeleton';
 import ServiceWorkBoard, { TeamHeadPermissions } from './ServiceWorkBoard';
 
@@ -25,6 +26,7 @@ export default function ServiceDepartments({ activeCompany, serviceCode, current
   const [isSavingHead, setIsSavingHead] = useState(false);
   const [isSavingPermissions, setIsSavingPermissions] = useState(false);
   const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
+  const [deletingEmployeeId, setDeletingEmployeeId] = useState(null);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
   const [headPermissions, setHeadPermissions] = useState(EMPTY_PERMISSIONS);
   const [newEmployee, setNewEmployee] = useState({ name: '', email: '', role: '', password: '' });
@@ -103,10 +105,18 @@ export default function ServiceDepartments({ activeCompany, serviceCode, current
   const handleCreateEmployee = async (event) => {
     event.preventDefault();
     setActionError('');
+    const validationError = validateEmployeeForm(newEmployee);
+    if (validationError) {
+      setActionError(validationError);
+      return;
+    }
     setIsCreatingEmployee(true);
     try {
       const response = await api.post(`/companies/${activeCompany.id}/employees`, {
         ...newEmployee,
+        name: newEmployee.name.trim(),
+        email: newEmployee.email.trim().toLowerCase(),
+        role: newEmployee.role.trim(),
         serviceCode: normalizedCode,
         accessRole: 'EMPLOYEE',
       });
@@ -122,6 +132,30 @@ export default function ServiceDepartments({ activeCompany, serviceCode, current
       showToast?.('Employee Not Added', createError.message || 'Could not add this employee.', 'danger');
     } finally {
       setIsCreatingEmployee(false);
+    }
+  };
+
+  const handleRemoveEmployee = async (employee) => {
+    if (!window.confirm(`Remove ${employee.name} from this service team? Their existing work history will be preserved.`)) {
+      return;
+    }
+
+    setActionError('');
+    setDeletingEmployeeId(employee.id);
+    try {
+      const response = await api.delete(
+        `/companies/${activeCompany.id}/services/${normalizedCode}/team/employees/${employee.id}`
+      );
+      setTeam(response.data);
+      if (team?.head?.id === employee.id) {
+        setHeadPermissions(EMPTY_PERMISSIONS);
+      }
+      showToast?.('Employee Removed', `${employee.name} was removed from this service team.`, 'success');
+    } catch (removeError) {
+      setActionError(removeError.message || 'Could not remove this employee.');
+      showToast?.('Employee Not Removed', removeError.message || 'Could not remove this employee.', 'danger');
+    } finally {
+      setDeletingEmployeeId(null);
     }
   };
 
@@ -172,10 +206,16 @@ export default function ServiceDepartments({ activeCompany, serviceCode, current
               {label}
               <input
                 required={key !== 'role'}
+                maxLength={key === 'name' ? 100 : key === 'email' ? 254 : key === 'role' ? 100 : key === 'password' ? 128 : undefined}
                 minLength={key === 'password' ? 8 : undefined}
+                autoComplete={key === 'name' ? 'name' : key === 'email' ? 'username' : key === 'password' ? 'new-password' : undefined}
+                inputMode={key === 'email' ? 'email' : undefined}
                 type={type}
                 value={newEmployee[key]}
-                onChange={(event) => setNewEmployee((previous) => ({ ...previous, [key]: event.target.value }))}
+                onChange={(event) => {
+                  setActionError('');
+                  setNewEmployee((previous) => ({ ...previous, [key]: event.target.value }));
+                }}
                 style={{ display: 'block', width: '100%', marginTop: '0.3rem', padding: '0.62rem 0.7rem', border: '1px solid #cbd5e1', borderRadius: '7px', background: '#fff', color: '#0f172a', font: 'inherit', fontSize: '0.84rem' }}
               />
             </label>
@@ -240,6 +280,7 @@ export default function ServiceDepartments({ activeCompany, serviceCode, current
               <th style={{ padding: '0.8rem 1rem' }}>Team Role</th>
               <th style={{ padding: '0.8rem 1rem' }}>Designation</th>
               <th style={{ padding: '0.8rem 1rem' }}>Status</th>
+              {canManageMembers && <th style={{ padding: '0.8rem 1rem' }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -254,11 +295,32 @@ export default function ServiceDepartments({ activeCompany, serviceCode, current
                 <td style={{ padding: '0.8rem 1rem', color: employee.status === 'ACTIVE' ? '#047857' : '#b91c1c' }}>
                   {employee.status}
                 </td>
+                {canManageMembers && (
+                  <td style={{ padding: '0.8rem 1rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEmployee(employee)}
+                      disabled={deletingEmployeeId !== null}
+                      aria-label={`Remove ${employee.name} from this service team`}
+                      style={{
+                        padding: '0.4rem 0.7rem',
+                        border: '1px solid #fecaca',
+                        borderRadius: '6px',
+                        color: '#b91c1c',
+                        background: '#fff',
+                        fontWeight: 700,
+                        cursor: deletingEmployeeId !== null ? 'wait' : 'pointer',
+                      }}
+                    >
+                      {deletingEmployeeId === employee.id ? 'Removing...' : 'Delete'}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {employees.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ padding: '1.25rem', color: '#64748b', textAlign: 'center' }}>
+                <td colSpan={canManageMembers ? 6 : 5} style={{ padding: '1.25rem', color: '#64748b', textAlign: 'center' }}>
                   No employees are assigned to this service team yet.
                 </td>
               </tr>

@@ -46,6 +46,24 @@ export const departmentController = {
     }
   },
 
+  async removeServiceTeamEmployee(req, res, next) {
+    try {
+      const team = await departmentService.removeServiceTeamEmployee(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.params.employeeId,
+        req.meta || {},
+        req.user
+      );
+      res.json({ success: true, data: team });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
   async getServiceTeam(req, res, next) {
     try {
       const team = await departmentService.getServiceTeam(

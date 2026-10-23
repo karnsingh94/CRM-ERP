@@ -28,6 +28,11 @@ router.get(
   requireServiceTeamPermission(['manageMembers', 'assignWork', 'updateWork']),
   departmentController.getServiceTeam
 );
+router.delete(
+  '/companies/:companyId/services/:serviceCode/team/employees/:employeeId',
+  requireServiceTeamPermission('manageMembers'),
+  departmentController.removeServiceTeamEmployee
+);
 router.put('/companies/:companyId/services/:serviceCode/team/head', requireCompanyAdmin, departmentController.setServiceTeamHead);
 router.put('/companies/:companyId/services/:serviceCode/team/permissions', requireCompanyAdmin, departmentController.setServiceTeamPermissions);
 

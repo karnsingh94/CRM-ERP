@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyCurrentSession } from '@/lib/auth';
+import { getCachedStoredUser, getStoredToken, verifyCurrentSession } from '@/lib/auth';
 import SuperAdminPortal from '@/components/super-admin/SuperAdminPortal';
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
@@ -19,16 +19,25 @@ export default function UnifiedRoleDashboardPage() {
     let mounted = true;
 
     async function resolveSession() {
+      const cachedUser = getCachedStoredUser();
+      if (cachedUser) {
+        setCurrentUser(cachedUser);
+        setIsResolving(false);
+      }
+
       try {
         const user = await verifyCurrentSession();
         if (!mounted) return;
         if (!user) {
+          if (cachedUser && getStoredToken()) return;
           router.replace('/login?redirect=/dashboard');
           return;
         }
         setCurrentUser(user);
       } catch {
-        if (mounted) router.replace('/login?redirect=/dashboard');
+        if (mounted && !(cachedUser && getStoredToken())) {
+          router.replace('/login?redirect=/dashboard');
+        }
       } finally {
         if (mounted) setIsResolving(false);
       }

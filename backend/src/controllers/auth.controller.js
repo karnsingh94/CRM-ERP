@@ -7,11 +7,16 @@ export const authController = {
    */
   async loginSuperAdmin(req, res, next) {
     try {
-      const { email, password } = req.body;
-      const result = await authService.loginSuperAdmin({ email, password }, req.meta || {});
+      const { email, password, rememberMe } = req.body;
+      const result = await authService.loginSuperAdmin({ email, password, rememberMe }, req.meta || {});
 
       // Set secure HTTP-only session cookie
-      setAuthCookie(res, result.token, 'azzuniqe_session');
+      setAuthCookie(
+        res,
+        result.token,
+        'azzuniqe_session',
+        rememberMe === true ? result.expiresInSeconds : null
+      );
 
       res.json({
         success: true,
@@ -43,14 +48,19 @@ export const authController = {
    */
   async loginCompanyUser(req, res, next) {
     try {
-      const { email, password, companyId } = req.body;
+      const { email, password, companyId, rememberMe } = req.body;
       const result = await authService.loginCompanyUser(
-        { email, password, companyId },
+        { email, password, companyId, rememberMe },
         req.meta || {}
       );
 
       // Set secure HTTP-only cookie
-      setAuthCookie(res, result.token, 'azzuniqe_session');
+      setAuthCookie(
+        res,
+        result.token,
+        'azzuniqe_session',
+        rememberMe === true ? result.expiresInSeconds : null
+      );
 
       res.json({
         success: true,

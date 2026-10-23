@@ -8,9 +8,20 @@ import { clearStoredSession, getStoredToken } from './auth';
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const inFlightGetRequests = new Map();
+let isRedirectingToLogin = false;
+const LOGIN_REDIRECT_KEY = 'azzuniqe_login_redirect_pending';
 
 function redirectToLogin() {
-  if (typeof window === 'undefined' || window.location.pathname === '/login') return;
+  if (
+    typeof window === 'undefined' ||
+    window.location.pathname === '/login' ||
+    isRedirectingToLogin ||
+    sessionStorage.getItem(LOGIN_REDIRECT_KEY) === 'true'
+  ) {
+    return;
+  }
+  isRedirectingToLogin = true;
+  sessionStorage.setItem(LOGIN_REDIRECT_KEY, 'true');
   const redirectTarget = `${window.location.pathname}${window.location.search}`;
   window.location.replace(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
 }
@@ -28,7 +39,7 @@ export async function authenticatedFetch(input, options = {}) {
     credentials: options.credentials || 'include',
   });
 
-  if (response.status === 401 && token === getStoredToken()) {
+  if (response.status === 401 && token && token === getStoredToken()) {
     clearStoredSession();
     redirectToLogin();
   }

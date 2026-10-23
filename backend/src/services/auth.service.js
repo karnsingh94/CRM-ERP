@@ -15,6 +15,12 @@ const RESET_TOKENS = new Map();
 // In-memory password override cache to immediately support resets for both DB & bootstrap fallback accounts
 const PASSWORD_OVERRIDES = new Map();
 const COMPANY_STAFF_ROLES = ['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
+const DEFAULT_SESSION_SECONDS = 24 * 60 * 60;
+const REMEMBERED_SESSION_SECONDS = 30 * DEFAULT_SESSION_SECONDS;
+
+function sessionExpiry(rememberMe) {
+  return rememberMe === true ? REMEMBERED_SESSION_SECONDS : DEFAULT_SESSION_SECONDS;
+}
 
 function hashResetToken(rawToken) {
   return crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -80,7 +86,7 @@ export const authService = {
   /**
    * Authenticate Super Admin (Platform Owner)
    */
-  async loginSuperAdmin({ email, password }, meta = {}) {
+  async loginSuperAdmin({ email, password, rememberMe = false }, meta = {}) {
     if (!email || !password) {
       const error = new Error('Email and password are required');
       error.statusCode = 400;
@@ -154,13 +160,14 @@ export const authService = {
       throw error;
     }
 
+    const expiresInSeconds = sessionExpiry(rememberMe);
     const token = signToken({
       userId: userObj.id,
       name: userObj.name,
       email: userObj.email,
       role: 'SUPER_ADMIN',
       type: 'SUPER_ADMIN',
-    });
+    }, expiresInSeconds);
 
     await auditService.logAudit({
       action: 'LOGIN',
@@ -173,6 +180,7 @@ export const authService = {
 
     return {
       token,
+      expiresInSeconds,
       user: userObj,
       redirectUrl: '/dashboard',
     };
@@ -181,7 +189,7 @@ export const authService = {
   /**
    * Unified Canonical Login for ALL Roles: Super Admin, Company Admin, Department Head, Employee
    */
-  async loginCompanyUser({ email, password, companyId }, meta = {}) {
+  async loginCompanyUser({ email, password, companyId, rememberMe = false }, meta = {}) {
     if (!email || !password) {
       const error = new Error('Email and password are required');
       error.statusCode = 400;
@@ -189,6 +197,7 @@ export const authService = {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const expiresInSeconds = sessionExpiry(rememberMe);
 
     // 0. Check if user is Super Admin (Platform Owner)
     let superAdmin = null;
@@ -212,7 +221,7 @@ export const authService = {
           email: userObj.email,
           role: 'SUPER_ADMIN',
           type: 'SUPER_ADMIN',
-        });
+        }, expiresInSeconds);
         await auditService.logAudit({
           action: 'LOGIN',
           entityType: 'SUPER_ADMIN',
@@ -223,6 +232,7 @@ export const authService = {
         });
         return {
           token,
+          expiresInSeconds,
           user: userObj,
           redirectUrl: '/',
           targetOrigin: 'http://localhost:3000',
@@ -247,7 +257,7 @@ export const authService = {
           email: userObj.email,
           role: 'SUPER_ADMIN',
           type: 'SUPER_ADMIN',
-        });
+        }, expiresInSeconds);
         await auditService.logAudit({
           action: 'LOGIN',
           entityType: 'SUPER_ADMIN',
@@ -258,6 +268,7 @@ export const authService = {
         });
         return {
           token,
+          expiresInSeconds,
           user: userObj,
           redirectUrl: '/',
           targetOrigin: 'http://localhost:3000',
@@ -276,9 +287,10 @@ export const authService = {
         email: userObj.email,
         role: 'SUPER_ADMIN',
         type: 'SUPER_ADMIN',
-      });
+      }, expiresInSeconds);
       return {
         token,
+        expiresInSeconds,
         user: userObj,
         redirectUrl: '/',
         targetOrigin: 'http://localhost:3000',
