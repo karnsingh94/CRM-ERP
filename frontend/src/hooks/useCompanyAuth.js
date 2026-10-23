@@ -84,7 +84,7 @@ export function useCompanyAuth() {
         return 'Company Admin';
       case 'DEPARTMENT_HEAD':
       case 'SERVICE_HEAD':
-        return departmentName ? `Service Head (${departmentName})` : 'Service Head';
+        return departmentName ? `Department Head (${departmentName})` : 'Department Head';
       case 'TEAM_LEADER':
         return departmentName ? `Team Leader (${departmentName})` : 'Team Leader';
       case 'EMPLOYEE':

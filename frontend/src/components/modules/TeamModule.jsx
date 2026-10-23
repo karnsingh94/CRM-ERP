@@ -161,7 +161,7 @@ export default function TeamModule({ activeCompany, currentUser, showToast, init
       <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', gap: '0.5rem' }}>
         {[
           ['members', `Company Employees (${employees.length})`],
-          ['teams', 'Service Teams'],
+          ['teams', 'Department Head Workspace'],
         ].map(([tab, title]) => (
           <button
             key={tab}
@@ -179,7 +179,7 @@ export default function TeamModule({ activeCompany, currentUser, showToast, init
           {services.length ? (
             <>
               <div style={{ maxWidth: '420px' }}>
-                <label htmlFor="team-service-select" style={labelStyle}>Service team</label>
+                <label htmlFor="team-service-select" style={labelStyle}>Assigned service</label>
                 <select
                   id="team-service-select"
                   value={selectedServiceCode}
@@ -207,7 +207,7 @@ export default function TeamModule({ activeCompany, currentUser, showToast, init
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: 700 }}>
                   <th style={{ padding: '0.85rem 1rem' }}>Employee Name</th>
                   <th style={{ padding: '0.85rem 1rem' }}>Login ID</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Service Team</th>
+                  <th style={{ padding: '0.85rem 1rem' }}>Assigned Service</th>
                   <th style={{ padding: '0.85rem 1rem' }}>Team Role</th>
                   <th style={{ padding: '0.85rem 1rem' }}>Designation</th>
                   <th style={{ padding: '0.85rem 1rem' }}>Status</th>
@@ -256,7 +256,7 @@ export default function TeamModule({ activeCompany, currentUser, showToast, init
         </div>
       )}
 
-      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setNewEmployee(EMPTY_EMPLOYEE); }} title="Create Service Team Member" maxWidth="520px">
+      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setNewEmployee(EMPTY_EMPLOYEE); }} title="Create Employee" maxWidth="520px">
         <form onSubmit={handleCreateEmployee} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           <div>
             <label htmlFor="employee-name" style={labelStyle}>Full Name *</label>
@@ -276,7 +276,7 @@ export default function TeamModule({ activeCompany, currentUser, showToast, init
           <div>
             <label htmlFor="employee-access-role" style={labelStyle}>Team Role</label>
             <input id="employee-access-role" value="Employee" readOnly style={inputStyle} />
-            <small style={{ display: 'block', marginTop: '0.3rem', color: '#64748b' }}>Create Team Leaders from the service team page so you can configure their service permissions.</small>
+            <small style={{ display: 'block', marginTop: '0.3rem', color: '#64748b' }}>Create Team Leaders from the Department Head workspace so you can configure their service permissions.</small>
           </div>
           <div>
             <label htmlFor="employee-designation" style={labelStyle}>Job Designation</label>

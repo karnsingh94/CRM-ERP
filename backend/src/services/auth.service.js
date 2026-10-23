@@ -27,18 +27,25 @@ function hashResetToken(rawToken) {
 }
 
 function getEmployeeAccessRole(employee) {
+  if (
+    employee.accessRole === 'DEPARTMENT_HEAD' ||
+    employee.accessRole === 'SERVICE_HEAD' ||
+    (Array.isArray(employee.headedDepartments) && employee.headedDepartments.length > 0)
+  ) {
+    return 'DEPARTMENT_HEAD';
+  }
   if (employee.team?.headEmployeeId === employee.id) return 'TEAM_LEADER';
   if (employee.accessRole === 'TEAM_LEADER') return 'TEAM_LEADER';
   return 'EMPLOYEE';
 }
 
-function scopeAccessToEmployeeService(access, service, permissions = null, isTeamLeader = false) {
+function scopeAccessToEmployeeService(access, service, permissions = null, isPermScoped = false) {
   if (!service) return { ...(access || {}), services: [] };
   const serviceId = String(service.id);
   const scopedServices = (access?.services || []).filter(
     (entry) => String(entry.serviceId || entry.service_id || entry.id) === serviceId
   );
-  if (!isTeamLeader) return { ...(access || {}), services: scopedServices };
+  if (!isPermScoped) return { ...(access || {}), services: scopedServices };
 
   const featureAccess = permissions?.featureAccess || {};
   const permittedModules = new Set((featureAccess.moduleIds || []).map(String));
@@ -446,9 +453,9 @@ export const authService = {
         const resolvedRole = getEmployeeAccessRole(employee);
         const service = employee.team?.service || employee.department?.service;
         const formattedCompany = formatClient(employee.clientAdmin);
-        const isTeamLeader = resolvedRole === 'TEAM_LEADER';
+        const isPermScoped = resolvedRole === 'TEAM_LEADER' || resolvedRole === 'DEPARTMENT_HEAD';
         const employeePermissions = normalizeTeamPermissions(employee.permissions);
-        const scopedAccess = scopeAccessToEmployeeService(formattedCompany.access, service, employeePermissions, isTeamLeader);
+        const scopedAccess = scopeAccessToEmployeeService(formattedCompany.access, service, employeePermissions, isPermScoped);
 
         const userObj = {
           id: employee.id.toString(),
@@ -668,7 +675,7 @@ export const authService = {
               formattedCompany.access,
               service,
               normalizeTeamPermissions(employee.permissions),
-              role === 'TEAM_LEADER'
+              role === 'TEAM_LEADER' || role === 'DEPARTMENT_HEAD'
             ),
           };
         }

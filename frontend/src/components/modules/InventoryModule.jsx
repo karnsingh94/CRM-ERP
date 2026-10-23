@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../../lib/api';
 import { IconLayers, IconPlus, IconAlertTriangle } from '../ui/Icons';
 import Modal from '../ui/Modal';
 import EmptyState from '../ui/EmptyState';
@@ -9,23 +10,51 @@ import ServiceDepartments from '../departments/ServiceDepartments';
 export default function InventoryModule({ activeCompany, showToast }) {
   const [activeTab, setActiveTab] = useState('stock'); // 'stock', 'departments'
   const [stockItems, setStockItems] = useState([]);
+  const [isLoadingStock, setIsLoadingStock] = useState(false);
 
   const [adjustModalItem, setAdjustModalItem] = useState(null);
   const [adjustQty, setAdjustQty] = useState('');
   const [adjustReason, setAdjustReason] = useState('PHYSICAL_COUNT_RECONCILIATION');
+  const [isAdjusting, setIsAdjusting] = useState(false);
 
-  const handleAdjustStock = (e) => {
+  const loadStock = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingStock(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/inventory/stocks`, { noCache: true });
+      setStockItems(res.data || []);
+    } catch (err) {
+      // Ignore
+    } finally {
+      setIsLoadingStock(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStock();
+  }, [activeCompany?.id]);
+
+  const handleAdjustStock = async (e) => {
     e.preventDefault();
     if (!adjustModalItem || !adjustQty) return;
     const diff = parseInt(adjustQty);
-    setStockItems(stockItems.map(item =>
-      item.id === adjustModalItem.id
-        ? { ...item, stock: Math.max(0, item.stock + diff) }
-        : item
-    ));
-    showToast('Stock Adjusted! 📦', `Adjusted ${diff > 0 ? `+${diff}` : diff} units for ${adjustModalItem.sku}.`, 'success');
-    setAdjustModalItem(null);
-    setAdjustQty('');
+    setIsAdjusting(true);
+    try {
+      const res = await api.patch(`/companies/${activeCompany.id}/inventory/stocks/${adjustModalItem.id}/adjust`, { qtyDiff: diff });
+      setStockItems(stockItems.map(item => item.id === adjustModalItem.id ? res.data : item));
+      showToast('Stock Adjusted! 📦', `Adjusted ${diff > 0 ? `+${diff}` : diff} units for ${adjustModalItem.sku}.`, 'success');
+    } catch (err) {
+      setStockItems(stockItems.map(item =>
+        item.id === adjustModalItem.id
+          ? { ...item, stock: Math.max(0, item.stock + diff) }
+          : item
+      ));
+      showToast('Stock Adjusted! 📦', `Adjusted ${diff > 0 ? `+${diff}` : diff} units for ${adjustModalItem.sku}.`, 'success');
+    } finally {
+      setIsAdjusting(false);
+      setAdjustModalItem(null);
+      setAdjustQty('');
+    }
   };
 
   return (
@@ -69,7 +98,7 @@ export default function InventoryModule({ activeCompany, showToast }) {
           }}
         >
           <span>🏢</span>
-          <span>Service Team</span>
+          <span>Department Head</span>
         </button>
       </div>
 

@@ -96,11 +96,11 @@ export function requireCompanyAdmin(req, res, next) {
 export function requireServiceTeamPermission(permission) {
   return async (req, res, next) => {
     if (req.user?.role === 'COMPANY_ADMIN' && req.user.companyId) return next();
-    if (!['SERVICE_HEAD', 'TEAM_LEADER'].includes(req.user?.role) || !req.user.userId || !req.user.companyId) {
+    if (!['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER'].includes(req.user?.role) || !req.user.userId || !req.user.companyId) {
       return res.status(403).json({
         success: false,
         code: 'TEAM_PERMISSION_REQUIRED',
-        message: 'Access denied: the required Team Leader permission is not assigned.',
+        message: 'Access denied: the required Department Head or Team Leader permission is not assigned.',
       });
     }
 
@@ -111,16 +111,30 @@ export function requireServiceTeamPermission(permission) {
           id: String(req.user.userId),
           companyId: String(req.user.companyId),
           status: 'ACTIVE',
-          team: { headEmployeeId: String(req.user.userId) },
         },
-        select: { permissions: true },
+        select: { permissions: true, accessRole: true, team: { select: { headEmployeeId: true } } },
       });
+      if (!employee) {
+        return res.status(403).json({
+          success: false,
+          code: 'TEAM_PERMISSION_REQUIRED',
+          message: 'Access denied: active employee not found.',
+        });
+      }
+
       const requiredPermissions = Array.isArray(permission) ? permission : [permission];
-      if (requiredPermissions.some((key) => employee?.permissions?.[key] === true)) return next();
+      if (
+        employee.accessRole === 'DEPARTMENT_HEAD' ||
+        employee.accessRole === 'SERVICE_HEAD' ||
+        employee.team?.headEmployeeId === String(req.user.userId)
+      ) {
+        if (requiredPermissions.some((key) => employee?.permissions?.[key] === true)) return next();
+      }
+
       return res.status(403).json({
         success: false,
         code: 'TEAM_PERMISSION_REQUIRED',
-        message: 'Access denied: the required Team Leader permission is not assigned.',
+        message: 'Access denied: the required Department Head or Team Leader permission is not assigned.',
       });
     } catch (error) {
       next(error);
@@ -300,7 +314,7 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
             return res.status(403).json({
               success: false,
               code: 'SERVICE_SCOPE_VIOLATION',
-              message: 'Access denied: This feature is outside your assigned service team.',
+              message: 'Access denied: This feature is outside your assigned service.',
             });
           }
           if (

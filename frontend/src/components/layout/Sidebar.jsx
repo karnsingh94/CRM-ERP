@@ -177,6 +177,7 @@ export default function Sidebar({
   activeTab,
   onSelectTab,
   activeCompany,
+  currentUser,
   permittedServices = [],
   hasSubModuleAccess,
   isCompanyAdmin = true,
@@ -220,7 +221,7 @@ export default function Sidebar({
         if (h.moduleCode) {
           setExpandedSubmodule(h.moduleCode);
         } else if (h.isDepartmentRoute) {
-          // Keep submodules compact when on the service team page
+          // Keep submodules compact when on the Service Head page
           setExpandedSubmodule(null);
         }
       }
@@ -286,7 +287,9 @@ export default function Sidebar({
   };
 
   const companyInitials = getInitials(activeCompany?.organizationName || 'Company');
-  const userInitials = getInitials(activeCompany?.name || 'Administrator');
+  const userDisplayName = currentUser?.name || currentUser?.fullName || 'Authorized User';
+  const userDisplayEmail = currentUser?.email || 'Authenticated User';
+  const userInitials = getInitials(userDisplayName);
 
   const brandColor = activeCompany?.theme_color || activeCompany?.themeColor || '#7f22fe';
   const brandGlow = `${brandColor}59`;
@@ -296,7 +299,7 @@ export default function Sidebar({
   return (
     <aside
       style={{
-        width: isCollapsed ? '78px' : '270px',
+        width: isCollapsed ? '78px' : '280px',
         flexShrink: 0,
         backgroundColor: '#18181b',
         color: '#e4e4e7',
@@ -463,6 +466,8 @@ export default function Sidebar({
             (service.code === 'dispatch_returns' && (pathname.startsWith('/dispatch') || pathname.startsWith('/returns'))) ||
             (service.code === 'accounts_banking' && pathname.startsWith('/accounts')) ||
             (service.code === 'permission_controls' && pathname.startsWith('/team')) ||
+            pathname.startsWith(`/services/${serviceSlugKebab}/department-head`) ||
+            pathname.startsWith(`/services/${service.code}/department-head`) ||
             pathname.startsWith(`/services/${serviceSlugKebab}/service-team`) ||
             pathname.startsWith(`/services/${service.code}/service-team`) ||
             pathname.startsWith(`/services/${serviceSlugKebab}/departments`) ||
@@ -554,18 +559,20 @@ export default function Sidebar({
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    paddingLeft: '0.85rem',
-                    marginLeft: '1.2rem',
+                    paddingLeft: '0.65rem',
+                    marginLeft: '0.95rem',
                     borderLeft: '1px solid #27272a',
                     marginTop: '0.2rem',
                     marginBottom: '0.35rem',
                     gap: '0.2rem',
                   }}
                 >
-                  {/* Level 2: Service Team Link */}
+                  {/* Level 2: Department Head Link */}
                   {canManageServiceTeams && (() => {
-                    const deptRoute = `/services/${serviceSlugKebab}/service-team`;
+                    const deptRoute = `/services/${serviceSlugKebab}/department-head`;
                     const isDeptActive = (
+                      pathname.startsWith(`/services/${serviceSlugKebab}/department-head`) ||
+                      pathname.startsWith(`/services/${service.code}/department-head`) ||
                       pathname.startsWith(`/services/${serviceSlugKebab}/service-team`) ||
                       pathname.startsWith(`/services/${service.code}/service-team`) ||
                       pathname.startsWith(`/services/${serviceSlugKebab}/departments`) ||
@@ -579,30 +586,36 @@ export default function Sidebar({
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '0.42rem 0.65rem',
+                          padding: '0.38rem 0.55rem',
                           borderRadius: '6px',
-                          color: isDeptActive ? '#c4b5fd' : '#d4d4d8',
+                          color: isDeptActive ? '#ffffff' : '#d4d4d8',
                           background: isDeptActive ? brandParent : 'transparent',
                           fontWeight: isDeptActive ? 700 : 500,
                           fontSize: '0.78rem',
                           textDecoration: 'none',
                           transition: 'all 0.15s ease',
                           marginBottom: '0.25rem',
+                          whiteSpace: 'nowrap',
+                          gap: '0.35rem',
                         }}
-                        title={`Manage the ${service.name} team`}
+                        title={`Open ${service.name} Department Head`}
                       >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                          <span style={{ fontSize: '0.82rem' }}>🏢</span>
-                          <span>Service Team</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: '0.82rem', flexShrink: 0, lineHeight: 1 }}>🏢</span>
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.15px' }}>
+                            Department Head
+                          </span>
                         </span>
                         <span
                           style={{
-                            fontSize: '0.64rem',
+                            fontSize: '0.62rem',
                             fontWeight: 700,
                             color: isDeptActive ? '#ffffff' : '#71717a',
-                            background: isDeptActive ? brandParent : 'rgba(255,255,255,0.06)',
+                            background: isDeptActive ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
                             padding: '1px 5px',
                             borderRadius: '4px',
+                            flexShrink: 0,
+                            letterSpacing: '0.2px',
                           }}
                         >
                           Manage
@@ -856,9 +869,9 @@ export default function Sidebar({
                   textOverflow: 'ellipsis',
                   margin: 0,
                 }}
-                title={activeCompany?.name || 'Administrator'}
+                title={userDisplayName}
               >
-                {activeCompany?.name || 'Authorized Admin'}
+                {userDisplayName}
               </div>
               <div
                 style={{
@@ -869,7 +882,7 @@ export default function Sidebar({
                   textOverflow: 'ellipsis',
                 }}
               >
-                {activeCompany?.email || 'Authenticated User'}
+                {userDisplayEmail}
               </div>
             </div>
           )}

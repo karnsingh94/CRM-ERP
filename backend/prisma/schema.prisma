@@ -27,6 +27,15 @@ enum WorkItemStatus {
   DONE
 }
 
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
+
 // 7.8 Super Admin (Platform Owner)
 model SuperAdmin {
   id           String    @id @default(uuid()) @db.Char(36)
@@ -145,6 +154,16 @@ model ClientAdmin {
   employees       CompanyEmployee[]
   serviceTeams    CompanyServiceTeam[]
   workItems       ServiceWorkItem[]
+  leads           Lead[]
+  customers       CrmCustomer[]
+  contacts        CrmContact[]
+  opportunities   CrmOpportunity[]
+  products        Product[]
+  salesOrders     SalesOrder[]
+  quotations      SalesQuotation[]
+  proformas       SalesProforma[]
+  vendors         Vendor[]
+  inventoryStocks InventoryStock[]
 
   @@map("Admins")
 }
@@ -337,4 +356,194 @@ model ServiceWorkUpdate {
 
   @@index([workItemId, createdAt])
   @@map("service_work_updates")
+}
+
+model Lead {
+  id        String     @id @default(uuid()) @db.Char(36)
+  companyId String     @map("company_id") @db.Char(36)
+  name      String     @db.VarChar(150)
+  company   String?    @db.VarChar(180)
+  email     String     @db.VarChar(180)
+  phone     String?    @db.VarChar(40)
+  source    String     @default("Website Inquiry") @db.VarChar(100)
+  value     Decimal?   @db.Decimal(15, 2)
+  status    LeadStatus @default(NEW)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, createdAt])
+  @@map("crm_leads")
+}
+
+model CrmCustomer {
+  id            String      @id @default(uuid()) @db.Char(36)
+  companyId     String      @map("company_id") @db.Char(36)
+  companyName   String      @map("company_name") @db.VarChar(180)
+  gstin         String?     @db.VarChar(50)
+  contactPerson String?     @map("contact_person") @db.VarChar(150)
+  email         String?     @db.VarChar(180)
+  phone         String?     @db.VarChar(40)
+  industry      String      @default("Technology & IT") @db.VarChar(100)
+  status        String      @default("ACTIVE") @db.VarChar(30)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin   ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, createdAt])
+  @@map("crm_customers")
+}
+
+model CrmContact {
+  id          String      @id @default(uuid()) @db.Char(36)
+  companyId   String      @map("company_id") @db.Char(36)
+  name        String      @db.VarChar(150)
+  companyName String?     @map("company_name") @db.VarChar(180)
+  role        String?     @db.VarChar(100)
+  email       String?     @db.VarChar(180)
+  phone       String?     @db.VarChar(40)
+  channel     String      @default("Email") @db.VarChar(50)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@map("crm_contacts")
+}
+
+model CrmOpportunity {
+  id                String      @id @default(uuid()) @db.Char(36)
+  companyId         String      @map("company_id") @db.Char(36)
+  title             String      @db.VarChar(180)
+  companyName       String      @map("company_name") @db.VarChar(180)
+  stage             String      @default("DISCOVERY") @db.VarChar(60)
+  value             Decimal?    @db.Decimal(15, 2)
+  expectedCloseDate DateTime?   @map("expected_close_date")
+  probability       String?     @default("50%") @db.VarChar(20)
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin       ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, stage, createdAt])
+  @@map("crm_opportunities")
+}
+
+model Product {
+  id            String      @id @default(uuid()) @db.Char(36)
+  companyId     String      @map("company_id") @db.Char(36)
+  sku           String      @db.VarChar(60)
+  name          String      @db.VarChar(180)
+  category      String      @default("Finished Goods") @db.VarChar(100)
+  uom           String      @default("PCS") @db.VarChar(30)
+  sellingPrice  Decimal     @default(0) @map("selling_price") @db.Decimal(15, 2)
+  purchasePrice Decimal     @default(0) @map("purchase_price") @db.Decimal(15, 2)
+  stock         Int         @default(0)
+  status        String      @default("ACTIVE") @db.VarChar(30)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin   ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, sku])
+  @@index([companyId, category, status])
+  @@map("products")
+}
+
+model SalesOrder {
+  id            String      @id @default(uuid()) @db.Char(36)
+  companyId     String      @map("company_id") @db.Char(36)
+  orderNo       String      @map("order_no") @db.VarChar(60)
+  customer      String      @db.VarChar(180)
+  date          DateTime    @default(now())
+  itemsCount    Int         @default(1) @map("items_count")
+  amount        Decimal     @default(0) @db.Decimal(15, 2)
+  status        String      @default("PENDING_APPROVAL") @db.VarChar(50)
+  paymentStatus String      @default("PENDING") @map("payment_status") @db.VarChar(50)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin   ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, orderNo])
+  @@index([companyId, status, date])
+  @@map("sales_orders")
+}
+
+model SalesQuotation {
+  id          String      @id @default(uuid()) @db.Char(36)
+  companyId   String      @map("company_id") @db.Char(36)
+  quoteNo     String      @map("quote_no") @db.VarChar(60)
+  customer    String      @db.VarChar(180)
+  title       String      @db.VarChar(180)
+  amount      Decimal     @default(0) @db.Decimal(15, 2)
+  validUntil  DateTime?   @map("valid_until")
+  status      String      @default("SENT") @db.VarChar(50)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, quoteNo])
+  @@index([companyId, status, createdAt])
+  @@map("sales_quotations")
+}
+
+model SalesProforma {
+  id          String      @id @default(uuid()) @db.Char(36)
+  companyId   String      @map("company_id") @db.Char(36)
+  invoiceNo   String      @map("invoice_no") @db.VarChar(60)
+  customer    String      @db.VarChar(180)
+  orderRef    String?     @map("order_ref") @db.VarChar(60)
+  amount      Decimal     @default(0) @db.Decimal(15, 2)
+  date        DateTime    @default(now())
+  status      String      @default("ISSUED") @db.VarChar(50)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, invoiceNo])
+  @@index([companyId, status, date])
+  @@map("sales_proforma_invoices")
+}
+
+model Vendor {
+  id          String      @id @default(uuid()) @db.Char(36)
+  companyId   String      @map("company_id") @db.Char(36)
+  name        String      @db.VarChar(180)
+  contact     String?     @db.VarChar(150)
+  email       String?     @db.VarChar(180)
+  phone       String?     @db.VarChar(40)
+  category    String      @default("Raw Materials") @db.VarChar(100)
+  rating      String?     @default("5.0 ★") @db.VarChar(30)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, category, createdAt])
+  @@map("vendors")
+}
+
+model InventoryStock {
+  id           String      @id @default(uuid()) @db.Char(36)
+  companyId    String      @map("company_id") @db.Char(36)
+  sku          String      @db.VarChar(60)
+  name         String      @db.VarChar(180)
+  warehouse    String      @default("Main Warehouse") @db.VarChar(100)
+  stock        Int         @default(0)
+  reorderLevel Int         @default(10) @map("reorder_level")
+  uom          String      @default("PCS") @db.VarChar(30)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin  ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, sku, warehouse])
+  @@index([companyId, warehouse])
+  @@map("inventory_stocks")
 }

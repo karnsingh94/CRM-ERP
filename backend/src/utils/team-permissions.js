@@ -1,5 +1,6 @@
 export const TEAM_PERMISSION_KEYS = [
   'manageMembers',
+  'manageTeams',
   'assignWork',
   'updateWork',
   'manageServiceRecords',

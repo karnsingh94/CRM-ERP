@@ -523,7 +523,7 @@ export const CatalogStore = {
   getCompanyAssignedServices: (companyId, includeInactive) =>
     companyService.getCompanyAssignedServices(companyId, includeInactive),
 
-  // Employees & Service Teams
+  // Employees and service team access
   getCompanyEmployees: (companyId) => departmentService.getCompanyEmployees(companyId),
   createCompanyEmployee: (companyId, data, meta) => departmentService.createCompanyEmployee(companyId, data, meta),
   assignCompanyEmployee: (companyId, employeeId, data, meta) => departmentService.assignCompanyEmployee(companyId, employeeId, data, meta),

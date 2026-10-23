@@ -39,7 +39,8 @@ function isValidWorkEmail(value) {
   return topLevelDomain.length >= 2 && /^\p{L}+$/u.test(topLevelDomain);
 }
 
-const TEAM_LEADER_ROLES = ['SERVICE_HEAD', 'TEAM_LEADER'];
+const DEPARTMENT_HEAD_ROLES = ['DEPARTMENT_HEAD', 'SERVICE_HEAD'];
+const TEAM_LEADER_ROLES = ['TEAM_LEADER'];
 
 function serviceError(message, statusCode, code) {
   const error = new Error(message);
@@ -123,6 +124,25 @@ function validateFeatureAccess(permissions, availableModules) {
  * Enforces company boundary and Super Admin assigned-service isolation.
  */
 export const departmentService = {
+  async ensureCompanyDepartment(companyId, service) {
+    const cid = String(companyId);
+    let department = await prisma.department.findFirst({
+      where: { companyId: cid, serviceId: service.id },
+    });
+    if (!department) {
+      department = await prisma.department.create({
+        data: {
+          companyId: cid,
+          serviceId: service.id,
+          name: service.name,
+          code: service.code,
+          status: 'ACTIVE',
+        },
+      });
+    }
+    return department;
+  },
+
   /**
    * Get eligible employees for a company
    */
@@ -131,14 +151,28 @@ export const departmentService = {
     const where = { companyId: cid };
     if (actor?.role !== 'COMPANY_ADMIN') {
       const employeeId = String(actor?.userId || '');
-      const team = await prisma.companyServiceTeam.findFirst({
-        where: { companyId: cid, headEmployeeId: employeeId },
-        select: { id: true },
-      });
-      if (!team) {
-        throw serviceError('Only a company admin or a Team Leader with member-management access can view employees.', 403);
+      if (DEPARTMENT_HEAD_ROLES.includes(actor?.role)) {
+        const head = await prisma.companyEmployee.findFirst({
+          where: { id: employeeId, companyId: cid, status: 'ACTIVE' },
+          include: { department: true, team: true },
+        });
+        const serviceId = head?.department?.serviceId || head?.team?.serviceId;
+        if (serviceId) {
+          where.OR = [
+            { department: { serviceId } },
+            { team: { serviceId } },
+          ];
+        }
+      } else {
+        const team = await prisma.companyServiceTeam.findFirst({
+          where: { companyId: cid, headEmployeeId: employeeId },
+          select: { id: true },
+        });
+        if (!team) {
+          throw serviceError('Only a company admin, Department Head, or Team Leader with member-management access can view employees.', 403);
+        }
+        where.teamId = team.id;
       }
-      where.teamId = team.id;
     }
     const employees = await prisma.companyEmployee.findMany({
       where,
@@ -190,8 +224,8 @@ export const departmentService = {
       throw error;
     }
 
-    if (!['SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(accessRole)) {
-      throw serviceError('Choose Team Leader or Employee as the access role.', 400);
+    if (!['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(accessRole)) {
+      throw serviceError('Choose Department Head, Team Leader, or Employee as the access role.', 400);
     }
 
     const service = await this._resolveService(String(serviceCode));
@@ -211,8 +245,12 @@ export const departmentService = {
       error.code = 'SERVICE_NOT_ASSIGNED';
       throw error;
     }
+
+    const isDeptHeadRole = accessRole === 'DEPARTMENT_HEAD' || accessRole === 'SERVICE_HEAD';
+
     let requestedTeamId = data.teamId || null;
-    if (TEAM_LEADER_ROLES.includes(actor?.role)) {
+    const isDeptHeadActor = DEPARTMENT_HEAD_ROLES.includes(actor?.role);
+    if (!isDeptHeadActor && actor?.role === 'TEAM_LEADER') {
       const team = await prisma.companyServiceTeam.findFirst({
         where: {
           companyId: cid,
@@ -221,7 +259,7 @@ export const departmentService = {
         },
         select: { id: true },
       });
-      if (!team || data.teamId && String(data.teamId) !== team.id.toString() || accessRole !== 'EMPLOYEE') {
+      if (!team || (data.teamId && String(data.teamId) !== team.id.toString()) || accessRole !== 'EMPLOYEE') {
         throw serviceError('A Team Leader can only add employees to their own team.', 403);
       }
       requestedTeamId = team.id.toString();
@@ -231,7 +269,7 @@ export const departmentService = {
       ? null
       : validateTeamPermissions(data.permissions);
     if (accessRole !== 'EMPLOYEE' && (!requestedPermissions || !data.permissions?.featureAccess)) {
-      throw serviceError('Team Leader permissions must include explicit team actions and feature access.', 400);
+      throw serviceError('Permissions must include explicit management actions and feature access.', 400);
     }
     if (
       requestedPermissions &&
@@ -240,15 +278,77 @@ export const departmentService = {
         await getAvailableServiceModules(cid, service, serviceAccess)
       )
     ) {
-      throw serviceError('Team Leader feature permissions must be within the company-approved service access.', 400);
+      throw serviceError('Feature permissions must be within the company-approved service access.', 400);
+    }
+
+    const passwordHash = hashPassword(password);
+    let employee;
+
+    // Direct Department Head creation (scoped to department, no team required)
+    if (isDeptHeadRole) {
+      const department = await this.ensureCompanyDepartment(cid, service);
+      try {
+        employee = await prisma.companyEmployee.create({
+          data: {
+            companyId: cid,
+            departmentId: department.id,
+            teamId: null,
+            name,
+            email,
+            role: designation || 'Department Head',
+            accessRole: 'DEPARTMENT_HEAD',
+            permissions: requestedPermissions,
+            passwordHash,
+            status: data.status || 'ACTIVE',
+          },
+          include: {
+            department: { include: { service: true } },
+            team: { include: { service: true } },
+          },
+        });
+
+        if (!department.headId) {
+          await prisma.department.update({
+            where: { id: department.id },
+            data: { headId: employee.id },
+          }).catch(() => {});
+        }
+      } catch (error) {
+        if (error.code === 'P2002') {
+          const conflict = new Error('An employee with this Login ID / email already exists in the company.');
+          conflict.statusCode = 409;
+          conflict.code = 'EMPLOYEE_EMAIL_EXISTS';
+          throw conflict;
+        }
+        throw error;
+      }
+
+      await auditService.logAudit({
+        action: 'CREATE',
+        entityType: 'COMPANY_EMPLOYEE',
+        entityId: employee.id,
+        newValue: {
+          name: employee.name,
+          email: employee.email,
+          role: employee.role,
+          accessRole: 'DEPARTMENT_HEAD',
+          service: service.code,
+          departmentId: department.id.toString(),
+          permissions: employee.permissions,
+          companyId: cid.toString(),
+        },
+        reason: `Created Department Head "${employee.name}" for "${service.name}" in company #${cid}`,
+        ipAddress: meta.ip,
+        userAgent: meta.userAgent,
+      });
+
+      return formatEmployee(employee);
     }
 
     if (!requestedTeamId) {
       throw serviceError('Create and select a team before adding an employee.', 400);
     }
 
-    const passwordHash = hashPassword(password);
-    let employee;
     try {
       employee = await prisma.$transaction(async (tx) => {
         const teamId = parseEntityId(requestedTeamId, 'Team');
@@ -349,7 +449,7 @@ export const departmentService = {
       select: { id: true, headEmployeeId: true },
     });
     if (!team) {
-      const error = new Error('This service team was not found for the company.');
+      const error = new Error('This team was not found for the company service.');
       error.statusCode = 404;
       throw error;
     }
@@ -359,7 +459,7 @@ export const departmentService = {
       select: { id: true, name: true, email: true, accessRole: true },
     });
     if (!employee) {
-      const error = new Error('Employee was not found in this service team.');
+      const error = new Error('Employee was not found in a team under this service.');
       error.statusCode = 404;
       throw error;
     }
@@ -393,7 +493,7 @@ export const departmentService = {
       entityId: employee.id,
       oldValue: { name: employee.name, email: employee.email, service: service.code },
       newValue: { status: 'INACTIVE', removedFromService: service.code },
-      reason: `Removed employee "${employee.name}" from "${service.name}" service team`,
+      reason: `Removed employee "${employee.name}" from "${service.name}" service assignment`,
       ipAddress: meta.ip,
       userAgent: meta.userAgent,
     });
@@ -436,7 +536,7 @@ export const departmentService = {
 
     const where = { companyId: cid, serviceId: service.id };
     if (TEAM_LEADER_ROLES.includes(actor?.role)) where.headEmployeeId = String(actor.userId);
-    const [teams, availableModules] = await Promise.all([
+    const [teams, availableModules, department, departmentHeads] = await Promise.all([
       prisma.companyServiceTeam.findMany({
         where,
         include: {
@@ -452,6 +552,23 @@ export const departmentService = {
         orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
       }),
       getAvailableServiceModules(cid, service, serviceAccess),
+      this.ensureCompanyDepartment(cid, service),
+      prisma.companyEmployee.findMany({
+        where: {
+          companyId: cid,
+          OR: [
+            { department: { serviceId: service.id } },
+            { team: { serviceId: service.id } },
+          ],
+          accessRole: { in: ['DEPARTMENT_HEAD', 'SERVICE_HEAD'] },
+          status: 'ACTIVE',
+        },
+        include: {
+          department: { include: { service: true } },
+          team: { include: { service: true } },
+        },
+        orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+      }),
     ]);
     const visibleTeams = teams.filter(
       (team) => team.name.trim().toLocaleLowerCase() !== `${service.name} team`.toLocaleLowerCase() ||
@@ -460,6 +577,8 @@ export const departmentService = {
     );
     return {
       service: { id: service.id.toString(), code: service.code, name: service.name },
+      department: { id: department.id.toString(), name: department.name, code: department.code },
+      departmentHeads: departmentHeads.map(formatEmployee),
       availableModules,
       teams: visibleTeams.map((team) => ({
         id: team.id.toString(),
@@ -514,6 +633,104 @@ export const departmentService = {
     };
   },
 
+  async createDepartmentHead(companyId, serviceCodeOrId, data, meta = {}, actor) {
+    const cid = String(companyId);
+    return this.createCompanyEmployee(
+      cid,
+      {
+        ...data,
+        serviceCode: serviceCodeOrId,
+        accessRole: 'DEPARTMENT_HEAD',
+      },
+      meta,
+      actor
+    );
+  },
+
+  async updateDepartmentHeadPermissions(companyId, serviceCodeOrId, employeeId, permissions, meta = {}) {
+    const normalizedPermissions = validateTeamPermissions(permissions);
+    if (!normalizedPermissions) {
+      throw serviceError('Department Head permissions must include explicit actions and valid feature access.', 400);
+    }
+    const cid = String(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service) throw serviceError('Service not found in catalogue.', 404);
+    const serviceAccess = await prisma.clientServiceAccess.findFirst({
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
+    });
+    if (!serviceAccess) throw serviceError('This service is not assigned to the company.', 403, 'SERVICE_NOT_ASSIGNED');
+
+    if (!validateFeatureAccess(normalizedPermissions, await getAvailableServiceModules(cid, service, serviceAccess))) {
+      throw serviceError('Department Head permissions must be within company-approved service access.', 400);
+    }
+
+    const eid = parseEntityId(employeeId, 'Department Head');
+    const employee = await prisma.companyEmployee.findFirst({
+      where: { id: eid, companyId: cid, status: 'ACTIVE' },
+    });
+    if (!employee) throw serviceError('Department Head employee not found.', 404);
+
+    const updated = await prisma.companyEmployee.update({
+      where: { id: employee.id },
+      data: {
+        accessRole: 'DEPARTMENT_HEAD',
+        permissions: normalizedPermissions,
+      },
+      include: {
+        department: { include: { service: true } },
+        team: { include: { service: true } },
+      },
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: updated.id,
+      newValue: { permissions: normalizedPermissions, service: service.code },
+      reason: `Updated permissions for Department Head "${updated.name}" in company #${cid}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return formatEmployee(updated);
+  },
+
+  async removeDepartmentHead(companyId, serviceCodeOrId, employeeId, meta = {}, actor) {
+    const cid = String(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service) throw serviceError('Service not found in catalogue.', 404);
+    const eid = parseEntityId(employeeId, 'Department Head');
+
+    const employee = await prisma.companyEmployee.findFirst({
+      where: { id: eid, companyId: cid },
+      include: { department: true },
+    });
+    if (!employee) throw serviceError('Department Head not found.', 404);
+
+    await prisma.$transaction(async (tx) => {
+      if (employee.departmentId) {
+        await tx.department.updateMany({
+          where: { id: employee.departmentId, headId: employee.id },
+          data: { headId: null },
+        });
+      }
+      await tx.companyEmployee.delete({
+        where: { id: employee.id },
+      });
+    });
+
+    await auditService.logAudit({
+      action: 'DELETE',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: employee.id,
+      reason: `Removed Department Head "${employee.name}" from service "${service.name}" in company #${cid}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return this.listServiceTeams(companyId, serviceCodeOrId, actor || { role: 'COMPANY_ADMIN' });
+  },
+
   async getServiceTeam(companyId, serviceCodeOrId, actor, teamId = null) {
     const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
@@ -551,7 +768,7 @@ export const departmentService = {
         select: { teamId: true },
       });
       if (!employee?.teamId) {
-        const error = new Error('This service team is outside your assigned service.');
+        const error = new Error('This team is outside your assigned service.');
         error.statusCode = 403;
         error.code = 'SERVICE_SCOPE_VIOLATION';
         throw error;

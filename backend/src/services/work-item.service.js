@@ -74,20 +74,21 @@ async function resolveEmployee(actor, companyId) {
       id: String(actor?.userId || ''),
       companyId: String(companyId),
       status: 'ACTIVE',
-      team: { isNot: null },
     },
-    include: { team: true },
+    include: { team: true, department: true },
   });
-  if (!employee) throw httpError('Active service team membership is required.', 403, 'TEAM_MEMBERSHIP_REQUIRED');
+  if (!employee) throw httpError('Active service membership is required.', 403, 'TEAM_MEMBERSHIP_REQUIRED');
   return employee;
 }
 
 function requireHeadPermission(employee, permission) {
-  if (
-    employee?.team?.headEmployeeId !== employee.id ||
-    employee.permissions?.[permission] !== true
-  ) {
-    throw httpError('The required Team Leader permission is not assigned.', 403, 'TEAM_PERMISSION_REQUIRED');
+  const isDeptHead = employee.accessRole === 'DEPARTMENT_HEAD' || employee.accessRole === 'SERVICE_HEAD';
+  const isTeamHead = employee?.team?.headEmployeeId === employee.id;
+  if (!isDeptHead && !isTeamHead) {
+    throw httpError('The required Department Head or Team Leader role is not assigned.', 403, 'TEAM_PERMISSION_REQUIRED');
+  }
+  if (employee.permissions?.[permission] !== true) {
+    throw httpError('The required permission is not assigned.', 403, 'TEAM_PERMISSION_REQUIRED');
   }
 }
 
@@ -130,18 +131,31 @@ const workItemService = {
     const where = { companyId: String(companyId), serviceId: service.id };
     let teamId = null;
     if (employee) {
-      if (employee.team.serviceId !== service.id) {
+      const isDeptHead = employee.accessRole === 'DEPARTMENT_HEAD' || employee.accessRole === 'SERVICE_HEAD';
+      const empServiceId = employee.team?.serviceId || employee.department?.serviceId;
+      if (empServiceId && empServiceId !== service.id) {
         throw httpError('This work board is outside your assigned service.', 403, 'SERVICE_SCOPE_VIOLATION');
       }
-      teamId = employee.team.id;
-      if (employee.team.headEmployeeId === employee.id) {
-        const teamMembers = await prisma.companyEmployee.findMany({
-          where: { teamId: employee.team.id, status: 'ACTIVE' },
-          select: { id: true },
-        });
-        where.assignedToId = { in: teamMembers.map((member) => member.id) };
-      } else {
-        where.assignedToId = employee.id;
+      if (isDeptHead) {
+        if (requestedTeamId) {
+          teamId = parseId(requestedTeamId, 'Team');
+          const teamMembers = await prisma.companyEmployee.findMany({
+            where: { teamId, status: 'ACTIVE' },
+            select: { id: true },
+          });
+          where.assignedToId = { in: teamMembers.map((member) => member.id) };
+        }
+      } else if (employee.team) {
+        teamId = employee.team.id;
+        if (employee.team.headEmployeeId === employee.id) {
+          const teamMembers = await prisma.companyEmployee.findMany({
+            where: { teamId: employee.team.id, status: 'ACTIVE' },
+            select: { id: true },
+          });
+          where.assignedToId = { in: teamMembers.map((member) => member.id) };
+        } else {
+          where.assignedToId = employee.id;
+        }
       }
     } else if (requestedTeamId) {
       teamId = parseId(requestedTeamId, 'Team');
@@ -151,7 +165,7 @@ const workItemService = {
       });
       if (!team) throw httpError('Choose a team belonging to this service.', 404, 'TEAM_NOT_FOUND');
     }
-    if (teamId && !employee) {
+    if (teamId && (!employee || employee.accessRole === 'DEPARTMENT_HEAD' || employee.accessRole === 'SERVICE_HEAD')) {
       const teamMembers = await prisma.companyEmployee.findMany({
         where: { teamId, status: 'ACTIVE' },
         select: { id: true },
@@ -173,14 +187,15 @@ const workItemService = {
     const cid = String(companyId);
     const service = await resolveService(companyId, serviceCode);
     const employee = await resolveEmployee(actor, companyId);
-    let targetTeamId = employee?.team.id || null;
+    let targetTeamId = employee?.team?.id || null;
     if (employee) {
-      if (employee.team.serviceId !== service.id) {
+      const empServiceId = employee.team?.serviceId || employee.department?.serviceId;
+      if (empServiceId && empServiceId !== service.id) {
         throw httpError('You can only create work for your assigned service.', 403, 'SERVICE_SCOPE_VIOLATION');
       }
       requireHeadPermission(employee, 'assignWork');
     }
-    if (!employee && data.teamId) {
+    if ((!employee || employee.accessRole === 'DEPARTMENT_HEAD' || employee.accessRole === 'SERVICE_HEAD') && data.teamId) {
       targetTeamId = parseId(data.teamId, 'Team');
     }
 
@@ -199,7 +214,7 @@ const workItemService = {
       },
       select: { id: true },
     });
-    if (!assignee) throw httpError('Choose an active employee from this service team.');
+    if (!assignee) throw httpError('Choose an active employee assigned to this service.');
 
     const status = data.status || 'TODO';
     validateStatus(status);
@@ -317,7 +332,7 @@ const workItemService = {
         },
         select: { id: true },
       });
-      if (!validAssignee) throw httpError('Choose an active employee from this service team.');
+      if (!validAssignee) throw httpError('Choose an active employee assigned to this service.');
       changes.assignedToId = newAssigneeId;
     }
 

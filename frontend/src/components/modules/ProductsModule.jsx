@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { api } from '../../lib/api';
 import { IconPlus, IconSearch, IconBox, IconLayers } from '../ui/Icons';
 import Modal from '../ui/Modal';
 import ConfirmDialog from '../ui/ConfirmDialog';
@@ -16,7 +17,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
     all: '/products',
     categories: '/products/categories',
     pricing: '/products/pricing',
-    departments: '/services/crm-sales/service-team',
+    departments: '/services/crm-sales/department-head',
   };
 
   const [activeTab, setActiveTab] = useState(initialSubTab || 'all');
@@ -47,6 +48,8 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
   };
 
   const [products, setProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
@@ -60,34 +63,54 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
     stock: '',
   });
 
-  const handleCreateProduct = (e) => {
+  const loadProducts = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingProducts(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/products`, { noCache: true });
+      setProducts(res.data || []);
+    } catch (err) {
+      // Ignore
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, [activeCompany?.id]);
+
+  const handleCreateProduct = async (e) => {
     e.preventDefault();
     if (!form.sku || !form.name) {
       showToast('Validation Error', 'SKU code and product name are required', 'danger');
       return;
     }
-    const newP = {
-      id: Date.now(),
-      sku: form.sku.trim().toUpperCase(),
-      name: form.name.trim(),
-      category: form.category,
-      uom: form.uom,
-      sellingPrice: parseFloat(form.sellingPrice) || 0,
-      purchasePrice: parseFloat(form.purchasePrice) || 0,
-      stock: parseInt(form.stock) || 0,
-      status: 'ACTIVE',
-    };
-    setProducts([newP, ...products]);
-    setShowAddModal(false);
-    setForm({ sku: '', name: '', category: 'Finished Goods', uom: 'PCS', sellingPrice: '', purchasePrice: '', stock: '' });
-    showToast('Product Registered! 📦', `"${newP.name}" added to company catalogue.`, 'success');
+    setIsSavingProduct(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/products`, form);
+      setProducts([res.data, ...products]);
+      setShowAddModal(false);
+      setForm({ sku: '', name: '', category: 'Finished Goods', uom: 'PCS', sellingPrice: '', purchasePrice: '', stock: '' });
+      showToast('Product Registered! 📦', `"${res.data.name}" added to company catalogue in database.`, 'success');
+    } catch (err) {
+      showToast('Product Not Registered', err.message || 'Could not register product.', 'danger');
+    } finally {
+      setIsSavingProduct(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!productToDelete) return;
-    setProducts(products.filter(p => p.id !== productToDelete.id));
-    showToast('Product Removed', `Product "${productToDelete.sku}" removed.`, 'danger');
-    setProductToDelete(null);
+    try {
+      await api.delete(`/companies/${activeCompany.id}/products/${productToDelete.id}`);
+      setProducts(products.filter(p => p.id !== productToDelete.id));
+      showToast('Product Removed', `Product "${productToDelete.sku}" removed.`, 'danger');
+    } catch (err) {
+      showToast('Error', err.message || 'Could not delete product.', 'danger');
+    } finally {
+      setProductToDelete(null);
+    }
   };
 
   const filtered = (products || []).filter(p => {
@@ -209,7 +232,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
           }}
         >
           <span>🏢</span>
-          <span>Service Team</span>
+          <span>Department Head</span>
         </button>
       </div>
 

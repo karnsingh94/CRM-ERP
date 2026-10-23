@@ -54,7 +54,7 @@ export default function EmployeeDashboardFeature() {
         )}
       </Card>
 
-      <Card title="Assigned Work" subtitle="Work items assigned to you in your service team">
+      <Card title="Assigned Work" subtitle="Work items assigned to you by your Department Head or Team Leader">
         <ServiceWorkBoard
           activeCompany={activeCompany}
           serviceCode={serviceCode}

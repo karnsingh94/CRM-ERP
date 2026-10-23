@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { api } from '../../lib/api';
 import {
   IconPlus,
   IconSearch,
@@ -24,7 +25,7 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
     orders: '/sales/orders',
     quotes: '/sales/quotations',
     proforma: '/sales/proforma',
-    departments: '/services/crm-sales/service-team',
+    departments: '/services/crm-sales/department-head',
   };
 
   const [activeTab, setActiveTab] = useState(initialSubTab || 'orders');
@@ -59,7 +60,9 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
   // 1. SALES ORDERS
   // -------------------------------------------------------------
   const [orders, setOrders] = useState([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [orderForm, setOrderForm] = useState({
     customer: '',
     itemsCount: 1,
@@ -67,33 +70,50 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
     status: 'PENDING_APPROVAL',
   });
 
-  const handleCreateOrder = (e) => {
+  const loadOrders = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingOrders(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/sales/orders`, { noCache: true });
+      setOrders(res.data || []);
+    } catch (err) {
+      // Ignore
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, [activeCompany?.id]);
+
+  const handleCreateOrder = async (e) => {
     e.preventDefault();
     if (!orderForm.customer || !orderForm.amount) {
       showToast('Validation Error', 'Customer and order amount are required', 'danger');
       return;
     }
-    const newO = {
-      id: Date.now(),
-      orderNo: `SO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
-      customer: orderForm.customer.trim(),
-      date: new Date().toISOString().split('T')[0],
-      itemsCount: parseInt(orderForm.itemsCount) || 1,
-      amount: parseFloat(orderForm.amount) || 0,
-      status: orderForm.status,
-      paymentStatus: 'PENDING',
-    };
-    setOrders([newO, ...orders]);
-    setShowAddOrderModal(false);
-    setOrderForm({ customer: '', itemsCount: 1, amount: '', status: 'PENDING_APPROVAL' });
-    showToast('Sales Order Created! 📑', `Order ${newO.orderNo} registered successfully.`, 'success');
+    setIsSavingOrder(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/sales/orders`, orderForm);
+      setOrders([res.data, ...orders]);
+      setShowAddOrderModal(false);
+      setOrderForm({ customer: '', itemsCount: 1, amount: '', status: 'PENDING_APPROVAL' });
+      showToast('Sales Order Created! 📑', `Order ${res.data.orderNo} registered in database.`, 'success');
+    } catch (err) {
+      showToast('Error', err.message || 'Could not create order.', 'danger');
+    } finally {
+      setIsSavingOrder(false);
+    }
   };
 
   // -------------------------------------------------------------
   // 2. QUOTATIONS
   // -------------------------------------------------------------
   const [quotes, setQuotes] = useState([]);
+  const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
   const [showAddQuoteModal, setShowAddQuoteModal] = useState(false);
+  const [isSavingQuote, setIsSavingQuote] = useState(false);
   const [quoteForm, setQuoteForm] = useState({
     customer: '',
     title: '',
@@ -102,33 +122,50 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
     status: 'DRAFT',
   });
 
-  const handleCreateQuote = (e) => {
+  const loadQuotes = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingQuotes(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/sales/quotations`, { noCache: true });
+      setQuotes(res.data || []);
+    } catch (err) {
+      // Ignore
+    } finally {
+      setIsLoadingQuotes(false);
+    }
+  };
+
+  useEffect(() => {
+    loadQuotes();
+  }, [activeCompany?.id]);
+
+  const handleCreateQuote = async (e) => {
     e.preventDefault();
     if (!quoteForm.customer || !quoteForm.amount) {
       showToast('Validation Error', 'Client name and quotation value are required', 'danger');
       return;
     }
-    const newQ = {
-      id: Date.now(),
-      quoteNo: `QT-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
-      customer: quoteForm.customer.trim(),
-      title: quoteForm.title.trim() || 'Commercial Price Proposal',
-      amount: parseFloat(quoteForm.amount) || 0,
-      date: new Date().toISOString().split('T')[0],
-      validUntil: quoteForm.validUntil || new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
-      status: quoteForm.status,
-    };
-    setQuotes([newQ, ...quotes]);
-    setShowAddQuoteModal(false);
-    setQuoteForm({ customer: '', title: '', amount: '', validUntil: '', status: 'DRAFT' });
-    showToast('Quotation Created! 📄', `Quote ${newQ.quoteNo} generated.`, 'success');
+    setIsSavingQuote(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/sales/quotations`, quoteForm);
+      setQuotes([res.data, ...quotes]);
+      setShowAddQuoteModal(false);
+      setQuoteForm({ customer: '', title: '', amount: '', validUntil: '', status: 'DRAFT' });
+      showToast('Quotation Created! 📄', `Quote ${res.data.quoteNo} saved to database.`, 'success');
+    } catch (err) {
+      showToast('Error', err.message || 'Could not create quotation.', 'danger');
+    } finally {
+      setIsSavingQuote(false);
+    }
   };
 
   // -------------------------------------------------------------
   // 3. PROFORMA INVOICES
   // -------------------------------------------------------------
   const [proformas, setProformas] = useState([]);
+  const [isLoadingProformas, setIsLoadingProformas] = useState(false);
   const [showAddProformaModal, setShowAddProformaModal] = useState(false);
+  const [isSavingProforma, setIsSavingProforma] = useState(false);
   const [proformaForm, setProformaForm] = useState({
     customer: '',
     refOrder: '',
@@ -138,50 +175,71 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
     status: 'ISSUED',
   });
 
-  const handleCreateProforma = (e) => {
+  const loadProformas = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingProformas(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/sales/proforma`, { noCache: true });
+      setProformas(res.data || []);
+    } catch (err) {
+      // Ignore
+    } finally {
+      setIsLoadingProformas(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProformas();
+  }, [activeCompany?.id]);
+
+  const handleCreateProforma = async (e) => {
     e.preventDefault();
     if (!proformaForm.customer || !proformaForm.amount) {
       showToast('Validation Error', 'Customer name and invoice amount are required', 'danger');
       return;
     }
-    const baseAmount = parseFloat(proformaForm.amount) || 0;
-    const gstPct = parseFloat(proformaForm.gstRate) || 0;
-    const gstAmount = (baseAmount * gstPct) / 100;
-    const totalAmount = baseAmount + gstAmount;
-
-    const newPI = {
-      id: Date.now(),
-      piNo: `PI-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
-      customer: proformaForm.customer.trim(),
-      refOrder: proformaForm.refOrder.trim() || '—',
-      date: new Date().toISOString().split('T')[0],
-      dueDate: proformaForm.dueDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-      baseAmount,
-      gstAmount,
-      totalAmount,
-      status: proformaForm.status,
-    };
-    setProformas([newPI, ...proformas]);
-    setShowAddProformaModal(false);
-    setProformaForm({ customer: '', refOrder: '', amount: '', dueDate: '', gstRate: '18', status: 'ISSUED' });
-    showToast('Proforma Issued! 🧾', `Proforma Invoice ${newPI.piNo} generated.`, 'success');
+    setIsSavingProforma(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/sales/proforma`, {
+        customer: proformaForm.customer,
+        orderRef: proformaForm.refOrder,
+        amount: proformaForm.amount,
+        status: proformaForm.status,
+      });
+      setProformas([res.data, ...proformas]);
+      setShowAddProformaModal(false);
+      setProformaForm({ customer: '', refOrder: '', amount: '', dueDate: '', gstRate: '18', status: 'ISSUED' });
+      showToast('Proforma Issued! 🧾', `Proforma Invoice ${res.data.invoiceNo} saved to database.`, 'success');
+    } catch (err) {
+      showToast('Error', err.message || 'Could not issue proforma.', 'danger');
+    } finally {
+      setIsSavingProforma(false);
+    }
   };
 
   // Delete Item helper
   const [itemToDelete, setItemToDelete] = useState(null);
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
-    if (itemToDelete.type === 'order') {
-      setOrders(orders.filter(o => o.id !== itemToDelete.item.id));
-      showToast('Order Deleted', `Sales order ${itemToDelete.name} deleted.`, 'danger');
-    } else if (itemToDelete.type === 'quote') {
-      setQuotes(quotes.filter(q => q.id !== itemToDelete.item.id));
-      showToast('Quote Deleted', `Quotation ${itemToDelete.name} deleted.`, 'danger');
-    } else if (itemToDelete.type === 'proforma') {
-      setProformas(proformas.filter(p => p.id !== itemToDelete.item.id));
-      showToast('Proforma Deleted', `Proforma Invoice ${itemToDelete.name} deleted.`, 'danger');
+    try {
+      if (itemToDelete.type === 'order') {
+        await api.delete(`/companies/${activeCompany.id}/sales/orders/${itemToDelete.item.id}`);
+        setOrders(orders.filter(o => o.id !== itemToDelete.item.id));
+        showToast('Order Deleted', `Sales order ${itemToDelete.name} deleted.`, 'danger');
+      } else if (itemToDelete.type === 'quote') {
+        await api.delete(`/companies/${activeCompany.id}/sales/quotations/${itemToDelete.item.id}`);
+        setQuotes(quotes.filter(q => q.id !== itemToDelete.item.id));
+        showToast('Quote Deleted', `Quotation ${itemToDelete.name} deleted.`, 'danger');
+      } else if (itemToDelete.type === 'proforma') {
+        await api.delete(`/companies/${activeCompany.id}/sales/proforma/${itemToDelete.item.id}`);
+        setProformas(proformas.filter(p => p.id !== itemToDelete.item.id));
+        showToast('Proforma Deleted', `Proforma Invoice ${itemToDelete.name} deleted.`, 'danger');
+      }
+    } catch (err) {
+      showToast('Error', err.message || 'Could not delete item.', 'danger');
+    } finally {
+      setItemToDelete(null);
     }
-    setItemToDelete(null);
   };
 
   // Filtered lists
@@ -369,7 +427,7 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
           }}
         >
           <span>🏢</span>
-          <span>Service Team</span>
+          <span>Department Head</span>
         </button>
       </div>
 

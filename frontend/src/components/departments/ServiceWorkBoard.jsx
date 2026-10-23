@@ -11,7 +11,7 @@ const STATUS_LABELS = {
 };
 
 const PERMISSION_LABELS = [
-  ['manageMembers', 'Add and manage service team members'],
+  ['manageMembers', 'Add and manage department and team members'],
   ['assignWork', 'Create and assign work to team members'],
   ['updateWork', 'Update and manage all team work'],
   ['manageServiceRecords', 'Manage service records'],
@@ -37,7 +37,7 @@ export default function ServiceWorkBoard({
 
   const isAdmin = currentUser?.role === 'COMPANY_ADMIN';
   const permissions = currentUser?.permissions || {};
-  const isHead = currentUser?.role === 'SERVICE_HEAD' || currentUser?.role === 'TEAM_LEADER';
+  const isHead = currentUser?.role === 'DEPARTMENT_HEAD' || currentUser?.role === 'SERVICE_HEAD' || currentUser?.role === 'TEAM_LEADER';
   const canAssign = isAdmin || (isHead && permissions.assignWork === true);
   const canManageAll = isAdmin || (isHead && permissions.updateWork === true);
   const normalizedCode = (serviceCode || currentUser?.serviceCode || '').replace(/-/g, '_');
@@ -76,7 +76,7 @@ export default function ServiceWorkBoard({
     if (!canAssign || !companyId || !normalizedCode || providedEmployees !== undefined) return;
     api.get(`/companies/${companyId}/services/${normalizedCode}/team`, { noCache: true })
       .then((response) => setEmployees(response.data?.employees || []))
-      .catch((loadError) => setError(loadError.message || 'Unable to load service team members.'));
+      .catch((loadError) => setError(loadError.message || 'Unable to load department team members.'));
   }, [canAssign, companyId, normalizedCode, providedEmployees]);
 
   const activeEmployees = useMemo(
@@ -242,7 +242,7 @@ export default function ServiceWorkBoard({
         </div>
       ) : (
         <p style={{ margin: 0, padding: '1rem', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '9px', textAlign: 'center' }}>
-          No work has been assigned to this service team yet.
+          No work has been assigned to this department team yet.
         </p>
       )}
     </section>

@@ -150,6 +150,60 @@ export const departmentController = {
     }
   },
 
+  async createDepartmentHead(req, res, next) {
+    try {
+      const head = await departmentService.createDepartmentHead(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.body,
+        req.meta || {},
+        req.user
+      );
+      res.status(201).json({ success: true, data: head });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
+  async updateDepartmentHeadPermissions(req, res, next) {
+    try {
+      const head = await departmentService.updateDepartmentHeadPermissions(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.params.employeeId,
+        req.body.permissions,
+        req.meta || {},
+        req.user
+      );
+      res.json({ success: true, data: head });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
+  async removeDepartmentHead(req, res, next) {
+    try {
+      const result = await departmentService.removeDepartmentHead(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.params.employeeId,
+        req.meta || {},
+        req.user
+      );
+      res.json({ success: true, data: result });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
 };
 
 export default departmentController;

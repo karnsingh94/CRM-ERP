@@ -148,10 +148,10 @@ export function formatEmployee(e) {
     email: e.email,
     role: e.role,
     accessRole:
-      e.team?.headEmployeeId === e.id
-        ? 'TEAM_LEADER'
-        : e.accessRole === 'SERVICE_HEAD'
-          ? 'EMPLOYEE'
+      e.accessRole === 'DEPARTMENT_HEAD' || e.accessRole === 'SERVICE_HEAD'
+        ? 'DEPARTMENT_HEAD'
+        : e.team?.headEmployeeId === e.id || e.accessRole === 'TEAM_LEADER'
+          ? 'TEAM_LEADER'
           : e.accessRole || 'EMPLOYEE',
     permissions: normalizeTeamPermissions(e.permissions),
     status: e.status,

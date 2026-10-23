@@ -169,21 +169,21 @@ ALTER TABLE `sub_modules`
   DROP FOREIGN KEY `sub_modules_module_id_fkey`,
   DROP FOREIGN KEY `sub_modules_service_id_fkey`,
   DROP FOREIGN KEY `sub_modules_created_by_fkey`;
-ALTER TABLE `Admins` DROP FOREIGN KEY `client_admins_created_by_fkey`;
+ALTER TABLE `Admins` DROP FOREIGN KEY `Admins_created_by_fkey`;
 ALTER TABLE `Admin_service_access`
   DROP FOREIGN KEY `Admin_service_access_admin_id_fkey`,
-  DROP FOREIGN KEY `client_service_access_service_id_fkey`,
+  DROP FOREIGN KEY `Admin_service_access_service_id_fkey`,
   DROP PRIMARY KEY;
 ALTER TABLE `Admin_module_access`
   DROP FOREIGN KEY `Admin_module_access_admin_id_fkey`,
-  DROP FOREIGN KEY `client_module_access_service_id_fkey`,
-  DROP FOREIGN KEY `client_module_access_module_id_fkey`,
+  DROP FOREIGN KEY `Admin_module_access_service_id_fkey`,
+  DROP FOREIGN KEY `Admin_module_access_module_id_fkey`,
   DROP PRIMARY KEY;
 ALTER TABLE `Admin_sub_module_access`
   DROP FOREIGN KEY `Admin_sub_module_access_admin_id_fkey`,
-  DROP FOREIGN KEY `client_sub_module_access_service_id_fkey`,
-  DROP FOREIGN KEY `client_sub_module_access_module_id_fkey`,
-  DROP FOREIGN KEY `client_sub_module_access_sub_module_id_fkey`,
+  DROP FOREIGN KEY `Admin_sub_module_access_service_id_fkey`,
+  DROP FOREIGN KEY `Admin_sub_module_access_module_id_fkey`,
+  DROP FOREIGN KEY `Admin_sub_module_access_sub_module_id_fkey`,
   DROP PRIMARY KEY;
 ALTER TABLE `audit_logs` DROP FOREIGN KEY `audit_logs_actor_id_fkey`;
 ALTER TABLE `departments`
@@ -196,7 +196,8 @@ ALTER TABLE `company_service_teams`
   DROP FOREIGN KEY `company_service_teams_service_id_fkey`,
   DROP FOREIGN KEY `company_service_teams_head_employee_id_fkey`,
   DROP INDEX `company_service_teams_head_employee_id_key`,
-  DROP INDEX `company_service_teams_company_id_service_id_key`,
+  DROP INDEX `company_service_teams_company_id_service_id_name_key`,
+  DROP INDEX `company_service_teams_company_id_service_id_idx`,
   DROP INDEX `company_service_teams_service_id_idx`;
 ALTER TABLE `company_employees`
   DROP FOREIGN KEY `company_employees_company_id_fkey`,
@@ -226,7 +227,7 @@ ALTER TABLE `Admin_module_access` DROP COLUMN `admin_id`, DROP COLUMN `service_i
 ALTER TABLE `Admin_sub_module_access` DROP COLUMN `admin_id`, DROP COLUMN `service_id`, DROP COLUMN `module_id`, DROP COLUMN `sub_module_id`, DROP COLUMN `assigned_by`, CHANGE COLUMN `_uuid_admin_id` `admin_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_service_id` `service_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_module_id` `module_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_sub_module_id` `sub_module_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_assigned_by` `assigned_by` CHAR(36) NULL, ADD PRIMARY KEY (`admin_id`, `service_id`, `module_id`, `sub_module_id`);
 ALTER TABLE `audit_logs` DROP PRIMARY KEY, DROP COLUMN `id`, DROP COLUMN `actor_id`, DROP COLUMN `entity_id`, CHANGE COLUMN `_uuid_id` `id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_actor_id` `actor_id` CHAR(36) NULL, CHANGE COLUMN `_uuid_entity_id` `entity_id` CHAR(36) NULL, ADD PRIMARY KEY (`id`);
 ALTER TABLE `departments` DROP PRIMARY KEY, DROP COLUMN `id`, DROP COLUMN `company_id`, DROP COLUMN `service_id`, DROP COLUMN `head_id`, CHANGE COLUMN `_uuid_id` `id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_company_id` `company_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_service_id` `service_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_head_id` `head_id` CHAR(36) NULL, ADD PRIMARY KEY (`id`), ADD UNIQUE INDEX `departments_company_id_service_id_code_key` (`company_id`, `service_id`, `code`);
-ALTER TABLE `company_service_teams` DROP PRIMARY KEY, DROP COLUMN `id`, DROP COLUMN `company_id`, DROP COLUMN `service_id`, DROP COLUMN `head_employee_id`, CHANGE COLUMN `_uuid_id` `id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_company_id` `company_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_service_id` `service_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_head_employee_id` `head_employee_id` CHAR(36) NULL, ADD PRIMARY KEY (`id`), ADD UNIQUE INDEX `company_service_teams_head_employee_id_key` (`head_employee_id`), ADD UNIQUE INDEX `company_service_teams_company_id_service_id_key` (`company_id`, `service_id`), ADD INDEX `company_service_teams_service_id_idx` (`service_id`);
+ALTER TABLE `company_service_teams` DROP PRIMARY KEY, DROP COLUMN `id`, DROP COLUMN `company_id`, DROP COLUMN `service_id`, DROP COLUMN `head_employee_id`, CHANGE COLUMN `_uuid_id` `id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_company_id` `company_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_service_id` `service_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_head_employee_id` `head_employee_id` CHAR(36) NULL, ADD PRIMARY KEY (`id`), ADD UNIQUE INDEX `company_service_teams_head_employee_id_key` (`head_employee_id`), ADD UNIQUE INDEX `company_service_teams_company_id_service_id_name_key` (`company_id`, `service_id`, `name`), ADD INDEX `company_service_teams_company_id_service_id_idx` (`company_id`, `service_id`);
 ALTER TABLE `company_employees` DROP PRIMARY KEY, DROP COLUMN `id`, DROP COLUMN `company_id`, DROP COLUMN `department_id`, DROP COLUMN `team_id`, CHANGE COLUMN `_uuid_id` `id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_company_id` `company_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_department_id` `department_id` CHAR(36) NULL, CHANGE COLUMN `_uuid_team_id` `team_id` CHAR(36) NULL, ADD PRIMARY KEY (`id`), ADD UNIQUE INDEX `company_employees_company_id_email_key` (`company_id`, `email`), ADD INDEX `company_employees_team_id_idx` (`team_id`);
 ALTER TABLE `service_work_items` DROP PRIMARY KEY, DROP COLUMN `id`, DROP COLUMN `company_id`, DROP COLUMN `service_id`, DROP COLUMN `created_by_id`, DROP COLUMN `assigned_to_id`, CHANGE COLUMN `_uuid_id` `id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_company_id` `company_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_service_id` `service_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_created_by_id` `created_by_id` CHAR(36) NULL, CHANGE COLUMN `_uuid_assigned_to_id` `assigned_to_id` CHAR(36) NOT NULL, ADD PRIMARY KEY (`id`), ADD INDEX `service_work_items_company_id_service_id_status_idx` (`company_id`, `service_id`, `status`), ADD INDEX `service_work_items_assigned_to_id_status_idx` (`assigned_to_id`, `status`);
 ALTER TABLE `service_work_updates` DROP PRIMARY KEY, DROP COLUMN `id`, DROP COLUMN `work_item_id`, DROP COLUMN `author_id`, CHANGE COLUMN `_uuid_id` `id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_work_item_id` `work_item_id` CHAR(36) NOT NULL, CHANGE COLUMN `_uuid_author_id` `author_id` CHAR(36) NULL, ADD PRIMARY KEY (`id`), ADD INDEX `service_work_updates_work_item_id_created_at_idx` (`work_item_id`, `created_at`);
@@ -239,19 +240,19 @@ ALTER TABLE `sub_modules`
   ADD CONSTRAINT `sub_modules_module_id_fkey` FOREIGN KEY (`module_id`) REFERENCES `modules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `sub_modules_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `sub_modules_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `super_admins` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE `Admins` ADD CONSTRAINT `client_admins_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `super_admins` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `Admins` ADD CONSTRAINT `Admins_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `super_admins` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE `Admin_service_access`
   ADD CONSTRAINT `Admin_service_access_admin_id_fkey` FOREIGN KEY (`admin_id`) REFERENCES `Admins` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `client_service_access_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `Admin_service_access_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE `Admin_module_access`
   ADD CONSTRAINT `Admin_module_access_admin_id_fkey` FOREIGN KEY (`admin_id`) REFERENCES `Admins` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `client_module_access_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `client_module_access_module_id_fkey` FOREIGN KEY (`module_id`) REFERENCES `modules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `Admin_module_access_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `Admin_module_access_module_id_fkey` FOREIGN KEY (`module_id`) REFERENCES `modules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE `Admin_sub_module_access`
   ADD CONSTRAINT `Admin_sub_module_access_admin_id_fkey` FOREIGN KEY (`admin_id`) REFERENCES `Admins` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `client_sub_module_access_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `client_sub_module_access_module_id_fkey` FOREIGN KEY (`module_id`) REFERENCES `modules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `client_sub_module_access_sub_module_id_fkey` FOREIGN KEY (`sub_module_id`) REFERENCES `sub_modules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `Admin_sub_module_access_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `Admin_sub_module_access_module_id_fkey` FOREIGN KEY (`module_id`) REFERENCES `modules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `Admin_sub_module_access_sub_module_id_fkey` FOREIGN KEY (`sub_module_id`) REFERENCES `sub_modules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_actor_id_fkey` FOREIGN KEY (`actor_id`) REFERENCES `super_admins` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE `departments`
   ADD CONSTRAINT `departments_company_id_fkey` FOREIGN KEY (`company_id`) REFERENCES `Admins` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
