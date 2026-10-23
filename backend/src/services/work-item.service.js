@@ -127,7 +127,7 @@ const workItemService = {
   async list(companyId, serviceCode, actor, requestedTeamId = null) {
     const service = await resolveService(companyId, serviceCode);
     const employee = await resolveEmployee(actor, companyId);
-    const where = { companyId: BigInt(companyId), serviceId: service.id };
+    const where = { companyId: String(companyId), serviceId: service.id };
     let teamId = null;
     if (employee) {
       if (employee.team.serviceId !== service.id) {
@@ -146,7 +146,7 @@ const workItemService = {
     } else if (requestedTeamId) {
       teamId = parseId(requestedTeamId, 'Team');
       const team = await prisma.companyServiceTeam.findFirst({
-        where: { id: teamId, companyId: BigInt(companyId), serviceId: service.id },
+        where: { id: teamId, companyId: String(companyId), serviceId: service.id },
         select: { id: true },
       });
       if (!team) throw httpError('Choose a team belonging to this service.', 404, 'TEAM_NOT_FOUND');
@@ -312,8 +312,8 @@ const workItemService = {
           companyId: String(companyId),
           status: 'ACTIVE',
           team: isHead
-            ? { id: employee.team.id, companyId: BigInt(companyId), serviceId: item.serviceId }
-            : { companyId: BigInt(companyId), serviceId: item.serviceId },
+            ? { id: employee.team.id, companyId: String(companyId), serviceId: item.serviceId }
+            : { companyId: String(companyId), serviceId: item.serviceId },
         },
         select: { id: true },
       });

@@ -49,10 +49,10 @@ function serviceError(message, statusCode, code) {
 }
 
 function parseEntityId(value, label) {
-  if (!/^[1-9]\d*$/.test(String(value ?? ''))) {
+  if (!isUuid(String(value ?? ''))) {
     throw serviceError(`${label} must be a valid identifier.`, 400);
   }
-  return BigInt(value);
+  return String(value).toLowerCase();
 }
 
 async function getAvailableServiceModules(companyId, service, serviceAccess) {
@@ -82,10 +82,10 @@ async function getAvailableServiceModules(companyId, service, serviceAccess) {
 
   const [moduleAccess, subModuleAccess] = await Promise.all([
     prisma.clientModuleAccess.findMany({
-      where: { clientAdminId: companyId, serviceId: service.id, isAllowed: true },
+      where: { adminId: companyId, serviceId: service.id, isAllowed: true },
     }),
     prisma.clientSubModuleAccess.findMany({
-      where: { clientAdminId: companyId, serviceId: service.id, isAllowed: true },
+      where: { adminId: companyId, serviceId: service.id, isAllowed: true },
     }),
   ]);
   return modules.flatMap((module) => {
@@ -324,7 +324,7 @@ export const departmentService = {
   },
 
   async removeServiceTeamEmployee(companyId, serviceCodeOrId, teamId, employeeId, meta = {}, actor) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service) {
       const error = new Error('Service not found in catalogue.');
@@ -333,8 +333,7 @@ export const departmentService = {
     }
 
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
-      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
-      select: { id: true },
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
     });
     if (!serviceAccess) {
       throw serviceError('This service is not assigned to the company.', 403, 'SERVICE_NOT_ASSIGNED');
@@ -345,7 +344,7 @@ export const departmentService = {
         id: parseEntityId(teamId, 'Team'),
         companyId: cid,
         serviceId: service.id,
-        ...(TEAM_LEADER_ROLES.includes(actor?.role) ? { headEmployeeId: BigInt(actor.userId) } : {}),
+        ...(TEAM_LEADER_ROLES.includes(actor?.role) ? { headEmployeeId: String(actor.userId) } : {}),
       },
       select: { id: true, headEmployeeId: true },
     });
@@ -365,7 +364,7 @@ export const departmentService = {
       throw error;
     }
 
-    if (TEAM_LEADER_ROLES.includes(actor?.role) && employee.id === BigInt(actor.userId)) {
+    if (TEAM_LEADER_ROLES.includes(actor?.role) && employee.id === String(actor.userId)) {
       throw serviceError('A Team Leader cannot remove themselves from their own team.', 403);
     }
 
@@ -422,21 +421,21 @@ export const departmentService = {
   },
 
   async listServiceTeams(companyId, serviceCodeOrId, actor) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service) throw serviceError('Service not found in catalogue.', 404);
     if (service.status !== 'ACTIVE') {
       throw serviceError(`Service "${service.name}" is currently deactivated by Super Admin.`, 403, 'SERVICE_INACTIVE');
     }
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
-      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
     });
     if (!serviceAccess) {
       throw serviceError(`Service "${service.name}" is not assigned to this company.`, 403, 'SERVICE_NOT_ASSIGNED');
     }
 
     const where = { companyId: cid, serviceId: service.id };
-    if (TEAM_LEADER_ROLES.includes(actor?.role)) where.headEmployeeId = BigInt(actor.userId);
+    if (TEAM_LEADER_ROLES.includes(actor?.role)) where.headEmployeeId = String(actor.userId);
     const [teams, availableModules] = await Promise.all([
       prisma.companyServiceTeam.findMany({
         where,
@@ -472,13 +471,13 @@ export const departmentService = {
   },
 
   async createServiceTeam(companyId, serviceCodeOrId, name, meta = {}) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service || service.status !== 'ACTIVE') {
       throw serviceError(service ? 'The selected service is inactive.' : 'Service not found in catalogue.', service ? 403 : 404);
     }
     const serviceAccess = await prisma.clientServiceAccess.findFirst({
-      where: { clientAdminId: cid, serviceId: service.id, isAllowed: true },
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
     });
     if (!serviceAccess) throw serviceError('This service is not assigned to the company.', 403, 'SERVICE_NOT_ASSIGNED');
     const cleanName = typeof name === 'string' ? name.trim() : '';
@@ -516,7 +515,7 @@ export const departmentService = {
   },
 
   async getServiceTeam(companyId, serviceCodeOrId, actor, teamId = null) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service) {
       const error = new Error('Service not found in catalogue.');
@@ -597,7 +596,7 @@ export const departmentService = {
   },
 
   async setServiceTeamHead(companyId, serviceCodeOrId, headId, meta = {}, teamId = null) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service || service.status !== 'ACTIVE') {
       const error = new Error(service ? 'The selected service is inactive.' : 'Service not found in catalogue.');
@@ -709,7 +708,7 @@ export const departmentService = {
   },
 
   async assignCompanyEmployee(companyId, employeeId, { serviceCode, teamId, accessRole = 'EMPLOYEE', permissions } = {}, meta = {}, actor) {
-    const cid = BigInt(companyId);
+    const cid = String(companyId);
     const eid = parseEntityId(employeeId, 'Employee');
     if (!['SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(accessRole)) {
       const error = new Error('Choose Team Leader or Employee as the access role.');
