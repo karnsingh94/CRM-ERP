@@ -18,30 +18,11 @@ router.get('/clients/:id/access', companyController.getClientAccess);
 router.put('/clients/:id/access', requireSuperAdmin, companyController.saveClientAccess);
 
 // ==================== SUBMODULE / FEATURE APIS ====================
-router.get('/companies/:companyId/crm/leads', validateSubModuleAccess('crm_leads'), (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { id: 1, name: 'Rajesh Sharma', company: 'Apex Technologies', status: 'QUALIFIED' },
-      { id: 2, name: 'Ananya Verma', company: 'Zenith Logistics', status: 'PROPOSAL' },
-    ],
-  });
-});
-
 router.get('/companies/:companyId/crm/customers', validateSubModuleAccess('crm_customers'), (req, res) => {
   res.json({
     success: true,
     data: [
       { id: 1, name: 'Apex Technologies', contactPerson: 'Rajesh Sharma', status: 'ACTIVE' },
-    ],
-  });
-});
-
-router.get('/crm/leads', validateSubModuleAccess('crm_leads'), (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { id: 1, name: 'Rajesh Sharma', company: 'Apex Technologies', status: 'QUALIFIED' },
     ],
   });
 });

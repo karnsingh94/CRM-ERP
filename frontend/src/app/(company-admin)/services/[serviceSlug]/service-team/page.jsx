@@ -24,8 +24,8 @@ export async function generateMetadata({ params }) {
   const { serviceSlug = 'service' } = await params;
   const formatted = serviceSlug.replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
   return {
-    title: `${formatted} Service Team — AZZUNIQE Company Admin`,
-    description: `Manage teams and staff allocations for ${formatted}`,
+    title: `${formatted} Department Head — AZZUNIQE Company Admin`,
+    description: `Manage department heads, teams, and staff allocations for ${formatted}`,
   };
 }
 
@@ -37,7 +37,7 @@ async function ServiceTeamContent({ params }) {
 
 export default function ServiceTeamPage({ params }) {
   return (
-    <Suspense fallback={<div style={{ padding: '2rem' }}>Loading service team...</div>}>
+    <Suspense fallback={<div style={{ padding: '2rem' }}>Loading Department Head...</div>}>
       <ServiceTeamContent params={params} />
     </Suspense>
   );

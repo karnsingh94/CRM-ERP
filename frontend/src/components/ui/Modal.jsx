@@ -39,6 +39,7 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = '64
       <div
         style={{
           background: '#ffffff',
+          color: '#0f172a',
           borderRadius: '16px',
           width: '100%',
           maxWidth,

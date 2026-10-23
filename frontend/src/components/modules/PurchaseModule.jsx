@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../../lib/api';
 import { IconPlus, IconTruck, IconUsers, IconFileText } from '../ui/Icons';
 import Modal from '../ui/Modal';
 import EmptyState from '../ui/EmptyState';
@@ -11,23 +12,45 @@ export default function PurchaseModule({ activeCompany, showToast, initialSubTab
   const [searchQuery, setSearchQuery] = useState('');
 
   const [vendors, setVendors] = useState([]);
+  const [isLoadingVendors, setIsLoadingVendors] = useState(false);
   const [orders, setOrders] = useState([]);
 
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
+  const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [vendorForm, setVendorForm] = useState({ name: '', contact: '', email: '', phone: '', category: 'Raw Materials' });
 
-  const handleCreateVendor = (e) => {
+  const loadVendors = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingVendors(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/purchase/vendors`, { noCache: true });
+      setVendors(res.data || []);
+    } catch (err) {
+      // Ignore
+    } finally {
+      setIsLoadingVendors(false);
+    }
+  };
+
+  useEffect(() => {
+    loadVendors();
+  }, [activeCompany?.id]);
+
+  const handleCreateVendor = async (e) => {
     e.preventDefault();
     if (!vendorForm.name) return;
-    const newV = {
-      id: Date.now(),
-      ...vendorForm,
-      rating: '5.0 ★',
-    };
-    setVendors([newV, ...vendors]);
-    setShowAddVendorModal(false);
-    setVendorForm({ name: '', contact: '', email: '', phone: '', category: 'Raw Materials' });
-    showToast('Vendor Registered', `"${newV.name}" added to vendor directory.`, 'success');
+    setIsSavingVendor(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/purchase/vendors`, vendorForm);
+      setVendors([res.data, ...vendors]);
+      setShowAddVendorModal(false);
+      setVendorForm({ name: '', contact: '', email: '', phone: '', category: 'Raw Materials' });
+      showToast('Vendor Registered', `"${res.data.name}" added to vendor directory in database.`, 'success');
+    } catch (err) {
+      showToast('Error', err.message || 'Could not register vendor.', 'danger');
+    } finally {
+      setIsSavingVendor(false);
+    }
   };
 
   return (
@@ -102,7 +125,7 @@ export default function PurchaseModule({ activeCompany, showToast, initialSubTab
           }}
         >
           <span>🏢</span>
-          <span>Service Team</span>
+          <span>Department Head</span>
         </button>
       </div>
 

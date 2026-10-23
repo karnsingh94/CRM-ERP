@@ -1705,7 +1705,32 @@
 .permCheckboxLabel input[type="checkbox"] {
   width: 19px;
   height: 19px;
+  appearance: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
   accent-color: #7f22fe;
+  cursor: pointer;
+}
+
+.permCheckboxLabel input[type="checkbox"]:checked,
+.permSubItem input[type="checkbox"]:checked,
+.permFullServiceCheckbox:checked {
+  border-color: #7f22fe;
+  background-color: #7f22fe;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m3 8 3 3 7-7'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 13px;
+}
+
+.permFullServiceCheckbox {
+  width: 16px;
+  height: 16px;
+  appearance: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #fff;
   cursor: pointer;
 }
 
@@ -1760,6 +1785,11 @@
   box-shadow: 0 2px 6px rgba(127, 34, 254, 0.3);
 }
 
+.modeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .permSubModulesList {
   margin-top: 0.85rem;
   padding-top: 0.85rem;
@@ -1782,6 +1812,11 @@
 .permSubItem input[type="checkbox"] {
   width: 16px;
   height: 16px;
+  flex: 0 0 16px;
+  appearance: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #fff;
   accent-color: #7f22fe;
   cursor: pointer;
 }
@@ -1792,6 +1827,10 @@
   font-weight: 700;
   cursor: pointer;
   margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
 }
 
 .selectAllBtn:hover {

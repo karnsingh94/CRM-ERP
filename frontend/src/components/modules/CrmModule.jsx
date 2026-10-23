@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { api } from '../../lib/api';
 import {
   IconPlus,
   IconSearch,
@@ -18,6 +19,18 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import EmptyState from '../ui/EmptyState';
 import ServiceDepartments from '../departments/ServiceDepartments';
 
+const formatLeadValue = (value) => {
+  if (value === '' || value === null || value === undefined) return '—';
+  const amount = Number(value);
+  return Number.isFinite(amount)
+    ? new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2,
+    }).format(amount)
+    : value;
+};
+
 export default function CrmModule({ activeCompany, showToast, initialSubTab, hasSubModuleAccess }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -28,7 +41,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     customers: '/crm/customers',
     contacts: '/crm/contacts',
     opportunities: '/crm/opportunities',
-    departments: '/services/crm-sales/service-team',
+    departments: '/services/crm-sales/department-head',
   };
 
   // Permission checks
@@ -80,6 +93,11 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   // 1. LEADS PIPELINE
   // -----------------------------------------------------------------
   const [leads, setLeads] = useState([]);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(true);
+  const [leadLoadVersion, setLeadLoadVersion] = useState(0);
+  const [leadError, setLeadError] = useState('');
+  const [isSavingLead, setIsSavingLead] = useState(false);
+  const [updatingLeadId, setUpdatingLeadId] = useState(null);
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   const [newLeadForm, setNewLeadForm] = useState({
     name: '',
@@ -91,26 +109,72 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     status: 'NEW',
   });
 
-  const handleCreateLead = (e) => {
+  useEffect(() => {
+    let isCurrent = true;
+    const loadLeads = async () => {
+      if (!activeCompany?.id) {
+        setLeads([]);
+        setIsLoadingLeads(false);
+        setLeadError('Choose a company workspace to view leads.');
+        return;
+      }
+      setIsLoadingLeads(true);
+      setLeadError('');
+      try {
+        const response = await api.get(
+          `/companies/${activeCompany.id}/crm/leads`,
+          { noCache: true }
+        );
+        if (isCurrent) setLeads(response.data || []);
+      } catch (error) {
+        if (isCurrent) setLeadError(error.message || 'Unable to load CRM leads.');
+      } finally {
+        if (isCurrent) setIsLoadingLeads(false);
+      }
+    };
+    loadLeads();
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeCompany?.id, leadLoadVersion]);
+
+  const handleCreateLead = async (e) => {
     e.preventDefault();
     if (!newLeadForm.name || !newLeadForm.email) {
       showToast('Validation Error', 'Lead contact name and email are required.', 'danger');
       return;
     }
-    const newEntry = {
-      id: Date.now(),
-      ...newLeadForm,
-      date: new Date().toISOString().split('T')[0],
-    };
-    setLeads([newEntry, ...leads]);
-    setShowAddLeadModal(false);
-    setNewLeadForm({ name: '', company: '', email: '', phone: '', source: 'Website Inquiry', value: '', status: 'NEW' });
-    showToast('Lead Created! 🎯', `Lead "${newEntry.name}" added to pipeline.`, 'success');
+    setIsSavingLead(true);
+    try {
+      const response = await api.post(
+        `/companies/${activeCompany.id}/crm/leads`,
+        newLeadForm
+      );
+      setLeads((current) => [response.data, ...current]);
+      setShowAddLeadModal(false);
+      setNewLeadForm({ name: '', company: '', email: '', phone: '', source: 'Website Inquiry', value: '', status: 'NEW' });
+      showToast('Lead Created! 🎯', `Lead "${response.data.name}" added to pipeline.`, 'success');
+    } catch (error) {
+      showToast('Lead Not Created', error.message || 'Could not create this lead.', 'danger');
+    } finally {
+      setIsSavingLead(false);
+    }
   };
 
-  const handleLeadStatusChange = (id, newStatus) => {
-    setLeads(leads.map(l => l.id === id ? { ...l, status: newStatus } : l));
-    showToast('Status Updated', `Lead status changed to ${newStatus}.`, 'success');
+  const handleLeadStatusChange = async (id, newStatus) => {
+    setUpdatingLeadId(id);
+    try {
+      const response = await api.patch(
+        `/companies/${activeCompany.id}/crm/leads/${id}`,
+        { status: newStatus }
+      );
+      setLeads((current) => current.map((lead) => lead.id === id ? response.data : lead));
+      showToast('Status Updated', `Lead status changed to ${newStatus}.`, 'success');
+    } catch (error) {
+      showToast('Status Not Updated', error.message || 'Could not update this lead.', 'danger');
+    } finally {
+      setUpdatingLeadId(null);
+    }
   };
 
   const filteredLeads = (leads || []).filter(l => {
@@ -128,7 +192,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   // 2. CUSTOMERS (CORPORATE CLIENTS)
   // -----------------------------------------------------------------
   const [customers, setCustomers] = useState([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
   const [customerForm, setCustomerForm] = useState({
     companyName: '',
     gstin: '',
@@ -139,29 +205,49 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     status: 'ACTIVE',
   });
 
-  const handleCreateCustomer = (e) => {
+  const loadCustomers = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingCustomers(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/crm/customers`, { noCache: true });
+      setCustomers(res.data || []);
+    } catch (err) {
+      // Ignore or empty
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCustomers();
+  }, [activeCompany?.id]);
+
+  const handleCreateCustomer = async (e) => {
     e.preventDefault();
     if (!customerForm.companyName) {
       showToast('Validation Error', 'Company name is required.', 'danger');
       return;
     }
-    const newEntry = {
-      id: Date.now(),
-      ...customerForm,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setCustomers([newEntry, ...customers]);
-    setShowAddCustomerModal(false);
-    setCustomerForm({
-      companyName: '',
-      gstin: '',
-      contactPerson: '',
-      email: '',
-      phone: '',
-      industry: 'Technology & IT',
-      status: 'ACTIVE',
-    });
-    showToast('Customer Added! 🏢', `Client "${newEntry.companyName}" successfully registered.`, 'success');
+    setIsSavingCustomer(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/crm/customers`, customerForm);
+      setCustomers([res.data, ...customers]);
+      setShowAddCustomerModal(false);
+      setCustomerForm({
+        companyName: '',
+        gstin: '',
+        contactPerson: '',
+        email: '',
+        phone: '',
+        industry: 'Technology & IT',
+        status: 'ACTIVE',
+      });
+      showToast('Customer Added! 🏢', `Client "${res.data.companyName}" successfully registered in database.`, 'success');
+    } catch (err) {
+      showToast('Customer Not Created', err.message || 'Could not register customer.', 'danger');
+    } finally {
+      setIsSavingCustomer(false);
+    }
   };
 
   const filteredCustomers = (customers || []).filter(c => {
@@ -180,7 +266,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   // 3. CONTACT PERSONS
   // -----------------------------------------------------------------
   const [contacts, setContacts] = useState([]);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [isSavingContact, setIsSavingContact] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: '',
     companyName: '',
@@ -190,28 +278,48 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     channel: 'Email',
   });
 
-  const handleCreateContact = (e) => {
+  const loadContacts = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingContacts(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/crm/contacts`, { noCache: true });
+      setContacts(res.data || []);
+    } catch (err) {
+      // Ignore or empty
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
+  useEffect(() => {
+    loadContacts();
+  }, [activeCompany?.id]);
+
+  const handleCreateContact = async (e) => {
     e.preventDefault();
     if (!contactForm.name || !contactForm.companyName) {
       showToast('Validation Error', 'Contact name and company are required.', 'danger');
       return;
     }
-    const newEntry = {
-      id: Date.now(),
-      ...contactForm,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setContacts([newEntry, ...contacts]);
-    setShowAddContactModal(false);
-    setContactForm({
-      name: '',
-      companyName: '',
-      role: '',
-      email: '',
-      phone: '',
-      channel: 'Email',
-    });
-    showToast('Contact Added! 👤', `Contact "${newEntry.name}" registered.`, 'success');
+    setIsSavingContact(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/crm/contacts`, contactForm);
+      setContacts([res.data, ...contacts]);
+      setShowAddContactModal(false);
+      setContactForm({
+        name: '',
+        companyName: '',
+        role: '',
+        email: '',
+        phone: '',
+        channel: 'Email',
+      });
+      showToast('Contact Added! 👤', `Contact "${res.data.name}" registered in database.`, 'success');
+    } catch (err) {
+      showToast('Contact Not Created', err.message || 'Could not register contact.', 'danger');
+    } finally {
+      setIsSavingContact(false);
+    }
   };
 
   const filteredContacts = (contacts || []).filter(cnt => {
@@ -230,7 +338,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   // 4. DEAL OPPORTUNITIES (SALES DEALS)
   // -----------------------------------------------------------------
   const [opportunities, setOpportunities] = useState([]);
+  const [isLoadingOpportunities, setIsLoadingOpportunities] = useState(false);
   const [showAddOpportunityModal, setShowAddOpportunityModal] = useState(false);
+  const [isSavingOpportunity, setIsSavingOpportunity] = useState(false);
   const [opportunityForm, setOpportunityForm] = useState({
     title: '',
     companyName: '',
@@ -240,33 +350,59 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     probability: '50%',
   });
 
-  const handleCreateOpportunity = (e) => {
+  const loadOpportunities = async () => {
+    if (!activeCompany?.id) return;
+    setIsLoadingOpportunities(true);
+    try {
+      const res = await api.get(`/companies/${activeCompany.id}/crm/opportunities`, { noCache: true });
+      setOpportunities(res.data || []);
+    } catch (err) {
+      // Ignore or empty
+    } finally {
+      setIsLoadingOpportunities(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOpportunities();
+  }, [activeCompany?.id]);
+
+  const handleCreateOpportunity = async (e) => {
     e.preventDefault();
     if (!opportunityForm.title || !opportunityForm.companyName) {
       showToast('Validation Error', 'Opportunity title and company are required.', 'danger');
       return;
     }
-    const newEntry = {
-      id: Date.now(),
-      ...opportunityForm,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setOpportunities([newEntry, ...opportunities]);
-    setShowAddOpportunityModal(false);
-    setOpportunityForm({
-      title: '',
-      companyName: '',
-      stage: 'DISCOVERY',
-      value: '',
-      expectedCloseDate: '',
-      probability: '50%',
-    });
-    showToast('Opportunity Created! 💼', `Deal "${newEntry.title}" added to pipeline.`, 'success');
+    setIsSavingOpportunity(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/crm/opportunities`, opportunityForm);
+      setOpportunities([res.data, ...opportunities]);
+      setShowAddOpportunityModal(false);
+      setOpportunityForm({
+        title: '',
+        companyName: '',
+        stage: 'DISCOVERY',
+        value: '',
+        expectedCloseDate: '',
+        probability: '50%',
+      });
+      showToast('Opportunity Created! 💼', `Deal "${res.data.title}" added to pipeline in database.`, 'success');
+    } catch (err) {
+      showToast('Opportunity Not Created', err.message || 'Could not register opportunity.', 'danger');
+    } finally {
+      setIsSavingOpportunity(false);
+    }
   };
 
-  const handleOpportunityStageChange = (id, newStage) => {
-    setOpportunities(opportunities.map(o => o.id === id ? { ...o, stage: newStage } : o));
-    showToast('Stage Updated', `Opportunity stage changed to ${newStage}.`, 'success');
+  const handleOpportunityStageChange = async (id, newStage) => {
+    try {
+      const res = await api.patch(`/companies/${activeCompany.id}/crm/opportunities/${id}`, { stage: newStage });
+      setOpportunities(opportunities.map(o => o.id === id ? res.data : o));
+      showToast('Stage Updated', `Opportunity stage changed to ${newStage}.`, 'success');
+    } catch (err) {
+      setOpportunities(opportunities.map(o => o.id === id ? { ...o, stage: newStage } : o));
+      showToast('Stage Updated', `Opportunity stage changed to ${newStage}.`, 'success');
+    }
   };
 
   const filteredOpportunities = (opportunities || []).filter(o => {
@@ -284,12 +420,17 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   // -----------------------------------------------------------------
   const [itemToDelete, setItemToDelete] = useState(null); // { type, item, name }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
     const { type, item } = itemToDelete;
     if (type === 'lead') {
-      setLeads(leads.filter(l => l.id !== item.id));
-      showToast('Lead Deleted', `Lead "${item.name}" was removed.`, 'danger');
+      try {
+        await api.delete(`/companies/${activeCompany.id}/crm/leads/${item.id}`);
+        setLeads((current) => current.filter((lead) => lead.id !== item.id));
+        showToast('Lead Deleted', `Lead "${item.name}" was removed.`, 'danger');
+      } catch (error) {
+        showToast('Lead Not Deleted', error.message || 'Could not delete this lead.', 'danger');
+      }
     } else if (type === 'customer') {
       setCustomers(customers.filter(c => c.id !== item.id));
       showToast('Customer Removed', `Customer "${item.companyName}" was removed.`, 'danger');
@@ -550,7 +691,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
           }}
         >
           <span>🏢</span>
-          <span>Service Team</span>
+          <span>Department Head</span>
         </button>
       </div>
 
@@ -614,7 +755,22 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
           </div>
 
           {/* Table or Empty State */}
-          {filteredLeads.length === 0 ? (
+          {leadError ? (
+            <div role="alert" style={{ padding: '1.5rem', color: '#991b1b', background: '#fef2f2' }}>
+              <p style={{ margin: '0 0 0.75rem' }}>{leadError}</p>
+              {activeCompany?.id && (
+                <button
+                  type="button"
+                  onClick={() => setLeadLoadVersion((version) => version + 1)}
+                  style={{ padding: '0.45rem 0.8rem', border: '1px solid #fecaca', borderRadius: '6px', background: '#fff', color: '#991b1b', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          ) : isLoadingLeads ? (
+            <p role="status" style={{ padding: '1.5rem', color: '#64748b', textAlign: 'center' }}>Loading leads...</p>
+          ) : filteredLeads.length === 0 ? (
             <EmptyState
               icon="🎯"
               title="No Leads Found"
@@ -650,11 +806,12 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         {lead.source}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
-                        {lead.value || '—'}
+                        {formatLeadValue(lead.value)}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
                         <select
                           value={lead.status}
+                          disabled={updatingLeadId === lead.id}
                           onChange={(e) => handleLeadStatusChange(lead.id, e.target.value)}
                           style={{
                             padding: '3px 8px',
@@ -1064,7 +1221,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       <Modal isOpen={showAddLeadModal} onClose={() => setShowAddLeadModal(false)} title="Create New CRM Lead">
         <form onSubmit={handleCreateLead} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
               Contact Full Name *
             </label>
             <input
@@ -1073,13 +1230,13 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
               placeholder="e.g. Ramesh Kulkarni"
               value={newLeadForm.name}
               onChange={(e) => setNewLeadForm({ ...newLeadForm, name: e.target.value })}
-              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
             />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
                 Company / Organization
               </label>
               <input
@@ -1087,12 +1244,12 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 placeholder="e.g. Kulkarni Enterprises"
                 value={newLeadForm.company}
                 onChange={(e) => setNewLeadForm({ ...newLeadForm, company: e.target.value })}
-                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
                 Email Address *
               </label>
               <input
@@ -1101,14 +1258,14 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 placeholder="ramesh@example.com"
                 value={newLeadForm.email}
                 onChange={(e) => setNewLeadForm({ ...newLeadForm, email: e.target.value })}
-                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
               />
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
                 Phone Number
               </label>
               <input
@@ -1116,12 +1273,12 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 placeholder="+91 98765 00000"
                 value={newLeadForm.phone}
                 onChange={(e) => setNewLeadForm({ ...newLeadForm, phone: e.target.value })}
-                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
                 Estimated Deal Value
               </label>
               <input
@@ -1129,9 +1286,23 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 placeholder="e.g. ₹ 3,50,000"
                 value={newLeadForm.value}
                 onChange={(e) => setNewLeadForm({ ...newLeadForm, value: e.target.value })}
-                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
               />
             </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+              Lead Source
+            </label>
+            <input
+              type="text"
+              maxLength={100}
+              placeholder="e.g. Website Inquiry"
+              value={newLeadForm.source}
+              onChange={(e) => setNewLeadForm({ ...newLeadForm, source: e.target.value })}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+            />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
@@ -1144,9 +1315,10 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
             </button>
             <button
               type="submit"
+              disabled={isSavingLead}
               style={{ padding: '0.6rem 1.35rem', borderRadius: '6px', border: 'none', background: '#7f22fe', color: '#ffffff', fontWeight: 700, cursor: 'pointer' }}
             >
-              Save Lead
+              {isSavingLead ? 'Saving...' : 'Save Lead'}
             </button>
           </div>
         </form>
@@ -1158,7 +1330,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       <Modal isOpen={showAddCustomerModal} onClose={() => setShowAddCustomerModal(false)} title="Register Corporate Customer">
         <form onSubmit={handleCreateCustomer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
               Company / Account Name *
             </label>
             <input
@@ -1167,13 +1339,13 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
               placeholder="e.g. Mahindra Logistics Ltd"
               value={customerForm.companyName}
               onChange={(e) => setCustomerForm({ ...customerForm, companyName: e.target.value })}
-              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
             />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
                 GSTIN / Tax Registration No
               </label>
               <input
@@ -1181,18 +1353,18 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 placeholder="e.g. 27AABCM1234F1Z9"
                 value={customerForm.gstin}
                 onChange={(e) => setCustomerForm({ ...customerForm, gstin: e.target.value })}
-                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
                 Industry / Domain
               </label>
               <select
                 value={customerForm.industry}
                 onChange={(e) => setCustomerForm({ ...customerForm, industry: e.target.value })}
-                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
               >
                 <option value="Technology & IT">Technology &amp; IT</option>
                 <option value="Manufacturing & Industrial">Manufacturing &amp; Industrial</option>
@@ -1206,7 +1378,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
                 Primary Contact Person
               </label>
               <input
@@ -1214,12 +1386,12 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 placeholder="e.g. Anand Mahindra"
                 value={customerForm.contactPerson}
                 onChange={(e) => setCustomerForm({ ...customerForm, contactPerson: e.target.value })}
-                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
                 Official Email Address
               </label>
               <input
@@ -1227,7 +1399,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 placeholder="procurement@mahindra.com"
                 value={customerForm.email}
                 onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
               />
             </div>
           </div>

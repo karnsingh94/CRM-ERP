@@ -151,6 +151,24 @@ a {
   transition: color var(--transition-fast);
 }
 
+label {
+  color: #334155;
+  font-weight: 600;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+select,
+textarea {
+  color: #0f172a;
+  background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
 /* Ensure all interactive controls show pointer */
 a, button, select, label, input[type="button"], input[type="submit"], [role="button"] {
   cursor: pointer;

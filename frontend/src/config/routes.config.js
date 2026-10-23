@@ -503,7 +503,7 @@ export const COMPANY_ADMIN_ROUTES = [
     path: '/team',
     label: 'Company Employees',
     title: 'Company Staff & Users Directory',
-    description: 'Employees, service team assignments, team roles, and login credentials',
+    description: 'Employees, Department Head assignments, team roles, and login credentials',
     parent: '/team',
     serviceCode: 'permission_controls',
     moduleCode: 'permission_controls',
@@ -574,8 +574,8 @@ export function getCompanyAdminRoute(pathname) {
     return COMPANY_ADMIN_ROUTES[0];
   }
 
-  // Dynamic service landing and service-team routes
-  const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:service-team|departments))?$/);
+  // Dynamic service landing, department-head, and service-team routes
+  const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:department-head|service-team|departments))?$/);
   if (serviceMatch) {
     const rawSlug = serviceMatch[1];
     const isDeptSubpath = Boolean(serviceMatch[2]);
@@ -583,10 +583,10 @@ export function getCompanyAdminRoute(pathname) {
     const serviceName = SERVICE_TITLES[serviceCode] || serviceCode;
     return {
       path: pathname,
-      label: isDeptSubpath ? 'Service Team' : serviceName,
-      title: isDeptSubpath ? `${serviceName} Service Team` : serviceName,
+      label: isDeptSubpath ? 'Department Head' : serviceName,
+      title: isDeptSubpath ? `${serviceName} Department Head` : serviceName,
       description: isDeptSubpath
-        ? `Manage teams and staff assigned to ${serviceName}`
+        ? `Manage Department Heads, teams, and staff assigned to ${serviceName}`
         : `${serviceName} service workspace`,
       serviceCode,
       moduleCode: null,
@@ -700,8 +700,8 @@ export function getHierarchyFromPathname(pathname) {
     };
   }
 
-  // Dynamic Service Team Routes: /services/[slug]/service-team
-  const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:service-team|departments))?$/);
+  // Dynamic Department Head / Service Head pages
+  const serviceMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:department-head|service-team|departments))?$/);
   if (serviceMatch) {
     const rawSlug = serviceMatch[1];
     const serviceCode = rawSlug.replace(/-/g, '_');
@@ -805,7 +805,7 @@ export function resolveCanonicalUrl(target) {
 
   if (target.startsWith('services:') && target.endsWith(':departments')) {
     const rawCode = target.split(':')[1];
-    return `/services/${rawCode.replace(/_/g, '-')}/service-team`;
+    return `/services/${rawCode.replace(/_/g, '-')}/department-head`;
   }
 
   if (SERVICE_DEFAULT_ROUTES[target]) {

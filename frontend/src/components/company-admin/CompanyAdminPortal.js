@@ -38,7 +38,7 @@ export function resolveTabFromPathname(pathname) {
   if (!pathname || pathname === '/' || pathname === '/dashboard') return 'dashboard';
   if (pathname === '/settings') return 'settings';
 
-  const serviceDeptMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:service-team|departments))?$/);
+  const serviceDeptMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:department-head|service-team|departments))?$/);
   if (serviceDeptMatch) {
     return `services:${serviceDeptMatch[1].replace(/-/g, '_')}:departments`;
   }
@@ -371,7 +371,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       );
     }
 
-    // 3. Service Team View (initiated from authorized service context)
+    // 3. Service Head View (initiated from authorized service context)
     if (activeTab.startsWith('services:') && activeTab.endsWith(':departments')) {
       const canManageServiceTeam = currentUser?.role === 'COMPANY_ADMIN' ||
         (['SERVICE_HEAD', 'TEAM_LEADER'].includes(currentUser?.role) && (
@@ -705,6 +705,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       <Sidebar
         activeTab={activeTab}
         activeCompany={workspaceCompany}
+        currentUser={currentUser}
         permittedServices={permittedServices}
         hasSubModuleAccess={hasSubModuleAccess}
         isCompanyAdmin={currentUser?.role === 'COMPANY_ADMIN' || isSuperAdminSwitched}

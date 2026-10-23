@@ -59,8 +59,8 @@ export default function Topbar({
   const displayEmail = currentUser?.email || activeCompany?.email || '';
   const displayOrg = activeCompany?.organizationName || currentUser?.organizationName || '';
   const roleLabels = {
-    DEPARTMENT_HEAD: 'Team Leader',
-    SERVICE_HEAD: 'Team Leader',
+    DEPARTMENT_HEAD: 'Department Head',
+    SERVICE_HEAD: 'Department Head',
     TEAM_LEADER: 'Team Leader',
     EMPLOYEE: 'Employee',
   };

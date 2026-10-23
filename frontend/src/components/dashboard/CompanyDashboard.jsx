@@ -699,7 +699,7 @@ export default function CompanyDashboard({
                   </div>
                 </div>
 
-                {/* Service Team Management Quick Action */}
+                {/* Service Head Management Quick Action */}
                 <div
                   style={{
                     display: 'flex',
@@ -744,7 +744,7 @@ export default function CompanyDashboard({
                     title={`Manage teams under ${srv.name}`}
                   >
                     <span>🏢</span>
-                    <span>Service Team</span>
+                    <span>Department Head</span>
                   </button>
                 </div>
               </div>
