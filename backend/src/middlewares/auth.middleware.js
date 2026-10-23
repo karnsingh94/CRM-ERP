@@ -96,11 +96,11 @@ export function requireCompanyAdmin(req, res, next) {
 export function requireServiceTeamPermission(permission) {
   return async (req, res, next) => {
     if (req.user?.role === 'COMPANY_ADMIN' && req.user.companyId) return next();
-    if (req.user?.role !== 'SERVICE_HEAD' || !req.user.userId || !req.user.companyId) {
+    if (!['SERVICE_HEAD', 'TEAM_LEADER'].includes(req.user?.role) || !req.user.userId || !req.user.companyId) {
       return res.status(403).json({
         success: false,
         code: 'TEAM_PERMISSION_REQUIRED',
-        message: 'Access denied: the required Service Team permission is not assigned.',
+        message: 'Access denied: the required Team Leader permission is not assigned.',
       });
     }
 
@@ -120,7 +120,7 @@ export function requireServiceTeamPermission(permission) {
       return res.status(403).json({
         success: false,
         code: 'TEAM_PERMISSION_REQUIRED',
-        message: 'Access denied: the required Service Team permission is not assigned.',
+        message: 'Access denied: the required Team Leader permission is not assigned.',
       });
     } catch (error) {
       next(error);
@@ -304,6 +304,27 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
             });
           }
           if (
+            employee.team.headEmployeeId === employee.id
+          ) {
+            const featureAccess = employee.permissions?.featureAccess || {};
+            const permittedModuleIds = Array.isArray(featureAccess.moduleIds)
+              ? featureAccess.moduleIds.map(String)
+              : [];
+            const permittedSubModuleIds = Array.isArray(featureAccess.subModuleIds)
+              ? featureAccess.subModuleIds.map(String)
+              : [];
+            const hasFeatureAccess =
+              permittedModuleIds.includes(subModule.moduleId.toString()) ||
+              permittedSubModuleIds.includes(subModule.id.toString());
+            if (!hasFeatureAccess) {
+              return res.status(403).json({
+                success: false,
+                code: 'TEAM_FEATURE_PERMISSION_REQUIRED',
+                message: 'Access denied: this feature is not assigned to your Team Leader role.',
+              });
+            }
+          }
+          if (
             employee.team.headEmployeeId === employee.id &&
             !['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
             employee.permissions?.manageServiceRecords !== true
@@ -311,7 +332,7 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
             return res.status(403).json({
               success: false,
               code: 'TEAM_PERMISSION_REQUIRED',
-              message: 'Access denied: the Service Head does not have permission to manage service records.',
+              message: 'Access denied: the Team Leader does not have permission to manage service records.',
             });
           }
         }

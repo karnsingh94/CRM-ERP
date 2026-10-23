@@ -24,6 +24,7 @@ export default function ServiceWorkBoard({
   serviceCode,
   currentUser,
   employees: providedEmployees,
+  teamId: providedTeamId,
 }) {
   const [items, setItems] = useState([]);
   const [employees, setEmployees] = useState(providedEmployees || []);
@@ -36,11 +37,12 @@ export default function ServiceWorkBoard({
 
   const isAdmin = currentUser?.role === 'COMPANY_ADMIN';
   const permissions = currentUser?.permissions || {};
-  const isHead = currentUser?.role === 'SERVICE_HEAD';
+  const isHead = currentUser?.role === 'SERVICE_HEAD' || currentUser?.role === 'TEAM_LEADER';
   const canAssign = isAdmin || (isHead && permissions.assignWork === true);
   const canManageAll = isAdmin || (isHead && permissions.updateWork === true);
   const normalizedCode = (serviceCode || currentUser?.serviceCode || '').replace(/-/g, '_');
   const companyId = activeCompany?.id || currentUser?.companyId;
+  const teamId = providedTeamId || currentUser?.teamId || '';
 
   const loadBoard = useCallback(async () => {
     if (!companyId || !normalizedCode) {
@@ -51,7 +53,7 @@ export default function ServiceWorkBoard({
     setError('');
     try {
       const response = await api.get(
-        `/companies/${companyId}/services/${normalizedCode}/work-items`,
+        `/companies/${companyId}/services/${normalizedCode}/work-items${teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''}`,
         { noCache: true }
       );
       setItems(response.data || []);
@@ -60,7 +62,7 @@ export default function ServiceWorkBoard({
     } finally {
       setIsLoading(false);
     }
-  }, [companyId, normalizedCode]);
+  }, [companyId, normalizedCode, teamId]);
 
   useEffect(() => {
     loadBoard();
@@ -71,7 +73,7 @@ export default function ServiceWorkBoard({
   }, [providedEmployees]);
 
   useEffect(() => {
-    if (!canAssign || !companyId || !normalizedCode || providedEmployees?.length) return;
+    if (!canAssign || !companyId || !normalizedCode || providedEmployees !== undefined) return;
     api.get(`/companies/${companyId}/services/${normalizedCode}/team`, { noCache: true })
       .then((response) => setEmployees(response.data?.employees || []))
       .catch((loadError) => setError(loadError.message || 'Unable to load service team members.'));
@@ -89,7 +91,7 @@ export default function ServiceWorkBoard({
     try {
       await api.post(
         `/companies/${companyId}/services/${normalizedCode}/work-items`,
-        draft
+        { ...draft, teamId: teamId || undefined }
       );
       setDraft(EMPTY_WORK);
       setShowCreate(false);

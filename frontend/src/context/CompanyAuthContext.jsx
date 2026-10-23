@@ -19,13 +19,42 @@ function scopeCompanyAccessForUser(company, user) {
     return company;
   }
   const serviceId = String(user.serviceId || '');
+  const services = (company.access?.services || []).filter(
+    (service) => String(service.serviceId || service.service_id || service.id) === serviceId
+  );
+  const featureAccess = user.role === 'TEAM_LEADER' || user.role === 'SERVICE_HEAD'
+    ? user.permissions?.featureAccess || {}
+    : null;
+  const moduleIds = new Set(Array.isArray(featureAccess?.moduleIds) ? featureAccess.moduleIds.map(String) : []);
+  const subModuleIds = new Set(Array.isArray(featureAccess?.subModuleIds) ? featureAccess.subModuleIds.map(String) : []);
   return {
     ...company,
     access: {
       ...(company.access || {}),
-      services: (company.access?.services || []).filter(
-        (service) => String(service.serviceId || service.service_id || service.id) === serviceId
-      ),
+      services: featureAccess
+        ? services.map((service) => ({
+          ...service,
+          full_service: false,
+          isFullService: false,
+          modules: (service.modules || []).flatMap((module) => {
+            const moduleId = String(module.moduleId || module.module_id || module.id);
+            if (moduleIds.has(moduleId)) return [{ ...module, access_mode: 'FULL', accessMode: 'FULL' }];
+            const subModules = (module.subModules || module.sub_modules || []).filter(
+              (subModule) => subModuleIds.has(String(subModule.id))
+            );
+            return subModules.length
+              ? [{
+                ...module,
+                access_mode: 'CUSTOM',
+                accessMode: 'CUSTOM',
+                sub_module_ids: subModules.map((subModule) => String(subModule.id)),
+                subModules,
+                sub_modules: subModules,
+              }]
+              : [];
+          }),
+        }))
+        : services,
     },
   };
 }

@@ -8,7 +8,6 @@ import Modal from '../ui/Modal';
 import ServiceDepartments from '../departments/ServiceDepartments';
 
 const ROLE_OPTIONS = [
-  { value: 'SERVICE_HEAD', label: 'Service Head' },
   { value: 'TEAM_LEADER', label: 'Team Leader' },
   { value: 'EMPLOYEE', label: 'Employee' },
 ];
@@ -23,7 +22,7 @@ const EMPTY_EMPLOYEE = {
   password: '',
 };
 
-export default function TeamModule({ activeCompany, showToast, initialSubTab }) {
+export default function TeamModule({ activeCompany, currentUser, showToast, initialSubTab }) {
   const [activeTab, setActiveTab] = useState(initialSubTab === 'departments' ? 'teams' : initialSubTab || 'members');
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,7 +103,11 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
     try {
       await api.put(
         `/companies/${activeCompany.id}/employees/${employeeToAssign.id}/team`,
-        assignment
+        {
+          ...assignment,
+          teamId: assignment.serviceCode === employeeToAssign.serviceCode ? employeeToAssign.teamId : undefined,
+          permissions: assignment.serviceCode === employeeToAssign.serviceCode ? employeeToAssign.permissions : undefined,
+        }
       );
       showToast?.('Service Assignment Updated', `${employeeToAssign.name} is now assigned to the selected service.`, 'success');
       setEmployeeToAssign(null);
@@ -139,7 +142,7 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
         <div>
           <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a' }}>Company Team &amp; Internal Staff Access</h2>
           <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            Each assigned service is a team. Add a Service Head, optional Team Leaders, and employees for {activeCompany?.organizationName}.
+            Create named teams for each assigned service, then add employees and configure Team Leader access.
           </p>
         </div>
         <button
@@ -189,7 +192,7 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
                 </select>
               </div>
               {selectedServiceCode && (
-                <ServiceDepartments activeCompany={activeCompany} serviceCode={selectedServiceCode} showToast={showToast} />
+                <ServiceDepartments activeCompany={activeCompany} serviceCode={selectedServiceCode} currentUser={currentUser} showToast={showToast} />
               )}
             </>
           ) : (
@@ -271,11 +274,9 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
             </select>
           </div>
           <div>
-            <label htmlFor="employee-access-role" style={labelStyle}>Team Role *</label>
-            <select id="employee-access-role" value={newEmployee.accessRole} onChange={(event) => setNewEmployee({ ...newEmployee, accessRole: event.target.value })} style={inputStyle}>
-              {ROLE_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-            </select>
-            <small style={{ display: 'block', marginTop: '0.3rem', color: '#64748b' }}>Each service can have only one Service Head.</small>
+            <label htmlFor="employee-access-role" style={labelStyle}>Team Role</label>
+            <input id="employee-access-role" value="Employee" readOnly style={inputStyle} />
+            <small style={{ display: 'block', marginTop: '0.3rem', color: '#64748b' }}>Create Team Leaders from the service team page so you can configure their service permissions.</small>
           </div>
           <div>
             <label htmlFor="employee-designation" style={labelStyle}>Job Designation</label>
@@ -300,14 +301,17 @@ export default function TeamModule({ activeCompany, showToast, initialSubTab }) 
           <p style={{ margin: 0, color: '#64748b' }}>Choose one service for {employeeToAssign?.name}. Their workspace will be limited to that service&apos;s company-approved modules.</p>
           <div>
             <label htmlFor="existing-employee-service" style={labelStyle}>Service *</label>
-            <select id="existing-employee-service" required value={assignment.serviceCode} onChange={(event) => setAssignment({ ...assignment, serviceCode: event.target.value })} style={inputStyle}>
+            <select id="existing-employee-service" required value={assignment.serviceCode} onChange={(event) => setAssignment({ ...assignment, serviceCode: event.target.value, accessRole: event.target.value === employeeToAssign?.serviceCode ? assignment.accessRole : 'EMPLOYEE' })} style={inputStyle}>
               {services.map((service) => <option key={service.serviceId || service.id} value={service.code}>{service.name}</option>)}
             </select>
           </div>
           <div>
             <label htmlFor="existing-employee-role" style={labelStyle}>Team Role *</label>
             <select id="existing-employee-role" value={assignment.accessRole} onChange={(event) => setAssignment({ ...assignment, accessRole: event.target.value })} style={inputStyle}>
-              {ROLE_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+              {ROLE_OPTIONS.filter((role) => role.value === 'EMPLOYEE' || (
+                assignment.serviceCode === employeeToAssign?.serviceCode &&
+                employeeToAssign?.accessRole === 'TEAM_LEADER'
+              )).map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem' }}>

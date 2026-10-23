@@ -24,7 +24,7 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
     orders: '/sales/orders',
     quotes: '/sales/quotations',
     proforma: '/sales/proforma',
-    departments: '/services/crm-sales/departments',
+    departments: '/services/crm-sales/service-team',
   };
 
   const [activeTab, setActiveTab] = useState(initialSubTab || 'orders');
@@ -369,7 +369,7 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
           }}
         >
           <span>🏢</span>
-          <span>Departments</span>
+          <span>Service Team</span>
         </button>
       </div>
 

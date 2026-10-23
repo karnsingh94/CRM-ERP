@@ -16,7 +16,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
     all: '/products',
     categories: '/products/categories',
     pricing: '/products/pricing',
-    departments: '/services/crm-sales/departments',
+    departments: '/services/crm-sales/service-team',
   };
 
   const [activeTab, setActiveTab] = useState(initialSubTab || 'all');
@@ -209,7 +209,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
           }}
         >
           <span>🏢</span>
-          <span>Departments</span>
+          <span>Service Team</span>
         </button>
       </div>
 

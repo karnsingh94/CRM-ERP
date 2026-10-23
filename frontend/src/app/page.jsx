@@ -96,11 +96,15 @@ export default function RootHomePage() {
     return <SuperAdminPortal initialTab="dashboard" />;
   }
 
+  if (currentUser?.role === 'TEAM_LEADER') {
+    return <CompanyAdminPortal initialTab="dashboard" />;
+  }
+
   if (currentUser?.role === 'DEPARTMENT_HEAD' || currentUser?.role === 'SERVICE_HEAD') {
     return <DepartmentHeadDashboardFeature />;
   }
 
-  if (currentUser?.role === 'TEAM_LEADER' || currentUser?.role === 'EMPLOYEE') {
+  if (currentUser?.role === 'EMPLOYEE') {
     return <EmployeeDashboardFeature />;
   }
 
