@@ -340,17 +340,40 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
                 message: 'Access denied: this feature is not assigned to your role.',
               });
             }
-          }
-          if (
-            (isDepartmentHead || isTeamLeader) &&
-            !['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
-            employee.permissions?.manageServiceRecords !== true
-          ) {
-            return res.status(403).json({
-              success: false,
-              code: 'TEAM_PERMISSION_REQUIRED',
-              message: 'Access denied: your role does not have permission to manage service records.',
-            });
+            if (
+              !['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
+              employee.permissions?.manageServiceRecords !== true
+            ) {
+              return res.status(403).json({
+                success: false,
+                code: 'TEAM_PERMISSION_REQUIRED',
+                message: 'Access denied: your role does not have permission to manage service records.',
+              });
+            }
+          } else {
+            // Regular EMPLOYEE:
+            // All team members can VIEW records (GET), but only assigned members can PERFORM WORK / MUTATIONS
+            if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+              const featureAccess = employee.permissions?.featureAccess || {};
+              const permittedModuleIds = Array.isArray(featureAccess.moduleIds)
+                ? featureAccess.moduleIds.map(String)
+                : [];
+              const permittedSubModuleIds = Array.isArray(featureAccess.subModuleIds)
+                ? featureAccess.subModuleIds.map(String)
+                : [];
+              if (permittedModuleIds.length > 0 || permittedSubModuleIds.length > 0) {
+                const hasFeatureAccess =
+                  permittedModuleIds.includes(subModule.moduleId.toString()) ||
+                  permittedSubModuleIds.includes(subModule.id.toString());
+                if (!hasFeatureAccess) {
+                  return res.status(403).json({
+                    success: false,
+                    code: 'EMPLOYEE_FEATURE_RESTRICTED',
+                    message: `Access denied: You have view-only access to "${subModule.name}". Modification rights are not assigned to your account.`,
+                  });
+                }
+              }
+            }
           }
         }
 

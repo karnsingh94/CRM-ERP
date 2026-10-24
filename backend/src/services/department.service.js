@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { formatEmployee, formatDepartment } from '../utils/formatters.js';
 import { hashPassword } from '../utils/hash.js';
 import auditService from './audit.service.js';
-import { validateTeamPermissions } from '../utils/team-permissions.js';
+import { validateTeamPermissions, normalizeTeamPermissions } from '../utils/team-permissions.js';
 import { isUuid } from '../utils/uuid.js';
 
 function isValidWorkEmail(value) {
@@ -113,7 +113,7 @@ async function getAvailableServiceModules(companyId, service, serviceAccess) {
 
 function validateFeatureAccess(permissions, availableModules) {
   const featureAccess = permissions?.featureAccess || { moduleIds: [], subModuleIds: [] };
-  const moduleIds = new Set(availableModules.filter((module) => module.fullAccess).map((module) => module.id));
+  const moduleIds = new Set(availableModules.map((module) => module.id));
   const subModuleIds = new Set(availableModules.flatMap((module) => module.subModules.map((subModule) => subModule.id)));
   return featureAccess.moduleIds.every((id) => moduleIds.has(id)) &&
     featureAccess.subModuleIds.every((id) => subModuleIds.has(id));
@@ -268,7 +268,7 @@ export const departmentService = {
     }
 
     const requestedPermissions = accessRole === 'EMPLOYEE'
-      ? null
+      ? (data.permissions ? normalizeTeamPermissions(data.permissions) : null)
       : validateTeamPermissions(data.permissions);
     if (accessRole !== 'EMPLOYEE' && (!requestedPermissions || !data.permissions?.featureAccess)) {
       throw serviceError('Permissions must include explicit management actions and feature access.', 400);
@@ -1284,7 +1284,9 @@ export const departmentService = {
       requestedTeamId = team.id.toString();
     }
 
-    const normalizedPermissions = accessRole === 'EMPLOYEE' ? null : validateTeamPermissions(permissions);
+    const normalizedPermissions = accessRole === 'EMPLOYEE'
+      ? (permissions ? normalizeTeamPermissions(permissions) : null)
+      : validateTeamPermissions(permissions);
     if (accessRole !== 'EMPLOYEE' && (!normalizedPermissions || !permissions?.featureAccess)) {
       throw serviceError('Team Leader permissions must include explicit team actions and feature access.', 400);
     }
@@ -1292,7 +1294,7 @@ export const departmentService = {
       normalizedPermissions,
       await getAvailableServiceModules(cid, service, serviceAccess)
     )) {
-      throw serviceError('Team Leader feature permissions must be within the company-approved service access.', 400);
+      throw serviceError('Feature permissions must be within the company-approved service access.', 400);
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -1313,7 +1315,7 @@ export const departmentService = {
           data: { headEmployeeId: null },
         });
       }
-      if (moving || (targetTeam.headEmployeeId === eid && accessRole === 'EMPLOYEE')) {
+      if (moving && !normalizedPermissions) {
         await tx.companyEmployee.update({
           where: { id: eid },
           data: { permissions: null },
@@ -1354,8 +1356,70 @@ export const departmentService = {
       action: 'UPDATE',
       entityType: 'COMPANY_EMPLOYEE',
       entityId: updated.id,
-      newValue: { service: service.code, accessRole },
+      newValue: { service: service.code, accessRole, permissions: normalizedPermissions },
       reason: `Assigned employee "${updated.name}" to ${service.name} as ${accessRole}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return formatEmployee(updated);
+  },
+
+  /**
+   * Update work / service permissions for an existing employee in a team
+   */
+  async updateEmployeePermissions(companyId, employeeId, data, meta = {}, actor = null) {
+    const cid = String(companyId);
+    const eid = parseEntityId(employeeId, 'Employee');
+    const employee = await prisma.companyEmployee.findFirst({
+      where: { id: eid, companyId: cid },
+      include: {
+        team: { include: { service: true } },
+        department: { include: { service: true } },
+      },
+    });
+    if (!employee) {
+      throw serviceError('Employee not found for this company.', 404);
+    }
+
+    const service = employee.team?.service || employee.department?.service;
+    if (!service) {
+      throw serviceError('Employee is not associated with an active service department.', 400);
+    }
+    const serviceAccess = await prisma.clientServiceAccess.findFirst({
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
+    });
+    if (!serviceAccess) {
+      throw serviceError('The service is not assigned to this company.', 403);
+    }
+
+    const availableModules = await getAvailableServiceModules(cid, service, serviceAccess);
+    const normalizedPermissions = normalizeTeamPermissions(data.permissions);
+
+    if (
+      normalizedPermissions &&
+      !validateFeatureAccess(normalizedPermissions, availableModules)
+    ) {
+      throw serviceError('Feature permissions must be within the company-approved service access.', 400);
+    }
+
+    const updated = await prisma.companyEmployee.update({
+      where: { id: eid },
+      data: {
+        permissions: normalizedPermissions,
+      },
+      include: {
+        department: { include: { service: true } },
+        team: { include: { service: true } },
+      },
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: updated.id,
+      newValue: { permissions: normalizedPermissions },
+      reason: `Updated work permissions for employee "${updated.name}"`,
       ipAddress: meta.ip,
       userAgent: meta.userAgent,
     });

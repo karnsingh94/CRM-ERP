@@ -236,9 +236,14 @@ export default function ServiceDepartments({
     permissions: EMPTY_PERMISSIONS,
   });
   const [showEmployeePassword, setShowEmployeePassword] = useState(false);
-
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
+
+  // Edit employee permissions modal
+  const [editingEmployeeForPerms, setEditingEmployeeForPerms] = useState(null);
+  const [editPermTree, setEditPermTree] = useState({ services: [] });
+  const [editEmployeePerms, setEditEmployeePerms] = useState(EMPTY_PERMISSIONS);
+  const [isUpdatingPerms, setIsUpdatingPerms] = useState(false);
 
   // Access Roles
   const isAdmin = currentUser?.role === 'COMPANY_ADMIN';
@@ -561,6 +566,20 @@ export default function ServiceDepartments({
     }
     setIsCreatingEmployee(true);
     try {
+      const featureAccess = getEmployeeFeatureAccess(
+        employeePermissionTree,
+        availableModules,
+        teamData?.service?.id
+      );
+      const computedPermissions = newEmployee.isTeamLeader
+        ? { ...newEmployee.permissions, featureAccess }
+        : {
+          ...EMPTY_PERMISSIONS,
+          updateWork: true,
+          manageServiceRecords: true,
+          featureAccess,
+        };
+
       const response = await api.post(`/companies/${activeCompany.id}/employees`, {
         name: newEmployee.name.trim(),
         email: newEmployee.email.trim().toLowerCase(),
@@ -570,7 +589,7 @@ export default function ServiceDepartments({
         teamId: selectedTeam.id,
         serviceCode: normalizedCode,
         accessRole: newEmployee.isTeamLeader ? 'TEAM_LEADER' : 'EMPLOYEE',
-        permissions: newEmployee.isTeamLeader ? newEmployee.permissions : undefined,
+        permissions: computedPermissions,
       });
       setTeamData((previous) => ({
         ...previous,
@@ -592,6 +611,57 @@ export default function ServiceDepartments({
       showToast?.('Employee Not Added', createError.message || 'Could not add this employee.', 'danger');
     } finally {
       setIsCreatingEmployee(false);
+    }
+  };
+
+  // ==================== EDIT EMPLOYEE PERMISSIONS ====================
+  const handleOpenEditPermissions = (employee) => {
+    setEditingEmployeeForPerms(employee);
+    const perms = employee.permissions || EMPTY_PERMISSIONS;
+    setEditEmployeePerms(perms);
+    const tree = buildTreeFromEmployeePermissions(perms, availableModules, teamData?.service?.id);
+    setEditPermTree(tree);
+  };
+
+  const handleSaveEmployeePermissions = async () => {
+    if (!editingEmployeeForPerms) return;
+    setIsUpdatingPerms(true);
+    setActionError('');
+    try {
+      const featureAccess = getEmployeeFeatureAccess(
+        editPermTree,
+        availableModules,
+        teamData?.service?.id
+      );
+      const finalPermissions = {
+        ...editEmployeePerms,
+        updateWork: true,
+        manageServiceRecords: true,
+        featureAccess,
+      };
+      const response = await api.put(
+        `/companies/${activeCompany.id}/employees/${editingEmployeeForPerms.id}/permissions`,
+        { permissions: finalPermissions }
+      );
+      setTeamData((prev) => ({
+        ...prev,
+        teams: (prev?.teams || []).map((t) => {
+          if (!t.employees) return t;
+          return {
+            ...t,
+            employees: t.employees.map((emp) =>
+              emp.id === editingEmployeeForPerms.id ? { ...emp, permissions: response.data?.permissions || finalPermissions } : emp
+            ),
+          };
+        }),
+      }));
+      showToast?.('Permissions Updated', `Work permissions updated for ${editingEmployeeForPerms.name}.`, 'success');
+      setEditingEmployeeForPerms(null);
+    } catch (err) {
+      setActionError(err.message || 'Could not update employee permissions.');
+      showToast?.('Update Failed', err.message || 'Could not update employee permissions.', 'danger');
+    } finally {
+      setIsUpdatingPerms(false);
     }
   };
 
@@ -640,6 +710,98 @@ export default function ServiceDepartments({
       })),
     }]
     : [];
+
+  const renderEmployeeAssignedBadges = (employee) => {
+    if (employee.accessRole === 'TEAM_LEADER') {
+      return (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.3rem',
+          padding: '0.2rem 0.55rem',
+          borderRadius: '9999px',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          background: '#fef3c7',
+          color: '#b45309',
+          border: '1px solid #fde68a',
+          whiteSpace: 'nowrap',
+        }}>
+          👑 All Team Scopes
+        </span>
+      );
+    }
+
+    const perms = employee.permissions?.featureAccess;
+    const modIds = perms?.moduleIds || [];
+    const subIds = perms?.subModuleIds || [];
+
+    if (modIds.length === 0 && subIds.length === 0) {
+      return (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.3rem',
+          padding: '0.2rem 0.55rem',
+          borderRadius: '9999px',
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          background: '#f8fafc',
+          color: '#64748b',
+          border: '1px solid #e2e8f0',
+          whiteSpace: 'nowrap',
+        }}>
+          🔒 View Only
+        </span>
+      );
+    }
+
+    const assignedBadges = [];
+    (availableModules || []).forEach((mod) => {
+      if (modIds.includes(String(mod.id))) {
+        assignedBadges.push({ name: mod.name, isModule: true });
+      } else {
+        (mod.subModules || []).forEach((sub) => {
+          if (subIds.includes(String(sub.id))) {
+            assignedBadges.push({ name: sub.name, isModule: false });
+          }
+        });
+      }
+    });
+
+    if (assignedBadges.length === 0) {
+      return (
+        <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+          🔒 View Only
+        </span>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxWidth: '260px' }}>
+        {assignedBadges.map((badge, idx) => (
+          <span
+            key={idx}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.15rem 0.45rem',
+              borderRadius: '6px',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              background: '#f5f0ff',
+              color: '#7f22fe',
+              border: '1px solid #ddd6fe',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {badge.name}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -1789,52 +1951,101 @@ export default function ServiceDepartments({
                   )}
                 </label>
 
-                {newEmployee.isTeamLeader && (
-                  <div style={{ gridColumn: '1 / -1', padding: '0.9rem', border: '1px solid #ddd6fe', borderRadius: '9px', background: '#ffffff' }}>
-                    <h4 style={{ margin: '0 0 0.45rem', color: '#0f172a', fontSize: '0.95rem', fontWeight: 800 }}>
-                      Team Leader Permissions (Hierarchy Tree)
-                    </h4>
-                    <p style={{ margin: '0 0 0.75rem', color: '#64748b', fontSize: '0.82rem' }}>
-                      Choose modules and screens this Team Leader can access within {departmentName}.
-                    </p>
-                    <PermissionHierarchyTree
-                      catalog={permissionCatalog}
-                      value={employeePermissionTree}
-                      fixedServiceId={teamData?.service?.id}
-                      onChange={(tree) => {
-                        setEmployeePermissionTree(tree);
-                        setNewEmployee((previous) => ({
-                          ...previous,
-                          permissions: {
-                            ...previous.permissions,
-                            featureAccess: getEmployeeFeatureAccess(
-                              tree,
-                              availableModules,
-                              teamData?.service?.id
-                            ),
-                          },
-                        }));
-                      }}
-                    />
+                {/* Assigned Work & Feature Access Section (Shown for ALL employees) */}
+                <div style={{ gridColumn: '1 / -1', padding: '1rem', border: '1px solid #ddd6fe', borderRadius: '12px', background: '#fdfcfe' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.65rem' }}>
+                    <div>
+                      <h4 style={{ margin: 0, color: '#0f172a', fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                        <span>{newEmployee.isTeamLeader ? '👑 Team Leader Scopes & Permissions' : '🛠️ Assigned Work & Services (काम / सर्विस असाइन करें)'}</span>
+                      </h4>
+                      <p style={{ margin: '0.3rem 0 0', color: '#64748b', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                        {newEmployee.isTeamLeader
+                          ? `Select modules and screens this Team Leader can manage within ${departmentName}.`
+                          : `Select which module(s) this employee will work on (e.g. Leads, Customers, Contacts, Opportunities). They can view all records for team visibility, but can only create & edit the assigned modules.`}
+                      </p>
+                    </div>
 
-                    <h5 style={{ margin: '0.8rem 0 0.45rem', color: '#0f172a', fontSize: '0.85rem' }}>
-                      Team Action Permissions
-                    </h5>
-                    {TEAM_PERMISSION_LABELS.map(([key, label]) => (
-                      <label key={key} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', margin: '0.4rem 0', color: '#334155', fontSize: '0.82rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={newEmployee.permissions[key]}
-                          onChange={(event) => setNewEmployee((previous) => ({
-                            ...previous,
-                            permissions: { ...previous.permissions, [key]: event.target.checked },
-                          }))}
-                        />
-                        <span>{label}</span>
-                      </label>
-                    ))}
+                    {/* Quick action buttons */}
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const tree = {
+                            services: [
+                              {
+                                service_id: String(teamData?.service?.id),
+                                full_service: true,
+                                modules: (availableModules || []).map((m) => ({
+                                  module_id: String(m.id),
+                                  access_mode: 'FULL',
+                                  sub_module_ids: (m.subModules || []).map((s) => String(s.id)),
+                                })),
+                              },
+                            ],
+                          };
+                          setEmployeePermissionTree(tree);
+                        }}
+                        style={{
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          background: '#f5f0ff',
+                          color: '#7f22fe',
+                          border: '1px solid #c4b5fd',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        🌟 Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEmployeePermissionTree({ services: [] })}
+                        style={{
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          background: '#f8fafc',
+                          color: '#64748b',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Clear All
+                      </button>
+                    </div>
                   </div>
-                )}
+
+                  <PermissionHierarchyTree
+                    catalog={permissionCatalog}
+                    value={employeePermissionTree}
+                    fixedServiceId={teamData?.service?.id}
+                    onChange={(tree) => setEmployeePermissionTree(tree)}
+                  />
+
+                  {/* If Team Leader, also show Action checkboxes */}
+                  {newEmployee.isTeamLeader && (
+                    <div style={{ marginTop: '0.9rem', paddingTop: '0.8rem', borderTop: '1px solid #e2e8f0' }}>
+                      <h5 style={{ margin: '0 0 0.45rem', color: '#0f172a', fontSize: '0.85rem', fontWeight: 700 }}>
+                        Team Leader Management Actions
+                      </h5>
+                      {TEAM_PERMISSION_LABELS.map(([key, label]) => (
+                        <label key={key} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', margin: '0.4rem 0', color: '#334155', fontSize: '0.82rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={newEmployee.permissions[key]}
+                            onChange={(event) => setNewEmployee((previous) => ({
+                              ...previous,
+                              permissions: { ...previous.permissions, [key]: event.target.checked },
+                            }))}
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '0.65rem' }}>
                   <button
@@ -1928,6 +2139,7 @@ export default function ServiceDepartments({
                       <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Login ID / Phone</th>
                       <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Team Role</th>
                       <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Designation</th>
+                      <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Assigned Work / Modules</th>
                       <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Status</th>
                       {canManageMembers && <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Actions</th>}
                     </tr>
@@ -1966,6 +2178,9 @@ export default function ServiceDepartments({
                         <td style={{ padding: '0.8rem 1rem', color: '#475569', whiteSpace: 'nowrap' }}>
                           {employee.role || 'Member'}
                         </td>
+                        <td style={{ padding: '0.8rem 1rem' }}>
+                          {renderEmployeeAssignedBadges(employee)}
+                        </td>
                         <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
                           <button
                             type="button"
@@ -1994,6 +2209,27 @@ export default function ServiceDepartments({
                         {canManageMembers && (
                           <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditPermissions(employee)}
+                                title="Edit work modules & permissions for this employee"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  padding: '0.3rem 0.65rem',
+                                  border: '1px solid #c4b5fd',
+                                  borderRadius: '6px',
+                                  color: '#7f22fe',
+                                  background: '#ffffff',
+                                  fontWeight: 700,
+                                  fontSize: '0.76rem',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <span>🛠️</span> Permissions
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleToggleEmployeeStatus(employee)}
@@ -2038,7 +2274,7 @@ export default function ServiceDepartments({
                     ))}
                     {!selectedTeam?.employees?.length && (
                       <tr>
-                        <td colSpan={canManageMembers ? 6 : 5} style={{ padding: '2rem', color: '#64748b', textAlign: 'center' }}>
+                        <td colSpan={canManageMembers ? 7 : 6} style={{ padding: '2rem', color: '#64748b', textAlign: 'center' }}>
                           No employees are assigned to {selectedTeam.name} yet. Click <strong>+ Add Employee</strong> above to add members.
                         </td>
                       </tr>
@@ -2063,6 +2299,211 @@ export default function ServiceDepartments({
           </div>
         )}
       </div>
+
+      {/* ==================== EDIT EMPLOYEE PERMISSIONS MODAL ==================== */}
+      {editingEmployeeForPerms && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '1rem',
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            maxWidth: '680px',
+            width: '100%',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+            overflow: 'hidden',
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.2rem 1.5rem',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#f8fafc',
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>
+                  Update Permissions: {editingEmployeeForPerms.name}
+                </h3>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                  {editingEmployeeForPerms.accessRole === 'TEAM_LEADER'
+                    ? 'Configure service modules and management permissions for this Team Leader.'
+                    : 'Assign the specific modules/services this employee works on. Other modules remain visible in view-only mode.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingEmployeeForPerms(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.25rem',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: '0.2rem',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {actionError && (
+                <div style={{ padding: '0.75rem 1rem', borderRadius: '8px', background: '#fef2f2', color: '#991b1b', fontSize: '0.82rem', border: '1px solid #fecaca' }}>
+                  {actionError}
+                </div>
+              )}
+
+              {/* Quick Select Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>
+                  Service Modules &amp; Submodules:
+                </span>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tree = {
+                        services: [
+                          {
+                            service_id: String(teamData?.service?.id),
+                            full_service: true,
+                            modules: (availableModules || []).map((m) => ({
+                              module_id: String(m.id),
+                              access_mode: 'FULL',
+                              sub_module_ids: (m.subModules || []).map((s) => String(s.id)),
+                            })),
+                          },
+                        ],
+                      };
+                      setEditPermTree(tree);
+                    }}
+                    style={{
+                      padding: '0.25rem 0.6rem',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      background: '#f5f0ff',
+                      color: '#7f22fe',
+                      border: '1px solid #c4b5fd',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🌟 Select All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditPermTree({ services: [] })}
+                    style={{
+                      padding: '0.25rem 0.6rem',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      background: '#f8fafc',
+                      color: '#64748b',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              <PermissionHierarchyTree
+                catalog={permissionCatalog}
+                value={editPermTree}
+                fixedServiceId={teamData?.service?.id}
+                onChange={(tree) => setEditPermTree(tree)}
+              />
+
+              {/* Team Leader Action Checkboxes if Team Leader */}
+              {editingEmployeeForPerms.accessRole === 'TEAM_LEADER' && (
+                <div style={{ marginTop: '0.5rem', paddingTop: '0.8rem', borderTop: '1px solid #e2e8f0' }}>
+                  <h5 style={{ margin: '0 0 0.45rem', color: '#0f172a', fontSize: '0.85rem', fontWeight: 700 }}>
+                    Team Leader Action Permissions
+                  </h5>
+                  {TEAM_PERMISSION_LABELS.map(([key, label]) => (
+                    <label key={key} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', margin: '0.4rem 0', color: '#334155', fontSize: '0.82rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={editEmployeePerms[key]}
+                        onChange={(event) => setEditEmployeePerms((previous) => ({
+                          ...previous,
+                          [key]: event.target.checked,
+                        }))}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.75rem',
+              padding: '1rem 1.5rem',
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc',
+            }}>
+              <button
+                type="button"
+                onClick={() => setEditingEmployeeForPerms(null)}
+                disabled={isUpdatingPerms}
+                style={{
+                  padding: '0.55rem 1.15rem',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEmployeePermissions}
+                disabled={isUpdatingPerms}
+                style={{
+                  padding: '0.55rem 1.25rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#7f22fe',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  cursor: isUpdatingPerms ? 'wait' : 'pointer',
+                  boxShadow: '0 2px 6px rgba(127, 34, 254, 0.3)',
+                }}
+              >
+                {isUpdatingPerms ? 'Saving...' : 'Save Permissions'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

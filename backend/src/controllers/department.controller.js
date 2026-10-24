@@ -46,6 +46,24 @@ export const departmentController = {
     }
   },
 
+  async updateEmployeePermissions(req, res, next) {
+    try {
+      const employee = await departmentService.updateEmployeePermissions(
+        req.params.companyId,
+        req.params.employeeId,
+        req.body,
+        req.meta || {},
+        req.user
+      );
+      res.json({ success: true, data: employee });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
   async toggleCompanyEmployeeStatus(req, res, next) {
     try {
       const employee = await departmentService.toggleCompanyEmployeeStatus(
