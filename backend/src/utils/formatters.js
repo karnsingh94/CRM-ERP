@@ -146,6 +146,7 @@ export function formatEmployee(e) {
     departmentName: e.team?.name || e.team?.service?.name || e.department?.name || null,
     name: e.name,
     email: e.email,
+    phone: e.phone || null,
     role: e.role,
     accessRole:
       e.accessRole === 'DEPARTMENT_HEAD' || e.accessRole === 'SERVICE_HEAD'

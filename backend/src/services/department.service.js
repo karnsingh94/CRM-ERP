@@ -200,6 +200,7 @@ export const departmentService = {
 
     const name = typeof data.name === 'string' ? data.name.trim() : '';
     const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
+    const phone = typeof data.phone === 'string' && data.phone.trim() ? data.phone.trim() : null;
     const password = data.password;
     const serviceCode = data.serviceCode || data.serviceId;
     const accessRole = data.accessRole || 'EMPLOYEE';
@@ -217,9 +218,10 @@ export const departmentService = {
       !isValidWorkEmail(email) ||
       password.length > 128 ||
       designation.length > 100 ||
-      (designation && !/^[\p{L}\p{M}\p{N}\s&.,'’()/+-]*$/u.test(designation))
+      (designation && !/^[\p{L}\p{M}\p{N}\s&.,'’()/+-]*$/u.test(designation)) ||
+      (phone && !/^[0-9+() -]{7,25}$/.test(phone))
     ) {
-      const error = new Error('Enter a valid employee name, work email, job designation, and password.');
+      const error = new Error('Enter a valid employee name, work email, phone number, job designation, and password.');
       error.statusCode = 400;
       throw error;
     }
@@ -295,6 +297,7 @@ export const departmentService = {
             teamId: null,
             name,
             email,
+            phone,
             role: designation || 'Department Head',
             accessRole: 'DEPARTMENT_HEAD',
             permissions: requestedPermissions,
@@ -367,6 +370,7 @@ export const departmentService = {
             teamId: team.id,
             name,
             email,
+            phone,
             role: designation || 'Team Member',
             accessRole: accessRole === 'SERVICE_HEAD' ? 'TEAM_LEADER' : accessRole,
             permissions: requestedPermissions,
@@ -407,10 +411,11 @@ export const departmentService = {
       newValue: {
         name: employee.name,
         email: employee.email,
+        phone: employee.phone || null,
         role: employee.role,
         accessRole: employee.accessRole,
         service: service.code,
-        teamId: employee.teamId.toString(),
+        teamId: employee.teamId ? employee.teamId.toString() : null,
         teamName: employee.team?.name || null,
         permissions: employee.permissions,
         companyId: cid.toString(),

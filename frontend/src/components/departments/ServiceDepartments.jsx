@@ -26,6 +26,53 @@ const DEFAULT_DEPT_HEAD_PERMISSIONS = {
   featureAccess: { moduleIds: [], subModuleIds: [] },
 };
 
+const IconEye = ({ size = 15, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const IconEyeOff = ({ size = 15, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="23" x2="23" y2="1" />
+  </svg>
+);
+
+const DEPT_HEAD_PERMISSION_CONFIG = [
+  {
+    key: 'manageTeams',
+    title: 'Teams & Team Heads',
+    desc: 'Create and configure department teams, assign Team Leaders, and manage hierarchy.',
+    icon: '👥',
+  },
+  {
+    key: 'manageMembers',
+    title: 'Department Employees',
+    desc: 'Add, view, manage, and assign employees across all teams in this department.',
+    icon: '👤',
+  },
+  {
+    key: 'assignWork',
+    title: 'Work Assignment',
+    desc: 'Create, allocate, and distribute tasks and projects to department employees.',
+    icon: '📋',
+  },
+  {
+    key: 'updateWork',
+    title: 'Work Tracking & Status',
+    desc: 'Update progress, track milestones, and oversee execution of department work.',
+    icon: '📈',
+  },
+  {
+    key: 'manageServiceRecords',
+    title: 'Module Records Access',
+    desc: 'Create, edit, and update records and transactions within permitted modules.',
+    icon: '⚡',
+  },
+];
+
 const DEPT_HEAD_PERMISSION_LABELS = [
   ['manageTeams', 'Create and configure department teams and Team Heads'],
   ['manageMembers', 'Add and manage department employees & members'],
@@ -118,20 +165,24 @@ export default function ServiceDepartments({
   const [newDeptHead, setNewDeptHead] = useState({
     name: '',
     email: '',
+    phone: '',
     role: '',
     password: '',
     permissions: DEFAULT_DEPT_HEAD_PERMISSIONS,
   });
+  const [showDeptHeadPassword, setShowDeptHeadPassword] = useState(false);
 
   const [employeePermissionTree, setEmployeePermissionTree] = useState({ services: [] });
   const [newEmployee, setNewEmployee] = useState({
     name: '',
     email: '',
+    phone: '',
     role: '',
     password: '',
     isTeamLeader: false,
     permissions: EMPTY_PERMISSIONS,
   });
+  const [showEmployeePassword, setShowEmployeePassword] = useState(false);
 
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
@@ -179,10 +230,12 @@ export default function ServiceDepartments({
     setNewDeptHead({
       name: '',
       email: '',
+      phone: '',
       role: '',
       password: '',
       permissions: DEFAULT_DEPT_HEAD_PERMISSIONS,
     });
+    setShowDeptHeadPassword(false);
   };
 
   const resetEmployeeForm = () => {
@@ -190,18 +243,20 @@ export default function ServiceDepartments({
     setNewEmployee({
       name: '',
       email: '',
+      phone: '',
       role: '',
       password: '',
       isTeamLeader: false,
       permissions: EMPTY_PERMISSIONS,
     });
+    setShowEmployeePassword(false);
   };
 
   // ==================== CREATE DEPARTMENT HEAD ====================
   const handleCreateDeptHead = async (event) => {
     event.preventDefault();
     setActionError('');
-    const validationError = validateEmployeeForm(newDeptHead);
+    const validationError = validateEmployeeForm(newDeptHead, { requirePhone: true });
     if (validationError) {
       setActionError(validationError);
       return;
@@ -214,6 +269,7 @@ export default function ServiceDepartments({
         {
           name: newDeptHead.name.trim(),
           email: newDeptHead.email.trim().toLowerCase(),
+          phone: newDeptHead.phone.trim(),
           role: newDeptHead.role.trim() || 'Department Head',
           password: newDeptHead.password,
           permissions: newDeptHead.permissions,
@@ -290,6 +346,7 @@ export default function ServiceDepartments({
       const response = await api.post(`/companies/${activeCompany.id}/employees`, {
         name: newEmployee.name.trim(),
         email: newEmployee.email.trim().toLowerCase(),
+        phone: newEmployee.phone?.trim() || undefined,
         role: newEmployee.role.trim() || 'Team Member',
         password: newEmployee.password,
         teamId: selectedTeam.id,
@@ -458,9 +515,12 @@ export default function ServiceDepartments({
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem' }}>
-            <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
-              Full Name *
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.9rem' }}>
+            {/* Full Name */}
+            <div>
+              <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                Full Name *
+              </label>
               <input
                 required
                 maxLength={100}
@@ -472,10 +532,13 @@ export default function ServiceDepartments({
                 }}
                 style={fieldStyle}
               />
-            </label>
+            </div>
 
-            <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
-              Login ID / Work Email *
+            {/* Login Email */}
+            <div>
+              <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                Login ID / Work Email *
+              </label>
               <input
                 required
                 type="email"
@@ -488,10 +551,48 @@ export default function ServiceDepartments({
                 }}
                 style={fieldStyle}
               />
-            </label>
+            </div>
 
-            <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
-              Designation
+            {/* Mobile / Phone Number */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
+                  Mobile / Phone Number *
+                </label>
+                <span style={{ fontSize: '0.73rem', color: (newDeptHead.phone || '').length === 10 ? '#16a34a' : '#64748b', fontWeight: 600 }}>
+                  {(newDeptHead.phone || '').length} / 10 digits
+                </span>
+              </div>
+              <input
+                required
+                type="tel"
+                maxLength={10}
+                placeholder="e.g. 9876543210 (10 digits)"
+                value={newDeptHead.phone || ''}
+                onChange={(e) => {
+                  setActionError('');
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setNewDeptHead((prev) => ({ ...prev, phone: val }));
+                }}
+                style={fieldStyle}
+              />
+              {newDeptHead.phone && newDeptHead.phone.length > 0 && !/^[6-9]/.test(newDeptHead.phone) && (
+                <div style={{ fontSize: '0.74rem', color: '#ef4444', marginTop: '0.25rem', fontWeight: 600 }}>
+                  ⚠️ Must start with 6, 7, 8, or 9 (starts with 5 or below rejected)
+                </div>
+              )}
+              {newDeptHead.phone && newDeptHead.phone.length > 0 && newDeptHead.phone.length < 10 && /^[6-9]/.test(newDeptHead.phone) && (
+                <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.25rem' }}>
+                  Enter remaining {10 - newDeptHead.phone.length} digits
+                </div>
+              )}
+            </div>
+
+            {/* Designation */}
+            <div>
+              <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                Designation
+              </label>
               <input
                 maxLength={100}
                 placeholder="e.g. Head of Sales"
@@ -502,34 +603,109 @@ export default function ServiceDepartments({
                 }}
                 style={fieldStyle}
               />
-            </label>
+            </div>
+          </div>
 
-            <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
+          {/* Password with Show/Hide and SuperAdmin Live Validation */}
+          <div style={{ maxWidth: '440px' }}>
+            <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
               Password (8+ chars) *
+            </label>
+            <div style={{ position: 'relative' }}>
               <input
                 required
-                type="password"
+                type={showDeptHeadPassword ? 'text' : 'password'}
                 minLength={8}
                 maxLength={128}
-                placeholder="Enter login password"
+                placeholder="e.g. DeptHead@2026!"
                 value={newDeptHead.password}
                 onChange={(e) => {
                   setActionError('');
                   setNewDeptHead((prev) => ({ ...prev, password: e.target.value }));
                 }}
-                style={fieldStyle}
+                style={{ ...fieldStyle, paddingRight: '4.75rem', marginTop: 0 }}
               />
-            </label>
+              <button
+                type="button"
+                onClick={() => setShowDeptHeadPassword(!showDeptHeadPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '0.65rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.25rem 0.45rem',
+                  borderRadius: '6px',
+                  userSelect: 'none',
+                }}
+                title={showDeptHeadPassword ? 'Hide password' : 'Show password'}
+                aria-label={showDeptHeadPassword ? 'Hide password' : 'Show password'}
+              >
+                {showDeptHeadPassword ? <IconEyeOff size={15} /> : <IconEye size={15} />}
+                <span>{showDeptHeadPassword ? 'Hide' : 'Show'}</span>
+              </button>
+            </div>
+
+            {/* Live Password Rules Indicator */}
+            <div style={{
+              marginTop: '0.45rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.22rem',
+              fontSize: '0.73rem',
+              padding: '0.5rem 0.65rem',
+              borderRadius: '8px',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+            }}>
+              <span style={{
+                color: (newDeptHead.password || '').length >= 8 ? '#16a34a' : '#64748b',
+                fontWeight: (newDeptHead.password || '').length >= 8 ? 700 : 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}>
+                <span>{(newDeptHead.password || '').length >= 8 ? '✅' : '○'}</span> At least 8 characters
+              </span>
+              <span style={{
+                color: /[A-Z]/.test(newDeptHead.password || '') ? '#16a34a' : '#64748b',
+                fontWeight: /[A-Z]/.test(newDeptHead.password || '') ? 700 : 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}>
+                <span>{/[A-Z]/.test(newDeptHead.password || '') ? '✅' : '○'}</span> At least 1 uppercase letter (A-Z)
+              </span>
+              <span style={{
+                color: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? '#16a34a' : '#64748b',
+                fontWeight: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? 700 : 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}>
+                <span>{/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? '✅' : '○'}</span> At least 1 special character (!@#$%^&* etc.)
+              </span>
+            </div>
           </div>
 
           {/* Department Head Permissions Tree */}
-          <div style={{ padding: '1rem', border: '1px solid #ebdfff', borderRadius: '10px', background: '#ffffff' }}>
-            <h4 style={{ margin: '0 0 0.4rem', color: '#0f172a', fontSize: '0.92rem', fontWeight: 800 }}>
-              Module Access Permissions (Hierarchy Tree)
-            </h4>
-            <p style={{ margin: '0 0 0.8rem', color: '#64748b', fontSize: '0.82rem' }}>
-              Select <strong>Full Service</strong> for all company-approved modules in {departmentName}, or choose <strong>CUSTOM</strong> to grant access to specific screens.
-            </p>
+          <div style={{ padding: '1.1rem 1.25rem', border: '1px solid #ebdfff', borderRadius: '12px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <h4 style={{ margin: '0 0 0.35rem', color: '#0f172a', fontSize: '0.94rem', fontWeight: 800 }}>
+                Module Access Permissions (Hierarchy Tree)
+              </h4>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.82rem' }}>
+                Select <strong>Full Service</strong> for all company-approved modules in {departmentName}, or choose <strong>CUSTOM</strong> to grant access to specific screens.
+              </p>
+            </div>
 
             <PermissionHierarchyTree
               catalog={permissionCatalog}
@@ -547,30 +723,76 @@ export default function ServiceDepartments({
               }}
             />
 
-            <h4 style={{ margin: '1rem 0 0.5rem', color: '#0f172a', fontSize: '0.88rem', fontWeight: 800 }}>
-              Department Management Permissions
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.45rem' }}>
-              {DEPT_HEAD_PERMISSION_LABELS.map(([key, label]) => (
-                <label key={key} style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', color: '#334155', fontSize: '0.82rem', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={newDeptHead.permissions[key] !== false}
-                    onChange={(e) => setNewDeptHead((prev) => ({
-                      ...prev,
-                      permissions: { ...prev.permissions, [key]: e.target.checked },
-                    }))}
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
+            {/* Department Management Permissions Cards */}
+            <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <h4 style={{ margin: '0 0 0.25rem', color: '#0f172a', fontSize: '0.92rem', fontWeight: 800 }}>
+                  Department Management Permissions
+                </h4>
+                <p style={{ margin: 0, color: '#64748b', fontSize: '0.81rem' }}>
+                  Choose which administrative management actions this Department Head can perform in {departmentName}.
+                </p>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '0.75rem',
+              }}>
+                {DEPT_HEAD_PERMISSION_CONFIG.map(({ key, title, desc, icon }) => {
+                  const isChecked = newDeptHead.permissions[key] !== false;
+                  return (
+                    <label
+                      key={key}
+                      style={{
+                        display: 'flex',
+                        gap: '0.75rem',
+                        alignItems: 'flex-start',
+                        padding: '0.8rem 1rem',
+                        borderRadius: '10px',
+                        border: isChecked ? '1px solid #c4b5fd' : '1px solid #e2e8f0',
+                        background: isChecked ? '#faf5ff' : '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => setNewDeptHead((prev) => ({
+                          ...prev,
+                          permissions: { ...prev.permissions, [key]: e.target.checked },
+                        }))}
+                        style={{
+                          marginTop: '0.2rem',
+                          accentColor: '#7f22fe',
+                          width: '16px',
+                          height: '16px',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontSize: '1rem' }}>{icon}</span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{title}</span>
+                        </div>
+                        <span style={{ fontSize: '0.76rem', color: '#64748b', lineHeight: 1.4 }}>{desc}</span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.25rem' }}>
             <button
               type="button"
-              onClick={() => setShowCreateDeptHead(false)}
+              onClick={() => {
+                setShowCreateDeptHead(false);
+                resetDeptHeadForm();
+              }}
               style={{ padding: '0.62rem 1.15rem', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#475569', background: '#ffffff', fontWeight: 600, cursor: 'pointer' }}
             >
               Cancel
@@ -578,9 +800,21 @@ export default function ServiceDepartments({
             <button
               type="submit"
               disabled={isCreatingDeptHead}
-              style={{ padding: '0.62rem 1.35rem', border: 0, borderRadius: '8px', color: '#ffffff', background: isCreatingDeptHead ? '#94a3b8' : '#7f22fe', fontWeight: 700, cursor: isCreatingDeptHead ? 'wait' : 'pointer' }}
+              style={{
+                padding: '0.62rem 1.4rem',
+                border: 0,
+                borderRadius: '8px',
+                color: '#ffffff',
+                background: isCreatingDeptHead ? '#94a3b8' : '#7f22fe',
+                fontWeight: 700,
+                cursor: isCreatingDeptHead ? 'wait' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                boxShadow: '0 2px 6px rgba(127, 34, 254, 0.25)',
+              }}
             >
-              {isCreatingDeptHead ? 'Creating Department Head...' : 'Save Department Head'}
+              {isCreatingDeptHead ? 'Creating Department Head...' : '+ Create Department Head'}
             </button>
           </div>
         </form>
@@ -646,7 +880,14 @@ export default function ServiceDepartments({
                         <span>{head.name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '0.8rem 1rem', color: '#64748b' }}>{head.email}</td>
+                    <td style={{ padding: '0.8rem 1rem', color: '#64748b' }}>
+                      <div style={{ color: '#0f172a', fontWeight: 600 }}>{head.email}</div>
+                      {head.phone && (
+                        <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>📞</span> {head.phone}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ padding: '0.8rem 1rem', color: '#334155' }}>{head.role || 'Department Head'}</td>
                     <td style={{ padding: '0.8rem 1rem' }}>
                       <span style={{ padding: '0.2rem 0.55rem', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: '#f5f0ff', color: '#7f22fe', border: '1px solid #ebdfff' }}>
@@ -787,31 +1028,166 @@ export default function ServiceDepartments({
 
             {/* Form to add employee to team */}
             {showCreateEmployee && selectedTeam && (
-              <form onSubmit={handleCreateEmployee} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem', padding: '1rem 1.25rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
-                {[
-                  ['name', 'Employee name', 'text'],
-                  ['email', 'Login ID / work email', 'email'],
-                  ['role', 'Job designation', 'text'],
-                  ['password', 'Initial password (8+ characters)', 'password'],
-                ].map(([key, label, type]) => (
-                  <label key={key} style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
-                    {label}
-                    <input
-                      required={key !== 'role'}
-                      maxLength={key === 'name' ? 100 : key === 'email' ? 254 : key === 'role' ? 100 : key === 'password' ? 128 : undefined}
-                      minLength={key === 'password' ? 8 : undefined}
-                      autoComplete={key === 'name' ? 'name' : key === 'email' ? 'username' : key === 'password' ? 'new-password' : undefined}
-                      inputMode={key === 'email' ? 'email' : undefined}
-                      type={type}
-                      value={newEmployee[key]}
-                      onChange={(event) => {
-                        setActionError('');
-                        setNewEmployee((previous) => ({ ...previous, [key]: event.target.value }));
-                      }}
-                      style={fieldStyle}
-                    />
+              <form onSubmit={handleCreateEmployee} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', padding: '1.1rem 1.25rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
+                <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
+                  Employee Name *
+                  <input
+                    required
+                    maxLength={100}
+                    placeholder="e.g. Ramesh Kumar"
+                    value={newEmployee.name}
+                    onChange={(e) => {
+                      setActionError('');
+                      setNewEmployee((prev) => ({ ...prev, name: e.target.value }));
+                    }}
+                    style={fieldStyle}
+                  />
+                </label>
+
+                <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
+                  Login ID / Work Email *
+                  <input
+                    required
+                    type="email"
+                    maxLength={254}
+                    placeholder="e.g. ramesh@company.com"
+                    value={newEmployee.email}
+                    onChange={(e) => {
+                      setActionError('');
+                      setNewEmployee((prev) => ({ ...prev, email: e.target.value }));
+                    }}
+                    style={fieldStyle}
+                  />
+                </label>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
+                      Mobile / Phone Number
+                    </label>
+                    <span style={{ fontSize: '0.73rem', color: (newEmployee.phone || '').length === 10 ? '#16a34a' : '#64748b', fontWeight: 600 }}>
+                      {(newEmployee.phone || '').length} / 10 digits
+                    </span>
+                  </div>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    placeholder="e.g. 9876543210 (10 digits)"
+                    value={newEmployee.phone || ''}
+                    onChange={(e) => {
+                      setActionError('');
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setNewEmployee((prev) => ({ ...prev, phone: val }));
+                    }}
+                    style={fieldStyle}
+                  />
+                  {newEmployee.phone && newEmployee.phone.length > 0 && !/^[6-9]/.test(newEmployee.phone) && (
+                    <div style={{ fontSize: '0.74rem', color: '#ef4444', marginTop: '0.25rem', fontWeight: 600 }}>
+                      ⚠️ Must start with 6, 7, 8, or 9
+                    </div>
+                  )}
+                </div>
+
+                <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
+                  Job Designation
+                  <input
+                    maxLength={100}
+                    placeholder="e.g. Sales Associate"
+                    value={newEmployee.role}
+                    onChange={(e) => {
+                      setActionError('');
+                      setNewEmployee((prev) => ({ ...prev, role: e.target.value }));
+                    }}
+                    style={fieldStyle}
+                  />
+                </label>
+
+                <div style={{ gridColumn: '1 / -1', maxWidth: '440px' }}>
+                  <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                    Initial Password (8+ chars) *
                   </label>
-                ))}
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      required
+                      type={showEmployeePassword ? 'text' : 'password'}
+                      minLength={8}
+                      maxLength={128}
+                      placeholder="e.g. Employee@2026!"
+                      value={newEmployee.password}
+                      onChange={(e) => {
+                        setActionError('');
+                        setNewEmployee((prev) => ({ ...prev, password: e.target.value }));
+                      }}
+                      style={{ ...fieldStyle, paddingRight: '4.75rem', marginTop: 0 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEmployeePassword(!showEmployeePassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '0.65rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.25rem 0.45rem',
+                        borderRadius: '6px',
+                        userSelect: 'none',
+                      }}
+                      title={showEmployeePassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showEmployeePassword ? <IconEyeOff size={15} /> : <IconEye size={15} />}
+                      <span>{showEmployeePassword ? 'Hide' : 'Show'}</span>
+                    </button>
+                  </div>
+
+                  <div style={{
+                    marginTop: '0.45rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.22rem',
+                    fontSize: '0.73rem',
+                    padding: '0.5rem 0.65rem',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                  }}>
+                    <span style={{
+                      color: (newEmployee.password || '').length >= 8 ? '#16a34a' : '#64748b',
+                      fontWeight: (newEmployee.password || '').length >= 8 ? 700 : 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}>
+                      <span>{(newEmployee.password || '').length >= 8 ? '✅' : '○'}</span> At least 8 characters
+                    </span>
+                    <span style={{
+                      color: /[A-Z]/.test(newEmployee.password || '') ? '#16a34a' : '#64748b',
+                      fontWeight: /[A-Z]/.test(newEmployee.password || '') ? 700 : 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}>
+                      <span>{/[A-Z]/.test(newEmployee.password || '') ? '✅' : '○'}</span> At least 1 uppercase letter (A-Z)
+                    </span>
+                    <span style={{
+                      color: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newEmployee.password || '') ? '#16a34a' : '#64748b',
+                      fontWeight: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newEmployee.password || '') ? 700 : 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}>
+                      <span>{/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newEmployee.password || '') ? '✅' : '○'}</span> At least 1 special character (!@#$%^&* etc.)
+                    </span>
+                  </div>
+                </div>
 
                 <label style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', gridColumn: '1 / -1', color: '#334155', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
                   <input
@@ -922,7 +1298,14 @@ export default function ServiceDepartments({
                       {(selectedTeam?.employees || []).map((employee) => (
                         <tr key={employee.id} style={{ borderTop: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.8rem 1rem', color: '#0f172a', fontWeight: 700 }}>{employee.name}</td>
-                          <td style={{ padding: '0.8rem 1rem', color: '#64748b' }}>{employee.email}</td>
+                          <td style={{ padding: '0.8rem 1rem', color: '#64748b' }}>
+                            <div style={{ color: '#0f172a', fontWeight: 600 }}>{employee.email}</div>
+                            {employee.phone && (
+                              <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <span>📞</span> {employee.phone}
+                              </div>
+                            )}
+                          </td>
                           <td style={{ padding: '0.8rem 1rem', color: '#7f22fe', fontWeight: 700 }}>
                             {ROLE_LABELS[employee.accessRole] || ROLE_LABELS.EMPLOYEE}
                           </td>
