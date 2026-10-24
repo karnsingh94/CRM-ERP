@@ -96,7 +96,11 @@ export default function UnifiedRoleDashboardPage() {
     return <DepartmentHeadDashboardFeature />;
   }
 
-  if (currentUser?.role === 'TEAM_LEADER' || currentUser?.role === 'EMPLOYEE') {
+  if (currentUser?.role === 'TEAM_LEADER') {
+    return <DepartmentHeadDashboardFeature portalRole="team-leader" />;
+  }
+
+  if (currentUser?.role === 'EMPLOYEE') {
     return <EmployeeDashboardFeature />;
   }
 

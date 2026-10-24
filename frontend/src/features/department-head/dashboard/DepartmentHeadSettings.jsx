@@ -20,6 +20,7 @@ export default function DepartmentHeadSettings({
   onAccentChange,
   onNotificationsChange,
 }) {
+  const roleLabel = currentUser?.role === 'TEAM_LEADER' ? 'Team Leader' : 'Department Head';
   const [activeTab, setActiveTab] = useState('appearance');
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -76,7 +77,7 @@ export default function DepartmentHeadSettings({
       <header className={styles.pageHeader}>
         <div>
           <h2>Settings</h2>
-          <p>Manage your workspace appearance, Department Head account, access details, and notifications.</p>
+          <p>Manage your workspace appearance, {roleLabel} account, access details, and notifications.</p>
         </div>
       </header>
 
@@ -97,7 +98,7 @@ export default function DepartmentHeadSettings({
         <section className={styles.card}>
           <div className={styles.cardHeader}>
             <h3>Appearance &amp; Branding</h3>
-            <p>Choose how your Department Head workspace looks on this device.</p>
+            <p>Choose how your {roleLabel} workspace looks on this device.</p>
           </div>
           <div className={styles.fieldGroup}>
             <span className={styles.label}>Theme mode</span>
@@ -142,7 +143,7 @@ export default function DepartmentHeadSettings({
               </label>
             </div>
             <p className={styles.helpText}>
-              Theme and accent preferences are saved for your Department Head account in this browser. Company-wide branding remains unchanged.
+              Theme and accent preferences are saved for your {roleLabel} account in this browser. Company-wide branding remains unchanged.
             </p>
           </div>
         </section>
@@ -152,7 +153,7 @@ export default function DepartmentHeadSettings({
         <div className={styles.stack}>
           <section className={styles.card}>
             <div className={styles.cardHeader}>
-              <h3>Department Head Profile</h3>
+              <h3>{roleLabel} Profile</h3>
               <p>Your account identity is managed by the Company Admin.</p>
             </div>
             <div className={styles.form}>
@@ -249,7 +250,7 @@ export default function DepartmentHeadSettings({
                 </label>
                 <label className={styles.field}>
                   <span className={styles.label}>Workspace role</span>
-                  <input value={currentUser?.roleTitle || 'Department Head'} readOnly />
+                  <input value={currentUser?.roleTitle || roleLabel} readOnly />
                 </label>
               </div>
               <div className={styles.twoColumns}>

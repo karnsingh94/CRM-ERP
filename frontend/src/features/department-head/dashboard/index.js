@@ -44,12 +44,15 @@ const VIEW_DETAILS = {
   },
 };
 
-export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
+export default function DepartmentHeadDashboardFeature({ view = 'dashboard', portalRole }) {
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, activeCompany } = useCompanyAuthContext();
   const { permittedServices } = useCompanyAccess(activeCompany);
   const [searchQuery, setSearchQuery] = useState('');
+  const isTeamLeader = portalRole === 'team-leader' || currentUser?.role === 'TEAM_LEADER';
+  const portalRoot = isTeamLeader ? '/team-leader' : '/department';
+  const roleLabel = isTeamLeader ? 'Team Leader' : 'Department Head';
 
   const currentView = VIEW_DETAILS[view] ? view : 'dashboard';
   const pageDetails = VIEW_DETAILS[currentView];
@@ -64,8 +67,10 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
     0
   );
   const serviceName = currentUser?.serviceName || service?.name || 'Assigned Department';
-  const canManageTeam = currentUser?.permissions?.manageMembers !== false
-    || currentUser?.permissions?.manageTeams !== false;
+  const canManageTeam = isTeamLeader
+    ? currentUser?.permissions?.manageMembers === true
+    : currentUser?.permissions?.manageMembers !== false
+      || currentUser?.permissions?.manageTeams !== false;
   const canManageWork = currentUser?.permissions?.assignWork === true
     || currentUser?.permissions?.updateWork === true;
   const canOpenWorkspace = canManageTeam || canManageWork;
@@ -73,8 +78,9 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
     || activeCompany?.themeColor
     || currentUser?.themeColor
     || '#7f22fe';
-  const userName = currentUser?.name || 'Department Head';
-  const preferencesKey = `azzuniqe_department_preferences_${currentUser?.id || activeCompany?.id || 'default'}`;
+  const userName = currentUser?.name || roleLabel;
+  const preferencesScope = isTeamLeader ? 'team_leader' : 'department';
+  const preferencesKey = `azzuniqe_${preferencesScope}_preferences_${currentUser?.id || activeCompany?.id || 'default'}`;
   const [preferences, setPreferences] = useState({
     themeMode: 'system',
     accentColor: companyAccent,
@@ -88,10 +94,10 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
   const accentColor = preferences.accentColor || companyAccent;
 
   useEffect(() => {
-    if (pathname === '/dashboard') {
-      router.replace('/department/dashboard');
+    if (pathname === '/' || pathname === '/dashboard') {
+      router.replace(`${portalRoot}/dashboard`);
     }
-  }, [pathname, router]);
+  }, [pathname, portalRoot, router]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -139,11 +145,11 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
     });
   }, [modules, searchQuery]);
 
-  if (pathname === '/dashboard') {
+  if (pathname === '/' || pathname === '/dashboard') {
     return (
       <div className={styles.routeLoading}>
         <span />
-        Opening Department Head dashboard...
+        Opening {roleLabel} dashboard...
       </div>
     );
   }
@@ -163,15 +169,15 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
         <>
           <section className={styles.hero}>
             <div>
-              <span className={styles.eyebrow}>Department Head Workspace</span>
+              <span className={styles.eyebrow}>{roleLabel} Workspace</span>
               <h1>{serviceName} Department</h1>
               <p>
-                Welcome, {userName}. Manage your approved modules, team access, and department work from one place.
+                Welcome, {userName}. Open your assigned modules, screens, team access, and work from one place.
               </p>
             </div>
             <div className={styles.heroBadge}>
               <span>Access scope</span>
-              <strong>Department only</strong>
+              <strong>{isTeamLeader ? 'Assigned team only' : 'Department only'}</strong>
             </div>
           </section>
 
@@ -191,19 +197,19 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
           </section>
 
           <section className={styles.quickGrid} aria-label="Department pages">
-            <Link href="/department/modules" className={styles.quickCard}>
+            <Link href={`${portalRoot}/modules`} className={styles.quickCard}>
               <span className={styles.statIcon}><IconLayers size={20} /></span>
-              <div><strong>Department Modules</strong><p>Open your approved modules and screens.</p></div>
+              <div><strong>{isTeamLeader ? 'Assigned Modules' : 'Department Modules'}</strong><p>Open your approved modules and screens.</p></div>
               <b>→</b>
             </Link>
             {canOpenWorkspace && (
-              <Link href="/department/workspace" className={styles.quickCard}>
+              <Link href={`${portalRoot}/workspace`} className={styles.quickCard}>
                 <span className={styles.statIcon}><IconUsers size={20} /></span>
-                <div><strong>Department Workspace</strong><p>Manage teams, members, and assigned work.</p></div>
+                <div><strong>{isTeamLeader ? 'Team Workspace' : 'Department Workspace'}</strong><p>Manage permitted members and assigned work.</p></div>
                 <b>→</b>
               </Link>
             )}
-            <Link href="/department/settings" className={styles.quickCard}>
+            <Link href={`${portalRoot}/settings`} className={styles.quickCard}>
               <span className={styles.statIcon}><IconSettings size={20} /></span>
               <div><strong>Settings &amp; Profile</strong><p>Choose your theme, color, and preferences.</p></div>
               <b>→</b>
@@ -217,8 +223,8 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
           <div className={styles.panelHeader}>
             <div>
               <span className={styles.panelKicker}>{pageDetails.eyebrow}</span>
-              <h1>{pageDetails.label}</h1>
-              <p>{pageDetails.description}</p>
+              <h1>{isTeamLeader ? 'Assigned Modules' : pageDetails.label}</h1>
+              <p>{isTeamLeader ? 'Browse only the modules and screens assigned to your Team Leader account.' : pageDetails.description}</p>
             </div>
             <span className={styles.countBadge}>{filteredModules.length} modules</span>
           </div>
@@ -230,7 +236,7 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search permitted modules and screens"
-              aria-label="Search permitted department modules"
+              aria-label={`Search permitted ${roleLabel} modules`}
             />
           </label>
 
@@ -249,7 +255,7 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
                         {subModules.map((subModule, subModuleIndex) => (
                           <Link
                             key={subModule.id || subModule.code || subModuleIndex}
-                            href={subModule.route || '/department/modules'}
+                            href={subModule.route || `${portalRoot}/modules`}
                             className={styles.moduleLink}
                           >
                             <span>{subModule.name}</span>
@@ -280,8 +286,8 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard' }) {
           <div className={styles.panelHeader}>
             <div>
               <span className={styles.panelKicker}>{pageDetails.eyebrow}</span>
-              <h1>{pageDetails.label}</h1>
-              <p>{pageDetails.description}</p>
+              <h1>{isTeamLeader ? 'Team Workspace' : pageDetails.label}</h1>
+              <p>{isTeamLeader ? 'Manage your assigned team members and work using granted permissions.' : pageDetails.description}</p>
             </div>
           </div>
           {canOpenWorkspace ? (

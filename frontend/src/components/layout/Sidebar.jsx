@@ -299,14 +299,26 @@ export default function Sidebar({
   };
   const portalRoleLabel = roleLabels[currentUser?.role] || 'Company Admin';
   const isDepartmentHeadPortal = ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role);
-  const dashboardHref = isDepartmentHeadPortal ? '/department/dashboard' : '/dashboard';
-  const settingsHref = isDepartmentHeadPortal ? '/department/settings' : '/settings';
-  const canShowSettings = isCompanyAdmin || isDepartmentHeadPortal;
-  const canOpenDepartmentWorkspace = isDepartmentHeadPortal && (
-    currentUser?.permissions?.manageTeams !== false
-    || currentUser?.permissions?.manageMembers !== false
-    || currentUser?.permissions?.assignWork === true
-    || currentUser?.permissions?.updateWork === true
+  const isTeamLeaderPortal = currentUser?.role === 'TEAM_LEADER';
+  const isStaffPortal = isDepartmentHeadPortal || isTeamLeaderPortal;
+  const staffPortalRoot = isTeamLeaderPortal ? '/team-leader' : '/department';
+  const dashboardHref = isStaffPortal ? `${staffPortalRoot}/dashboard` : '/dashboard';
+  const settingsHref = isStaffPortal ? `${staffPortalRoot}/settings` : '/settings';
+  const workspaceHref = `${staffPortalRoot}/workspace`;
+  const canShowSettings = isCompanyAdmin || isStaffPortal;
+  const canOpenStaffWorkspace = (
+    isDepartmentHeadPortal && (
+      currentUser?.permissions?.manageTeams !== false
+      || currentUser?.permissions?.manageMembers !== false
+      || currentUser?.permissions?.assignWork === true
+      || currentUser?.permissions?.updateWork === true
+    )
+  ) || (
+    isTeamLeaderPortal && (
+      currentUser?.permissions?.manageMembers === true
+      || currentUser?.permissions?.assignWork === true
+      || currentUser?.permissions?.updateWork === true
+    )
   );
 
   const brandColor = activeCompany?.theme_color || activeCompany?.themeColor || '#7f22fe';
@@ -427,7 +439,7 @@ export default function Sidebar({
       >
         {/* Dashboard Link */}
         {(() => {
-          const isDashboardActive = pathname === '/' || pathname === '/dashboard' || pathname === '/department/dashboard';
+          const isDashboardActive = pathname === '/' || pathname === '/dashboard' || pathname === dashboardHref;
           return (
             <Link
               href={dashboardHref}
@@ -457,7 +469,7 @@ export default function Sidebar({
           );
         })()}
 
-        {canOpenDepartmentWorkspace && (
+        {canOpenStaffWorkspace && (
           <>
             {!isCollapsed && (
               <div
@@ -475,10 +487,10 @@ export default function Sidebar({
             )}
 
             {(() => {
-              const isWorkspaceActive = pathname === '/department/workspace';
+              const isWorkspaceActive = pathname === workspaceHref;
               return (
                 <Link
-                  href="/department/workspace"
+                  href={workspaceHref}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -495,12 +507,12 @@ export default function Sidebar({
                     transition: 'all 0.15s ease',
                     justifyContent: isCollapsed ? 'center' : 'flex-start',
                   }}
-                  title="Create teams, manage members, and assign work"
+                  title={isTeamLeaderPortal ? 'Manage permitted team members and assigned work' : 'Create teams, manage members, and assign work'}
                 >
                   <span style={{ color: isWorkspaceActive ? '#ffffff' : brandColor, flexShrink: 0 }}>
                     <IconUsers size={18} />
                   </span>
-                  {!isCollapsed && <span>Department Workspace</span>}
+                  {!isCollapsed && <span>{isTeamLeaderPortal ? 'Team Workspace' : 'Department Workspace'}</span>}
                 </Link>
               );
             })()}
@@ -853,7 +865,7 @@ export default function Sidebar({
               margin: '0.85rem 0 0.25rem 0.5rem',
             }}
           >
-            {isDepartmentHeadPortal ? 'Department & Preferences' : 'Company & Preferences'}
+            {isTeamLeaderPortal ? 'Team & Preferences' : isDepartmentHeadPortal ? 'Department & Preferences' : 'Company & Preferences'}
           </div>
         )}
 
@@ -878,12 +890,12 @@ export default function Sidebar({
                 justifyContent: isCollapsed ? 'center' : 'flex-start',
                 transition: 'all 0.15s ease',
               }}
-              title={isDepartmentHeadPortal ? 'Department Settings & Profile' : 'Company Profile & Settings'}
+              title={isTeamLeaderPortal ? 'Team Leader Settings & Profile' : isDepartmentHeadPortal ? 'Department Settings & Profile' : 'Company Profile & Settings'}
             >
               <span style={{ color: isSettingsActive ? '#ffffff' : '#a78bfa', flexShrink: 0 }}>
                 <IconSettings size={18} />
               </span>
-              {!isCollapsed && <span>{isDepartmentHeadPortal ? 'Settings & Profile' : 'Company Settings'}</span>}
+              {!isCollapsed && <span>{isStaffPortal ? 'Settings & Profile' : 'Company Settings'}</span>}
             </Link>
           );
         })()}

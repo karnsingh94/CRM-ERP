@@ -110,9 +110,11 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState([]);
   const [isSuperAdminSwitched, setIsSuperAdminSwitched] = useState(false);
-  const preferencesScope = ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role)
-    ? 'department'
-    : 'company';
+  const preferencesScope = currentUser?.role === 'TEAM_LEADER'
+    ? 'team_leader'
+    : ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role)
+      ? 'department'
+      : 'company';
   const preferencesKey = `azzuniqe_${preferencesScope}_preferences_${currentUser?.id || effectiveCompany?.id || 'default'}`;
   const resolvedTheme = adminPreferences.themeMode === 'system'
     ? (systemIsDark ? 'dark' : 'light')

@@ -97,7 +97,7 @@ export default function RootHomePage() {
   }
 
   if (currentUser?.role === 'TEAM_LEADER') {
-    return <CompanyAdminPortal initialTab="dashboard" />;
+    return <DepartmentHeadDashboardFeature portalRole="team-leader" />;
   }
 
   if (currentUser?.role === 'DEPARTMENT_HEAD' || currentUser?.role === 'SERVICE_HEAD') {
