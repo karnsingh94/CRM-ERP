@@ -110,7 +110,10 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState([]);
   const [isSuperAdminSwitched, setIsSuperAdminSwitched] = useState(false);
-  const preferencesKey = `azzuniqe_company_preferences_${currentUser?.id || effectiveCompany?.id || 'default'}`;
+  const preferencesScope = ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role)
+    ? 'department'
+    : 'company';
+  const preferencesKey = `azzuniqe_${preferencesScope}_preferences_${currentUser?.id || effectiveCompany?.id || 'default'}`;
   const resolvedTheme = adminPreferences.themeMode === 'system'
     ? (systemIsDark ? 'dark' : 'light')
     : adminPreferences.themeMode;
@@ -148,6 +151,15 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     if (!preferencesLoadedKey || preferencesLoadedKey !== preferencesKey) return;
     localStorage.setItem(preferencesKey, JSON.stringify(adminPreferences));
   }, [adminPreferences, preferencesKey, preferencesLoadedKey]);
+
+  useEffect(() => {
+    const syncDepartmentPreferences = (event) => {
+      if (event.detail?.key !== preferencesKey || !event.detail?.preferences) return;
+      setAdminPreferences(event.detail.preferences);
+    };
+    window.addEventListener('azzuniqe-preferences-changed', syncDepartmentPreferences);
+    return () => window.removeEventListener('azzuniqe-preferences-changed', syncDepartmentPreferences);
+  }, [preferencesKey]);
 
   useEffect(() => {
     setIsMounted(true);

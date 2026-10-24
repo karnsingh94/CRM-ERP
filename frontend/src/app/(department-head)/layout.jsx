@@ -1,7 +1,5 @@
-'use client';
-
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export default function DepartmentHeadLayout({ children }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return <CompanyAdminPortal>{children}</CompanyAdminPortal>;
 }
