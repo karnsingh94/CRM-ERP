@@ -78,6 +78,7 @@ router.get('/companies/:companyId/assigned-services', requireCompanyAdmin, compa
 router.get('/companies/:companyId/employees', requireServiceTeamPermission('manageMembers'), departmentController.getCompanyEmployees);
 router.post('/companies/:companyId/employees', requireServiceTeamPermission('manageMembers'), departmentController.createCompanyEmployee);
 router.put('/companies/:companyId/employees/:employeeId/team', requireServiceTeamPermission('manageMembers'), departmentController.assignCompanyEmployee);
+router.put('/companies/:companyId/employees/:employeeId/permissions', requireServiceTeamPermission('manageMembers'), departmentController.updateEmployeePermissions);
 router.patch('/companies/:companyId/employees/:employeeId/status', requireServiceTeamPermission('manageMembers'), departmentController.toggleCompanyEmployeeStatus);
 
 // ==================== SERVICE TEAMS & DEPARTMENT HEADS ====================

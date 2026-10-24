@@ -19,6 +19,7 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import EmptyState from '../ui/EmptyState';
 import ServiceDepartments from '../departments/ServiceDepartments';
 import LeadIntegrationsModal from '../crm/LeadIntegrationsModal';
+import { useCompanyAuth } from '../../hooks/useCompanyAuth';
 
 const formatLeadValue = (value) => {
   if (value === '' || value === null || value === undefined) return '—';
@@ -35,6 +36,7 @@ const formatLeadValue = (value) => {
 export default function CrmModule({ activeCompany, showToast, initialSubTab, hasSubModuleAccess }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { currentUser } = useCompanyAuth();
 
   // Route map for top tabs
   const TAB_ROUTES = {
@@ -45,7 +47,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     departments: '/services/crm-sales/department-head',
   };
 
-  // Permission checks
+  // Permission checks for viewing screens
   const isLeadsAllowed = typeof hasSubModuleAccess === 'function'
     ? (hasSubModuleAccess('leads') || hasSubModuleAccess('/crm/leads') || hasSubModuleAccess('crm_leads'))
     : true;
@@ -58,6 +60,48 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   const isOpportunitiesAllowed = typeof hasSubModuleAccess === 'function'
     ? (hasSubModuleAccess('opportunities') || hasSubModuleAccess('/crm/opportunities') || hasSubModuleAccess('crm_followups'))
     : true;
+
+  // Granular action-level permission checking:
+  // Employees can VIEW all modules across the team for pipeline visibility,
+  // but can only PERFORM WORK / ACTIONS (create, edit, delete, status change) if assigned!
+  const canPerformAction = (featureKey) => {
+    const role = currentUser?.role || currentUser?.accessRole;
+    if (
+      !role ||
+      role === 'SUPER_ADMIN' ||
+      role === 'COMPANY_ADMIN' ||
+      role === 'DEPARTMENT_HEAD' ||
+      role === 'SERVICE_HEAD' ||
+      role === 'TEAM_LEADER'
+    ) {
+      return true;
+    }
+
+    const featureAccess = currentUser?.permissions?.featureAccess;
+    if (!featureAccess) return true;
+
+    const moduleIds = Array.isArray(featureAccess.moduleIds) ? featureAccess.moduleIds.map(String) : [];
+    const subModuleIds = Array.isArray(featureAccess.subModuleIds) ? featureAccess.subModuleIds.map(String) : [];
+
+    // If both arrays are empty, employee is view-only
+    if (moduleIds.length === 0 && subModuleIds.length === 0) {
+      return false;
+    }
+
+    if (moduleIds.includes('crm') || moduleIds.includes('75a55710-cea5-11f1-9511-b05cda618678')) {
+      return true;
+    }
+
+    const KEY_MAP = {
+      leads: ['crm_leads', 'leads', '75a5bf39-cea5-11f1-9511-b05cda618678'],
+      customers: ['crm_customers', 'customers', '75a5e4f8-cea5-11f1-9511-b05cda618678'],
+      contacts: ['crm_contacts', 'contacts', '75a5e73f-cea5-11f1-9511-b05cda618678'],
+      opportunities: ['crm_followups', 'opportunities', 'followups', '75a5e896-cea5-11f1-9511-b05cda618678'],
+    };
+
+    const targetList = KEY_MAP[featureKey] || [featureKey];
+    return targetList.some((target) => subModuleIds.includes(target) || moduleIds.includes(target));
+  };
 
   // Active tab state
   const [activeTab, setActiveTab] = useState(initialSubTab || 'leads');
@@ -665,23 +709,31 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
             <button
               type="button"
-              onClick={() => setShowAddLeadModal(true)}
+              onClick={() => {
+                if (!canPerformAction('leads')) {
+                  showToast('View Only Mode', 'You have view-only access to Leads. Modification is assigned to another team member.', 'danger');
+                  return;
+                }
+                setShowAddLeadModal(true);
+              }}
+              title={!canPerformAction('leads') ? '🔒 View Only: You can view leads, but only assigned team members can create or edit leads.' : 'Add New Lead'}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
                 padding: '0.65rem 1.25rem',
-                background: '#7f22fe',
+                background: !canPerformAction('leads') ? '#94a3b8' : '#7f22fe',
                 color: '#ffffff',
                 borderRadius: '8px',
                 fontWeight: 700,
                 fontSize: '0.86rem',
-                boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
+                boxShadow: !canPerformAction('leads') ? 'none' : '0 4px 6px rgba(127, 34, 254, 0.25)',
                 border: 'none',
-                cursor: 'pointer',
+                cursor: !canPerformAction('leads') ? 'not-allowed' : 'pointer',
+                opacity: !canPerformAction('leads') ? 0.8 : 1,
               }}
             >
-              <IconPlus size={16} /> Add New Lead
+              {!canPerformAction('leads') ? '🔒 View Only' : <><IconPlus size={16} /> Add New Lead</>}
             </button>
           </div>
         )}
@@ -689,69 +741,93 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
         {activeTab === 'customers' && (
           <button
             type="button"
-            onClick={() => setShowAddCustomerModal(true)}
+            onClick={() => {
+              if (!canPerformAction('customers')) {
+                showToast('View Only Mode', 'You have view-only access to Customers. Modification is assigned to another team member.', 'danger');
+                return;
+              }
+              setShowAddCustomerModal(true);
+            }}
+            title={!canPerformAction('customers') ? '🔒 View Only: Customer registration is restricted to assigned team members.' : 'Add Customer'}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
               padding: '0.65rem 1.25rem',
-              background: '#7f22fe',
+              background: !canPerformAction('customers') ? '#94a3b8' : '#7f22fe',
               color: '#ffffff',
               borderRadius: '8px',
               fontWeight: 700,
               fontSize: '0.86rem',
-              boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
+              boxShadow: !canPerformAction('customers') ? 'none' : '0 4px 6px rgba(127, 34, 254, 0.25)',
               border: 'none',
-              cursor: 'pointer',
+              cursor: !canPerformAction('customers') ? 'not-allowed' : 'pointer',
+              opacity: !canPerformAction('customers') ? 0.8 : 1,
             }}
           >
-            <IconPlus size={16} /> Add Customer
+            {!canPerformAction('customers') ? '🔒 View Only' : <><IconPlus size={16} /> Add Customer</>}
           </button>
         )}
 
         {activeTab === 'contacts' && (
           <button
             type="button"
-            onClick={() => setShowAddContactModal(true)}
+            onClick={() => {
+              if (!canPerformAction('contacts')) {
+                showToast('View Only Mode', 'You have view-only access to Contacts. Modification is assigned to another team member.', 'danger');
+                return;
+              }
+              setShowAddContactModal(true);
+            }}
+            title={!canPerformAction('contacts') ? '🔒 View Only: Contact management is restricted to assigned team members.' : 'Add Contact'}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
               padding: '0.65rem 1.25rem',
-              background: '#7f22fe',
+              background: !canPerformAction('contacts') ? '#94a3b8' : '#7f22fe',
               color: '#ffffff',
               borderRadius: '8px',
               fontWeight: 700,
               fontSize: '0.86rem',
-              boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
+              boxShadow: !canPerformAction('contacts') ? 'none' : '0 4px 6px rgba(127, 34, 254, 0.25)',
               border: 'none',
-              cursor: 'pointer',
+              cursor: !canPerformAction('contacts') ? 'not-allowed' : 'pointer',
+              opacity: !canPerformAction('contacts') ? 0.8 : 1,
             }}
           >
-            <IconPlus size={16} /> Add Contact
+            {!canPerformAction('contacts') ? '🔒 View Only' : <><IconPlus size={16} /> Add Contact</>}
           </button>
         )}
 
         {activeTab === 'opportunities' && (
           <button
             type="button"
-            onClick={() => setShowAddOpportunityModal(true)}
+            onClick={() => {
+              if (!canPerformAction('opportunities')) {
+                showToast('View Only Mode', 'You have view-only access to Opportunities. Modification is assigned to another team member.', 'danger');
+                return;
+              }
+              setShowAddOpportunityModal(true);
+            }}
+            title={!canPerformAction('opportunities') ? '🔒 View Only: Deal opportunity creation is restricted to assigned team members.' : 'New Opportunity'}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
               padding: '0.65rem 1.25rem',
-              background: '#7f22fe',
+              background: !canPerformAction('opportunities') ? '#94a3b8' : '#7f22fe',
               color: '#ffffff',
               borderRadius: '8px',
               fontWeight: 700,
               fontSize: '0.86rem',
-              boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
+              boxShadow: !canPerformAction('opportunities') ? 'none' : '0 4px 6px rgba(127, 34, 254, 0.25)',
               border: 'none',
-              cursor: 'pointer',
+              cursor: !canPerformAction('opportunities') ? 'not-allowed' : 'pointer',
+              opacity: !canPerformAction('opportunities') ? 0.8 : 1,
             }}
           >
-            <IconPlus size={16} /> New Opportunity
+            {!canPerformAction('opportunities') ? '🔒 View Only' : <><IconPlus size={16} /> New Opportunity</>}
           </button>
         )}
       </div>
@@ -882,6 +958,25 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       {/* ------------------------------------------------------------- */}
       {activeTab === 'leads' && (
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {!canPerformAction('leads') && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              padding: '0.65rem 1.25rem',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              color: '#475569',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+            }}>
+              <span>👁️</span>
+              <span>
+                <strong>Team View-Only Access:</strong> You can view all company leads for visibility and pipeline tracking. Creating, editing, or deleting leads is restricted to authorized team members.
+              </span>
+            </div>
+          )}
+
           {/* Filter Bar */}
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: '220px' }}>
@@ -1005,48 +1100,56 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         {formatLeadValue(lead.value)}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
-                        <select
-                          value={lead.status}
-                          disabled={updatingLeadId === lead.id}
-                          onChange={(e) => handleLeadStatusChange(lead.id, e.target.value)}
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            background: '#ffffff',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <option value="NEW">NEW</option>
-                          <option value="CONTACTED">CONTACTED</option>
-                          <option value="QUALIFIED">QUALIFIED</option>
-                          <option value="PROPOSAL">PROPOSAL</option>
-                          <option value="WON">WON</option>
-                          <option value="LOST">LOST</option>
-                        </select>
+                        {canPerformAction('leads') ? (
+                          <select
+                            value={lead.status}
+                            disabled={updatingLeadId === lead.id}
+                            onChange={(e) => handleLeadStatusChange(lead.id, e.target.value)}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: '#ffffff',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <option value="NEW">NEW</option>
+                            <option value="CONTACTED">CONTACTED</option>
+                            <option value="QUALIFIED">QUALIFIED</option>
+                            <option value="PROPOSAL">PROPOSAL</option>
+                            <option value="WON">WON</option>
+                            <option value="LOST">LOST</option>
+                          </select>
+                        ) : (
+                          renderLeadStatusBadge(lead.status)
+                        )}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#64748b', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
                         {lead.date}
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => setItemToDelete({ type: 'lead', item: lead, name: lead.name })}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            color: '#dc2626',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            background: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Delete
-                        </button>
+                        {canPerformAction('leads') ? (
+                          <button
+                            type="button"
+                            onClick={() => setItemToDelete({ type: 'lead', item: lead, name: lead.name })}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              color: '#dc2626',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              background: '#fef2f2',
+                              border: '1px solid #fecaca',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>🔒 View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1062,6 +1165,25 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       {/* ------------------------------------------------------------- */}
       {activeTab === 'customers' && (
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {!canPerformAction('customers') && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              padding: '0.65rem 1.25rem',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              color: '#475569',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+            }}>
+              <span>👁️</span>
+              <span>
+                <strong>Team View-Only Access:</strong> You can view all company customer accounts for visibility. Registering or deleting customers is restricted to authorized team members.
+              </span>
+            </div>
+          )}
+
           {/* Filter Bar */}
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: '220px' }}>
@@ -1154,22 +1276,26 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => setItemToDelete({ type: 'customer', item: cust, name: cust.companyName })}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            color: '#dc2626',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            background: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Delete
-                        </button>
+                        {canPerformAction('customers') ? (
+                          <button
+                            type="button"
+                            onClick={() => setItemToDelete({ type: 'customer', item: cust, name: cust.companyName })}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              color: '#dc2626',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              background: '#fef2f2',
+                              border: '1px solid #fecaca',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>🔒 View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1185,6 +1311,25 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       {/* ------------------------------------------------------------- */}
       {activeTab === 'contacts' && (
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {!canPerformAction('contacts') && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              padding: '0.65rem 1.25rem',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              color: '#475569',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+            }}>
+              <span>👁️</span>
+              <span>
+                <strong>Team View-Only Access:</strong> You can view all company contacts for stakeholder collaboration. Adding or deleting contacts is restricted to authorized team members.
+              </span>
+            </div>
+          )}
+
           {/* Filter Bar */}
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: '220px' }}>
@@ -1249,22 +1394,26 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => setItemToDelete({ type: 'contact', item: cnt, name: cnt.name })}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            color: '#dc2626',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            background: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Delete
-                        </button>
+                        {canPerformAction('contacts') ? (
+                          <button
+                            type="button"
+                            onClick={() => setItemToDelete({ type: 'contact', item: cnt, name: cnt.name })}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              color: '#dc2626',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              background: '#fef2f2',
+                              border: '1px solid #fecaca',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>🔒 View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1280,6 +1429,25 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       {/* ------------------------------------------------------------- */}
       {activeTab === 'opportunities' && (
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {!canPerformAction('opportunities') && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              padding: '0.65rem 1.25rem',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              color: '#475569',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+            }}>
+              <span>👁️</span>
+              <span>
+                <strong>Team View-Only Access:</strong> You can view all deals in the revenue pipeline. Modifying stages or creating deals is restricted to authorized team members.
+              </span>
+            </div>
+          )}
+
           {/* Filter Bar */}
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: '220px' }}>
@@ -1355,25 +1523,29 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         {opp.companyName}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
-                        <select
-                          value={opp.stage}
-                          onChange={(e) => handleOpportunityStageChange(opp.id, e.target.value)}
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            background: '#ffffff',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <option value="DISCOVERY">DISCOVERY</option>
-                          <option value="PROPOSAL">PROPOSAL</option>
-                          <option value="NEGOTIATION">NEGOTIATION</option>
-                          <option value="WON">WON</option>
-                          <option value="LOST">LOST</option>
-                        </select>
+                        {canPerformAction('opportunities') ? (
+                          <select
+                            value={opp.stage}
+                            onChange={(e) => handleOpportunityStageChange(opp.id, e.target.value)}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: '#ffffff',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <option value="DISCOVERY">DISCOVERY</option>
+                            <option value="PROPOSAL">PROPOSAL</option>
+                            <option value="NEGOTIATION">NEGOTIATION</option>
+                            <option value="WON">WON</option>
+                            <option value="LOST">LOST</option>
+                          </select>
+                        ) : (
+                          renderStageBadge(opp.stage)
+                        )}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
                         {opp.value || '—'}
@@ -1385,22 +1557,26 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         {opp.expectedCloseDate || '—'}
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => setItemToDelete({ type: 'opportunity', item: opp, name: opp.title })}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            color: '#dc2626',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            background: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Delete
-                        </button>
+                        {canPerformAction('opportunities') ? (
+                          <button
+                            type="button"
+                            onClick={() => setItemToDelete({ type: 'opportunity', item: opp, name: opp.title })}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              color: '#dc2626',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              background: '#fef2f2',
+                              border: '1px solid #fecaca',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>🔒 View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
