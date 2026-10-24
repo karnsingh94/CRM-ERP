@@ -428,6 +428,37 @@ export const departmentService = {
     return formatEmployee(employee);
   },
 
+  async toggleCompanyEmployeeStatus(companyId, employeeId, meta = {}) {
+    const cid = String(companyId);
+    const eid = parseEntityId(employeeId, 'Employee');
+    const employee = await prisma.companyEmployee.findFirst({
+      where: { id: eid, companyId: cid },
+    });
+    if (!employee) throw serviceError('Employee not found.', 404);
+
+    const nextStatus = employee.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const updated = await prisma.companyEmployee.update({
+      where: { id: employee.id },
+      data: { status: nextStatus },
+      include: {
+        department: { include: { service: true } },
+        team: { include: { service: true } },
+      },
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: updated.id,
+      newValue: { status: nextStatus, name: updated.name },
+      reason: `Changed employee "${updated.name}" status to ${nextStatus}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return formatEmployee(updated);
+  },
+
   async removeServiceTeamEmployee(companyId, serviceCodeOrId, teamId, employeeId, meta = {}, actor) {
     const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
@@ -588,13 +619,15 @@ export const departmentService = {
       teams: visibleTeams.map((team) => ({
         id: team.id.toString(),
         name: team.name,
+        description: team.description || '',
+        status: team.status || 'ACTIVE',
         head: team.head ? formatEmployee({ ...team.head, team: { service, headEmployeeId: team.headEmployeeId } }) : null,
         employees: team.employees.map(formatEmployee),
       })),
     };
   },
 
-  async createServiceTeam(companyId, serviceCodeOrId, name, meta = {}) {
+  async createServiceTeam(companyId, serviceCodeOrId, data, meta = {}) {
     const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service || service.status !== 'ACTIVE') {
@@ -604,7 +637,11 @@ export const departmentService = {
       where: { adminId: cid, serviceId: service.id, isAllowed: true },
     });
     if (!serviceAccess) throw serviceError('This service is not assigned to the company.', 403, 'SERVICE_NOT_ASSIGNED');
-    const cleanName = typeof name === 'string' ? name.trim() : '';
+
+    const cleanName = typeof data === 'string' ? data.trim() : (data?.name || '').trim();
+    const cleanDesc = typeof data === 'object' && data.description ? data.description.trim() : null;
+    const requestedHeadId = typeof data === 'object' && data.headEmployeeId ? String(data.headEmployeeId) : null;
+
     if (!cleanName || cleanName.length > 150) {
       throw serviceError('Team name must contain between 1 and 150 characters.', 400);
     }
@@ -614,13 +651,57 @@ export const departmentService = {
 
     let team;
     try {
-      team = await prisma.companyServiceTeam.create({
-        data: { companyId: cid, serviceId: service.id, name: cleanName },
+      team = await prisma.$transaction(async (tx) => {
+        let candidateHead = null;
+        if (requestedHeadId) {
+          candidateHead = await tx.companyEmployee.findFirst({
+            where: { id: requestedHeadId, companyId: cid },
+          });
+          if (!candidateHead) {
+            throw serviceError('Selected Team Leader was not found.', 400);
+          }
+        }
+
+        const newTeam = await tx.companyServiceTeam.create({
+          data: {
+            companyId: cid,
+            serviceId: service.id,
+            name: cleanName,
+            description: cleanDesc,
+            status: 'ACTIVE',
+            headEmployeeId: candidateHead ? candidateHead.id : null,
+          },
+          include: {
+            service: true,
+            head: true,
+            employees: {
+              include: {
+                department: { include: { service: true } },
+                team: { include: { service: true } },
+              },
+            },
+          },
+        });
+
+        if (candidateHead) {
+          await tx.companyEmployee.update({
+            where: { id: candidateHead.id },
+            data: {
+              teamId: newTeam.id,
+              accessRole: 'TEAM_LEADER',
+            },
+          });
+        }
+
+        return newTeam;
       });
     } catch (error) {
-      if (error.code !== 'P2002') throw error;
-      throw serviceError('A team with this name already exists for the selected service.', 409, 'TEAM_NAME_EXISTS');
+      if (error.code === 'P2002') {
+        throw serviceError('A team with this name already exists for the selected service.', 409, 'TEAM_NAME_EXISTS');
+      }
+      throw error;
     }
+
     await auditService.logAudit({
       action: 'CREATE',
       entityType: 'COMPANY_SERVICE_TEAM',
@@ -630,11 +711,112 @@ export const departmentService = {
       ipAddress: meta.ip,
       userAgent: meta.userAgent,
     });
+
     return {
       id: team.id.toString(),
       name: team.name,
-      serviceId: team.serviceId.toString(),
-      companyId: team.companyId.toString(),
+      description: team.description || '',
+      status: team.status,
+      head: team.head ? formatEmployee({ ...team.head, team: { service, headEmployeeId: team.headEmployeeId } }) : null,
+      employees: team.employees.map(formatEmployee),
+    };
+  },
+
+  async toggleServiceTeamStatus(companyId, serviceCodeOrId, teamId, meta = {}) {
+    const cid = String(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service) throw serviceError('Service not found in catalogue.', 404);
+
+    const tid = parseEntityId(teamId, 'Team');
+    const team = await prisma.companyServiceTeam.findFirst({
+      where: { id: tid, companyId: cid, serviceId: service.id },
+    });
+    if (!team) throw serviceError('Team not found.', 404);
+
+    const nextStatus = team.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const updated = await prisma.companyServiceTeam.update({
+      where: { id: team.id },
+      data: { status: nextStatus },
+      include: {
+        service: true,
+        head: true,
+        employees: {
+          include: {
+            department: { include: { service: true } },
+            team: { include: { service: true } },
+          },
+        },
+      },
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_SERVICE_TEAM',
+      entityId: updated.id,
+      newValue: { status: nextStatus, name: updated.name },
+      reason: `Changed team "${updated.name}" status to ${nextStatus}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return {
+      id: updated.id.toString(),
+      name: updated.name,
+      description: updated.description || '',
+      status: updated.status,
+      head: updated.head ? formatEmployee({ ...updated.head, team: { service, headEmployeeId: updated.headEmployeeId } }) : null,
+      employees: updated.employees.map(formatEmployee),
+    };
+  },
+
+  async updateServiceTeam(companyId, serviceCodeOrId, teamId, data, meta = {}) {
+    const cid = String(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service) throw serviceError('Service not found in catalogue.', 404);
+
+    const tid = parseEntityId(teamId, 'Team');
+    const team = await prisma.companyServiceTeam.findFirst({
+      where: { id: tid, companyId: cid, serviceId: service.id },
+    });
+    if (!team) throw serviceError('Team not found.', 404);
+
+    const updateData = {};
+    if (data.name && typeof data.name === 'string') {
+      const cleanName = data.name.trim();
+      if (!cleanName || cleanName.length > 150) {
+        throw serviceError('Team name must contain between 1 and 150 characters.', 400);
+      }
+      updateData.name = cleanName;
+    }
+    if (data.description !== undefined) {
+      updateData.description = typeof data.description === 'string' ? data.description.trim() : null;
+    }
+    if (data.status && ['ACTIVE', 'INACTIVE'].includes(data.status)) {
+      updateData.status = data.status;
+    }
+
+    const updated = await prisma.companyServiceTeam.update({
+      where: { id: team.id },
+      data: updateData,
+      include: {
+        service: true,
+        head: true,
+        employees: {
+          include: {
+            department: { include: { service: true } },
+            team: { include: { service: true } },
+          },
+        },
+      },
+    });
+
+    return {
+      id: updated.id.toString(),
+      name: updated.name,
+      description: updated.description || '',
+      status: updated.status,
+      head: updated.head ? formatEmployee({ ...updated.head, team: { service, headEmployeeId: updated.headEmployeeId } }) : null,
+      employees: updated.employees.map(formatEmployee),
     };
   },
 
@@ -650,6 +832,126 @@ export const departmentService = {
       meta,
       actor
     );
+  },
+
+  async updateDepartmentHead(companyId, serviceCodeOrId, employeeId, data, meta = {}, actor) {
+    const cid = String(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service) throw serviceError('Service not found in catalogue.', 404);
+    const serviceAccess = await prisma.clientServiceAccess.findFirst({
+      where: { adminId: cid, serviceId: service.id, isAllowed: true },
+    });
+    if (!serviceAccess) throw serviceError('This service is not assigned to the company.', 403, 'SERVICE_NOT_ASSIGNED');
+
+    const eid = parseEntityId(employeeId, 'Department Head');
+    const employee = await prisma.companyEmployee.findFirst({
+      where: { id: eid, companyId: cid },
+    });
+    if (!employee) throw serviceError('Department Head employee not found.', 404);
+
+    const updateData = {};
+
+    if (data.name && typeof data.name === 'string') {
+      const name = data.name.trim();
+      if (name.length < 2 || name.length > 100) {
+        throw serviceError('Full Name must be between 2 and 100 characters.', 400);
+      }
+      updateData.name = name;
+    }
+
+    if (data.role !== undefined) {
+      updateData.role = typeof data.role === 'string' ? data.role.trim() : 'Department Head';
+    }
+
+    if (data.phone !== undefined) {
+      const phone = typeof data.phone === 'string' && data.phone.trim() ? data.phone.trim() : null;
+      if (phone && !/^[0-9+() -]{7,25}$/.test(phone)) {
+        throw serviceError('Enter a valid phone number.', 400);
+      }
+      updateData.phone = phone;
+    }
+
+    if (data.status && ['ACTIVE', 'INACTIVE'].includes(data.status)) {
+      updateData.status = data.status;
+    }
+
+    if (data.password && typeof data.password === 'string' && data.password.trim().length >= 8) {
+      updateData.passwordHash = hashPassword(data.password.trim());
+    }
+
+    if (data.permissions) {
+      const normalizedPermissions = validateTeamPermissions(data.permissions);
+      if (!normalizedPermissions) {
+        throw serviceError('Department Head permissions must include explicit actions and valid feature access.', 400);
+      }
+      if (!validateFeatureAccess(normalizedPermissions, await getAvailableServiceModules(cid, service, serviceAccess))) {
+        throw serviceError('Department Head permissions must be within company-approved service access.', 400);
+      }
+      updateData.permissions = normalizedPermissions;
+    }
+
+    const updated = await prisma.companyEmployee.update({
+      where: { id: employee.id },
+      data: updateData,
+      include: {
+        department: { include: { service: true } },
+        team: { include: { service: true } },
+      },
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: updated.id,
+      newValue: {
+        name: updated.name,
+        role: updated.role,
+        phone: updated.phone,
+        status: updated.status,
+        permissions: updated.permissions,
+        service: service.code,
+      },
+      reason: `Updated Department Head "${updated.name}" in company #${cid}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return formatEmployee(updated);
+  },
+
+  async toggleDepartmentHeadStatus(companyId, serviceCodeOrId, employeeId, meta = {}, actor) {
+    const cid = String(companyId);
+    const service = await this._resolveService(String(serviceCodeOrId));
+    if (!service) throw serviceError('Service not found in catalogue.', 404);
+
+    const eid = parseEntityId(employeeId, 'Department Head');
+    const employee = await prisma.companyEmployee.findFirst({
+      where: { id: eid, companyId: cid },
+    });
+    if (!employee) throw serviceError('Department Head employee not found.', 404);
+
+    const nextStatus = employee.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+
+    const updated = await prisma.companyEmployee.update({
+      where: { id: employee.id },
+      data: { status: nextStatus },
+      include: {
+        department: { include: { service: true } },
+        team: { include: { service: true } },
+      },
+    });
+
+    await auditService.logAudit({
+      action: 'UPDATE',
+      entityType: 'COMPANY_EMPLOYEE',
+      entityId: updated.id,
+      newValue: { status: nextStatus },
+      reason: `Changed Department Head "${updated.name}" status to ${nextStatus}`,
+      ipAddress: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return formatEmployee(updated);
   },
 
   async updateDepartmentHeadPermissions(companyId, serviceCodeOrId, employeeId, permissions, meta = {}) {

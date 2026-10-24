@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { api } from '../lib/api';
 import {
@@ -64,6 +64,7 @@ let globalCurrentUser = null;
 export function CompanyAuthProvider({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const lastSyncTimestampRef = useRef(0);
 
   // Format role display label
   const formatRoleTitle = (role, departmentName) => {
@@ -222,28 +223,35 @@ export function CompanyAuthProvider({ children }) {
       let finalAuthorizedList = [finalCompany];
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('active_company_id', String(finalCompany.id));
-        localStorage.setItem('cached_company_data', JSON.stringify(finalCompany));
+        const activeIdStr = String(finalCompany.id);
+        if (localStorage.getItem('active_company_id') !== activeIdStr) {
+          localStorage.setItem('active_company_id', activeIdStr);
+        }
+        const cachedStr = JSON.stringify(finalCompany);
+        if (localStorage.getItem('cached_company_data') !== cachedStr) {
+          localStorage.setItem('cached_company_data', cachedStr);
+        }
       }
 
       setActiveCompany(finalCompany);
       setAuthorizedCompanies(finalAuthorizedList);
+      lastSyncTimestampRef.current = Date.now();
 
       // Non-blocking background sync for any updated metadata from /clients/:id
       if (targetCompanyId) {
         api.get(`/clients/${targetCompanyId}`).then(compRes => {
           const companyData = compRes?.data || null;
           if (companyData) {
-            setActiveCompany(prev => scopeCompanyAccessForUser({
-              ...prev,
+            const scoped = scopeCompanyAccessForUser({
               ...companyData,
-              access: companyData.access || prev?.access,
-            }, verifiedUser));
+              access: companyData.access || finalCompany.access,
+            }, verifiedUser);
+            setActiveCompany(scoped);
             if (typeof window !== 'undefined') {
-              localStorage.setItem(
-                'cached_company_data',
-                JSON.stringify(scopeCompanyAccessForUser(companyData, verifiedUser))
-              );
+              const newStr = JSON.stringify(scoped);
+              if (localStorage.getItem('cached_company_data') !== newStr) {
+                localStorage.setItem('cached_company_data', newStr);
+              }
             }
           }
         }).catch(() => {});
@@ -262,20 +270,28 @@ export function CompanyAuthProvider({ children }) {
     if (typeof window !== 'undefined') {
       loadCompanySession();
 
-      // Revalidate automatically on tab focus or catalog update storage event
+      // Revalidate on tab focus with a 30s minimum cooldown to prevent continuous query loops
       const handleRevalidate = () => {
+        if (Date.now() - lastSyncTimestampRef.current < 30000) return;
         loadCompanySession();
       };
+
+      // ONLY revalidate on storage event if the auth token itself changed from another tab
+      const handleStorage = (event) => {
+        if (event.key === 'azzuniqe_client_token') {
+          loadCompanySession();
+        }
+      };
+
       window.addEventListener('focus', handleRevalidate);
       window.addEventListener('pageshow', handleRevalidate);
-      window.addEventListener('storage', handleRevalidate);
+      window.addEventListener('storage', handleStorage);
       return () => {
         window.removeEventListener('focus', handleRevalidate);
         window.removeEventListener('pageshow', handleRevalidate);
-        window.removeEventListener('storage', handleRevalidate);
+        window.removeEventListener('storage', handleStorage);
       };
     }
-    loadCompanySession();
   }, [loadCompanySession]);
 
   // Switch active company tenant context

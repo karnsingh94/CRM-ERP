@@ -155,6 +155,7 @@ model ClientAdmin {
   serviceTeams    CompanyServiceTeam[]
   workItems       ServiceWorkItem[]
   leads           Lead[]
+  leadIntegrations CompanyLeadIntegration[]
   customers       CrmCustomer[]
   contacts        CrmContact[]
   opportunities   CrmOpportunity[]
@@ -272,7 +273,9 @@ model CompanyServiceTeam {
   companyId      String   @map("company_id") @db.Char(36)
   serviceId      String   @map("service_id") @db.Char(36)
   name           String   @db.VarChar(150)
+  description    String?  @db.Text
   headEmployeeId String?  @unique @map("head_employee_id") @db.Char(36)
+  status         Status   @default(ACTIVE)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -360,22 +363,45 @@ model ServiceWorkUpdate {
 }
 
 model Lead {
-  id        String     @id @default(uuid()) @db.Char(36)
-  companyId String     @map("company_id") @db.Char(36)
-  name      String     @db.VarChar(150)
-  company   String?    @db.VarChar(180)
-  email     String     @db.VarChar(180)
-  phone     String?    @db.VarChar(40)
-  source    String     @default("Website Inquiry") @db.VarChar(100)
-  value     Decimal?   @db.Decimal(15, 2)
-  status    LeadStatus @default(NEW)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  id         String     @id @default(uuid()) @db.Char(36)
+  companyId  String     @map("company_id") @db.Char(36)
+  name       String     @db.VarChar(150)
+  company    String?    @db.VarChar(180)
+  email      String     @db.VarChar(180)
+  phone      String?    @db.VarChar(40)
+  source     String     @default("Website Inquiry") @db.VarChar(100)
+  externalId String?    @map("external_id") @db.VarChar(191)
+  value      Decimal?   @db.Decimal(15, 2)
+  status     LeadStatus @default(NEW)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
 
   clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status, createdAt])
+  @@index([companyId, externalId])
   @@map("crm_leads")
+}
+
+model CompanyLeadIntegration {
+  id             String    @id @default(uuid()) @db.Char(36)
+  companyId      String    @map("company_id") @db.Char(36)
+  provider       String    @db.VarChar(50) // INDIAMART, META_FACEBOOK, META_INSTAGRAM, WEBSITE_WEBHOOK, GMAIL, JUSTDIAL
+  status         Status    @default(ACTIVE)
+  credentials    Json?     // stores API key, CRM key, pageId, etc.
+  webhookToken   String?   @unique @map("webhook_token") @db.VarChar(100)
+  lastSyncAt     DateTime? @map("last_sync_at")
+  totalSynced    Int       @default(0) @map("total_synced")
+  lastSyncStatus String?   @map("last_sync_status") @db.VarChar(50)
+  lastSyncError  String?   @map("last_sync_error") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, provider])
+  @@index([companyId, status])
+  @@map("company_lead_integrations")
 }
 
 model CrmCustomer {

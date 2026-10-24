@@ -78,6 +78,7 @@ router.get('/companies/:companyId/assigned-services', requireCompanyAdmin, compa
 router.get('/companies/:companyId/employees', requireServiceTeamPermission('manageMembers'), departmentController.getCompanyEmployees);
 router.post('/companies/:companyId/employees', requireServiceTeamPermission('manageMembers'), departmentController.createCompanyEmployee);
 router.put('/companies/:companyId/employees/:employeeId/team', requireServiceTeamPermission('manageMembers'), departmentController.assignCompanyEmployee);
+router.patch('/companies/:companyId/employees/:employeeId/status', requireServiceTeamPermission('manageMembers'), departmentController.toggleCompanyEmployeeStatus);
 
 // ==================== SERVICE TEAMS & DEPARTMENT HEADS ====================
 router.get(
@@ -89,6 +90,16 @@ router.post(
   '/companies/:companyId/services/:serviceCode/teams',
   requireServiceTeamPermission(['manageTeams', 'manageMembers']),
   departmentController.createServiceTeam
+);
+router.put(
+  '/companies/:companyId/services/:serviceCode/teams/:teamId',
+  requireServiceTeamPermission(['manageTeams', 'manageMembers']),
+  departmentController.updateServiceTeam
+);
+router.patch(
+  '/companies/:companyId/services/:serviceCode/teams/:teamId/status',
+  requireServiceTeamPermission(['manageTeams', 'manageMembers']),
+  departmentController.toggleServiceTeamStatus
 );
 router.get(
   '/companies/:companyId/services/:serviceCode/team',
@@ -116,6 +127,16 @@ router.post(
   '/companies/:companyId/services/:serviceCode/department-heads',
   requireCompanyAdmin,
   departmentController.createDepartmentHead
+);
+router.put(
+  '/companies/:companyId/services/:serviceCode/department-heads/:employeeId',
+  requireCompanyAdmin,
+  departmentController.updateDepartmentHead
+);
+router.patch(
+  '/companies/:companyId/services/:serviceCode/department-heads/:employeeId/status',
+  requireCompanyAdmin,
+  departmentController.toggleDepartmentHeadStatus
 );
 router.put(
   '/companies/:companyId/services/:serviceCode/department-heads/:employeeId/permissions',

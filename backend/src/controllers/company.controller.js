@@ -79,6 +79,7 @@ export const companyController = {
           status,
           themeColor: selectedThemeColor,
           theme_color: selectedThemeColor,
+          leadIntegrations: req.body.leadIntegrations || req.body.lead_integrations,
         },
         req.meta || {},
         req.user?.userId || req.user?.id

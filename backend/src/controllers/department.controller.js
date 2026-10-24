@@ -46,6 +46,22 @@ export const departmentController = {
     }
   },
 
+  async toggleCompanyEmployeeStatus(req, res, next) {
+    try {
+      const employee = await departmentService.toggleCompanyEmployeeStatus(
+        req.params.companyId,
+        req.params.employeeId,
+        req.meta || {}
+      );
+      res.json({ success: true, data: employee });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
   async removeServiceTeamEmployee(req, res, next) {
     try {
       const team = await departmentService.removeServiceTeamEmployee(
@@ -102,10 +118,45 @@ export const departmentController = {
       const team = await departmentService.createServiceTeam(
         req.params.companyId,
         req.params.serviceCode,
-        req.body.name,
+        req.body,
         req.meta || {}
       );
       res.status(201).json({ success: true, data: team });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
+  async updateServiceTeam(req, res, next) {
+    try {
+      const team = await departmentService.updateServiceTeam(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.params.teamId,
+        req.body,
+        req.meta || {}
+      );
+      res.json({ success: true, data: team });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
+  async toggleServiceTeamStatus(req, res, next) {
+    try {
+      const team = await departmentService.toggleServiceTeamStatus(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.params.teamId,
+        req.meta || {}
+      );
+      res.json({ success: true, data: team });
     } catch (err) {
       if (err.statusCode) {
         return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
@@ -160,6 +211,43 @@ export const departmentController = {
         req.user
       );
       res.status(201).json({ success: true, data: head });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
+  async updateDepartmentHead(req, res, next) {
+    try {
+      const head = await departmentService.updateDepartmentHead(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.params.employeeId,
+        req.body,
+        req.meta || {},
+        req.user
+      );
+      res.json({ success: true, data: head });
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
+      }
+      next(err);
+    }
+  },
+
+  async toggleDepartmentHeadStatus(req, res, next) {
+    try {
+      const head = await departmentService.toggleDepartmentHeadStatus(
+        req.params.companyId,
+        req.params.serviceCode,
+        req.params.employeeId,
+        req.meta || {},
+        req.user
+      );
+      res.json({ success: true, data: head });
     } catch (err) {
       if (err.statusCode) {
         return res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
