@@ -294,6 +294,7 @@ model CompanyEmployee {
   teamId       String?  @map("team_id") @db.Char(36)
   name         String   @db.VarChar(150)
   email        String   @db.VarChar(180)
+  phone        String?  @db.VarChar(40)
   role         String   @db.VarChar(100)
   accessRole   String   @default("EMPLOYEE") @map("access_role") @db.VarChar(30)
   passwordHash String?  @map("password_hash") @db.VarChar(255)

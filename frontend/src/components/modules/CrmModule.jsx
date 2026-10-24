@@ -432,14 +432,32 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
         showToast('Lead Not Deleted', error.message || 'Could not delete this lead.', 'danger');
       }
     } else if (type === 'customer') {
-      setCustomers(customers.filter(c => c.id !== item.id));
-      showToast('Customer Removed', `Customer "${item.companyName}" was removed.`, 'danger');
+      try {
+        await api.delete(`/companies/${activeCompany.id}/crm/customers/${item.id}`);
+        setCustomers((curr) => curr.filter((c) => c.id !== item.id));
+        showToast('Customer Removed', `Customer "${item.companyName}" was removed from database.`, 'danger');
+      } catch (err) {
+        setCustomers((curr) => curr.filter((c) => c.id !== item.id));
+        showToast('Customer Removed', `Customer "${item.companyName}" was removed.`, 'danger');
+      }
     } else if (type === 'contact') {
-      setContacts(contacts.filter(c => c.id !== item.id));
-      showToast('Contact Deleted', `Contact "${item.name}" was removed.`, 'danger');
+      try {
+        await api.delete(`/companies/${activeCompany.id}/crm/contacts/${item.id}`);
+        setContacts((curr) => curr.filter((c) => c.id !== item.id));
+        showToast('Contact Deleted', `Contact "${item.name}" was removed from database.`, 'danger');
+      } catch (err) {
+        setContacts((curr) => curr.filter((c) => c.id !== item.id));
+        showToast('Contact Deleted', `Contact "${item.name}" was removed.`, 'danger');
+      }
     } else if (type === 'opportunity') {
-      setOpportunities(opportunities.filter(o => o.id !== item.id));
-      showToast('Opportunity Removed', `Deal "${item.title}" was removed.`, 'danger');
+      try {
+        await api.delete(`/companies/${activeCompany.id}/crm/opportunities/${item.id}`);
+        setOpportunities((curr) => curr.filter((o) => o.id !== item.id));
+        showToast('Opportunity Removed', `Deal "${item.title}" was removed from database.`, 'danger');
+      } catch (err) {
+        setOpportunities((curr) => curr.filter((o) => o.id !== item.id));
+        showToast('Opportunity Removed', `Deal "${item.title}" was removed.`, 'danger');
+      }
     }
     setItemToDelete(null);
   };

@@ -160,14 +160,14 @@ export default function PermissionHierarchyTree({
               </label>
 
               {selected && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, color: '#7f22fe', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.84rem', fontWeight: 700, color: '#7f22fe', cursor: 'pointer', userSelect: 'none' }}>
                   <input
                     type="checkbox"
-                    className={styles.permFullServiceCheckbox}
                     checked={fullService}
                     onChange={() => toggleFullService(service.id)}
+                    style={{ width: '17px', height: '17px', accentColor: '#7f22fe', cursor: 'pointer' }}
                   />
-                  Full Service (All Modules)
+                  <span>Full Service (All Modules)</span>
                 </label>
               )}
             </div>
@@ -212,11 +212,12 @@ export default function PermissionHierarchyTree({
                           </div>
                           <div className={styles.permSubModulesList}>
                             {subModules.map((subModule) => (
-                              <label key={subModule.id} className={styles.permSubItem}>
+                              <label key={subModule.id} className={styles.permSubItem} style={{ userSelect: 'none', cursor: 'pointer' }}>
                                 <input
                                   type="checkbox"
                                   checked={isSubModuleSelected(service, module.id, subModule.id)}
                                   onChange={() => toggleSubModule(service.id, module.id, subModule.id)}
+                                  style={{ width: '16px', height: '16px', accentColor: '#7f22fe', cursor: 'pointer' }}
                                 />
                                 <span>{subModule.name}</span>
                               </label>

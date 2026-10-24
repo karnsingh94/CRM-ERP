@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import companyController from '../controllers/company.controller.js';
-import { requireSuperAdmin, validateSubModuleAccess } from '../middlewares/auth.middleware.js';
+import { requireSuperAdmin } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -16,15 +16,5 @@ router.post('/clients/:id/switch', companyController.switchToClientPanel);
 // ==================== PERMISSIONS & ACCESS ====================
 router.get('/clients/:id/access', companyController.getClientAccess);
 router.put('/clients/:id/access', requireSuperAdmin, companyController.saveClientAccess);
-
-// ==================== SUBMODULE / FEATURE APIS ====================
-router.get('/companies/:companyId/crm/customers', validateSubModuleAccess('crm_customers'), (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { id: 1, name: 'Apex Technologies', contactPerson: 'Rajesh Sharma', status: 'ACTIVE' },
-    ],
-  });
-});
 
 export default router;
