@@ -16,6 +16,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconBuilding,
+  IconUsers,
 } from '../ui/Icons';
 import { getHierarchyFromPathname } from '@/config/routes.config';
 
@@ -290,6 +291,23 @@ export default function Sidebar({
   const userDisplayName = currentUser?.name || currentUser?.fullName || 'Authorized User';
   const userDisplayEmail = currentUser?.email || 'Authenticated User';
   const userInitials = getInitials(userDisplayName);
+  const roleLabels = {
+    DEPARTMENT_HEAD: 'Department Head',
+    SERVICE_HEAD: 'Department Head',
+    TEAM_LEADER: 'Team Leader',
+    EMPLOYEE: 'Employee',
+  };
+  const portalRoleLabel = roleLabels[currentUser?.role] || 'Company Admin';
+  const isDepartmentHeadPortal = ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role);
+  const dashboardHref = isDepartmentHeadPortal ? '/department/dashboard' : '/dashboard';
+  const settingsHref = isDepartmentHeadPortal ? '/department/settings' : '/settings';
+  const canShowSettings = isCompanyAdmin || isDepartmentHeadPortal;
+  const canOpenDepartmentWorkspace = isDepartmentHeadPortal && (
+    currentUser?.permissions?.manageTeams !== false
+    || currentUser?.permissions?.manageMembers !== false
+    || currentUser?.permissions?.assignWork === true
+    || currentUser?.permissions?.updateWork === true
+  );
 
   const brandColor = activeCompany?.theme_color || activeCompany?.themeColor || '#7f22fe';
   const brandGlow = `${brandColor}59`;
@@ -369,7 +387,7 @@ export default function Sidebar({
             <div
               style={{
                 fontSize: '0.72rem',
-                color: '#a78bfa',
+                color: brandColor,
                 fontWeight: 700,
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
@@ -385,10 +403,10 @@ export default function Sidebar({
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  background: '#a78bfa',
+                  background: brandColor,
                 }}
               />
-              Company Admin
+              {portalRoleLabel}
             </div>
           </div>
         )}
@@ -409,10 +427,10 @@ export default function Sidebar({
       >
         {/* Dashboard Link */}
         {(() => {
-          const isDashboardActive = pathname === '/' || pathname === '/dashboard';
+          const isDashboardActive = pathname === '/' || pathname === '/dashboard' || pathname === '/department/dashboard';
           return (
             <Link
-              href="/dashboard"
+              href={dashboardHref}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -438,6 +456,56 @@ export default function Sidebar({
             </Link>
           );
         })()}
+
+        {canOpenDepartmentWorkspace && (
+          <>
+            {!isCollapsed && (
+              <div
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  color: '#71717a',
+                  letterSpacing: '0.05em',
+                  margin: '0.75rem 0 0.25rem 0.5rem',
+                }}
+              >
+                Team Operations
+              </div>
+            )}
+
+            {(() => {
+              const isWorkspaceActive = pathname === '/department/workspace';
+              return (
+                <Link
+                  href="/department/workspace"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.62rem 0.8rem',
+                    borderRadius: '8px',
+                    color: isWorkspaceActive ? '#ffffff' : '#a1a1aa',
+                    background: isWorkspaceActive ? brandColor : 'transparent',
+                    boxShadow: isWorkspaceActive ? `0 4px 14px ${brandGlow}` : 'none',
+                    fontWeight: isWorkspaceActive ? 700 : 500,
+                    fontSize: '0.85rem',
+                    width: '100%',
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease',
+                    justifyContent: isCollapsed ? 'center' : 'flex-start',
+                  }}
+                  title="Create teams, manage members, and assign work"
+                >
+                  <span style={{ color: isWorkspaceActive ? '#ffffff' : brandColor, flexShrink: 0 }}>
+                    <IconUsers size={18} />
+                  </span>
+                  {!isCollapsed && <span>Department Workspace</span>}
+                </Link>
+              );
+            })()}
+          </>
+        )}
 
         {/* Services Section Header */}
         {!isCollapsed && (
@@ -774,7 +842,7 @@ export default function Sidebar({
         })}
 
         {/* Company Settings Section */}
-        {isCompanyAdmin && !isCollapsed && (
+        {canShowSettings && !isCollapsed && (
           <div
             style={{
               fontSize: '0.68rem',
@@ -785,15 +853,15 @@ export default function Sidebar({
               margin: '0.85rem 0 0.25rem 0.5rem',
             }}
           >
-            Company &amp; Preferences
+            {isDepartmentHeadPortal ? 'Department & Preferences' : 'Company & Preferences'}
           </div>
         )}
 
-        {isCompanyAdmin && (() => {
-          const isSettingsActive = pathname === '/settings';
+        {canShowSettings && (() => {
+          const isSettingsActive = pathname === settingsHref;
           return (
             <Link
-              href="/settings"
+              href={settingsHref}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -810,12 +878,12 @@ export default function Sidebar({
                 justifyContent: isCollapsed ? 'center' : 'flex-start',
                 transition: 'all 0.15s ease',
               }}
-              title="Company Profile & Settings"
+              title={isDepartmentHeadPortal ? 'Department Settings & Profile' : 'Company Profile & Settings'}
             >
               <span style={{ color: isSettingsActive ? '#ffffff' : '#a78bfa', flexShrink: 0 }}>
                 <IconSettings size={18} />
               </span>
-              {!isCollapsed && <span>Company Settings</span>}
+              {!isCollapsed && <span>{isDepartmentHeadPortal ? 'Settings & Profile' : 'Company Settings'}</span>}
             </Link>
           );
         })()}
@@ -844,7 +912,7 @@ export default function Sidebar({
               height: '36px',
               borderRadius: '8px',
               backgroundColor: '#27272a',
-              color: '#a78bfa',
+              color: brandColor,
               fontWeight: 800,
               fontSize: '0.85rem',
               display: 'flex',

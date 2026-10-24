@@ -1,7 +1,5 @@
-'use client';
-
-import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
+import { redirect } from 'next/navigation';
 
 export default function DepartmentHeadPage() {
-  return <DepartmentHeadDashboardFeature />;
+  redirect('/department/dashboard');
 }

@@ -308,18 +308,21 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
               companyId: companyIdUuid,
               status: 'ACTIVE',
             },
-            include: { team: true },
+            include: { department: true, team: true },
           });
-          if (!employee?.team || employee.team.serviceId !== subModule.serviceId) {
+          const assignedServiceId = employee?.department?.serviceId || employee?.team?.serviceId;
+          if (!assignedServiceId || String(assignedServiceId) !== String(subModule.serviceId)) {
             return res.status(403).json({
               success: false,
               code: 'SERVICE_SCOPE_VIOLATION',
               message: 'Access denied: This feature is outside your assigned service.',
             });
           }
-          if (
-            employee.team.headEmployeeId === employee.id
-          ) {
+          const isDepartmentHead =
+            ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(employee.accessRole) ||
+            ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(req.user.role);
+          const isTeamLeader = employee.team?.headEmployeeId === employee.id;
+          if (isDepartmentHead || isTeamLeader) {
             const featureAccess = employee.permissions?.featureAccess || {};
             const permittedModuleIds = Array.isArray(featureAccess.moduleIds)
               ? featureAccess.moduleIds.map(String)
@@ -334,19 +337,19 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
               return res.status(403).json({
                 success: false,
                 code: 'TEAM_FEATURE_PERMISSION_REQUIRED',
-                message: 'Access denied: this feature is not assigned to your Team Leader role.',
+                message: 'Access denied: this feature is not assigned to your role.',
               });
             }
           }
           if (
-            employee.team.headEmployeeId === employee.id &&
+            (isDepartmentHead || isTeamLeader) &&
             !['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
             employee.permissions?.manageServiceRecords !== true
           ) {
             return res.status(403).json({
               success: false,
               code: 'TEAM_PERMISSION_REQUIRED',
-              message: 'Access denied: the Team Leader does not have permission to manage service records.',
+              message: 'Access denied: your role does not have permission to manage service records.',
             });
           }
         }

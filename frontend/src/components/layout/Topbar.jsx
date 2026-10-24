@@ -19,6 +19,7 @@ export default function Topbar({
   allCompanies = [],
   hasMultipleCompanies = false,
   currentUser = null,
+  accentColor,
   onSelectCompany,
   onSelectTab,
   onToggleSidebar,
@@ -65,8 +66,10 @@ export default function Topbar({
     EMPLOYEE: 'Employee',
   };
   const displayRole = currentUser?.roleTitle || roleLabels[currentUser?.role] || 'Company Admin';
+  const isDepartmentHeadPortal = ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role);
+  const settingsHref = isDepartmentHeadPortal ? '/department/settings' : '/settings';
   const userInitials = getInitials(displayName);
-  const brandColor = activeCompany?.theme_color || activeCompany?.themeColor || currentUser?.theme_color || currentUser?.themeColor || '#7f22fe';
+  const brandColor = accentColor || activeCompany?.theme_color || activeCompany?.themeColor || currentUser?.theme_color || currentUser?.themeColor || '#7f22fe';
   const brandGlow = `${brandColor}4d`;
 
   return (
@@ -241,7 +244,7 @@ export default function Topbar({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        backgroundColor: isSelected ? '#f5f0ff' : 'transparent',
+                        backgroundColor: isSelected ? `${brandColor}14` : 'transparent',
                         color: isSelected ? brandColor : '#334155',
                         fontWeight: isSelected ? 700 : 500,
                         fontSize: '0.82rem',
@@ -298,7 +301,7 @@ export default function Topbar({
               border: '1px solid #e2e8f0',
               backgroundColor: '#ffffff',
             }}
-            aria-label="Company Admin user profile"
+            aria-label={`${displayRole} user profile`}
           >
             <div
               style={{
@@ -359,7 +362,7 @@ export default function Topbar({
                   {displayEmail || 'No email registered'}
                 </div>
                 {displayOrg && (
-                  <div style={{ fontSize: '0.74rem', color: '#7f22fe', fontWeight: 600, marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.74rem', color: brandColor, fontWeight: 600, marginTop: '2px' }}>
                     {displayOrg}
                   </div>
                 )}
@@ -370,9 +373,9 @@ export default function Topbar({
                     marginTop: '0.4rem',
                     fontSize: '0.68rem',
                     fontWeight: 700,
-                    color: '#7f22fe',
-                    background: '#f5f0ff',
-                    border: '1px solid #ebdfff',
+                    color: brandColor,
+                    background: `${brandColor}14`,
+                    border: `1px solid ${brandColor}33`,
                     padding: '0.1rem 0.45rem',
                     borderRadius: '9999px',
                     textTransform: 'uppercase',
@@ -384,7 +387,7 @@ export default function Topbar({
               </div>
 
               <Link
-                href="/settings"
+                href={settingsHref}
                 className={styles.profileDropdownLink}
                 onClick={() => setShowProfileMenu(false)}
                 style={{
@@ -402,7 +405,7 @@ export default function Topbar({
                 }}
               >
                 <IconSettings size={15} />
-                <span>Company Settings &amp; Profile</span>
+                <span>{isDepartmentHeadPortal ? 'Settings & Profile' : 'Company Settings & Profile'}</span>
               </Link>
 
               <button
