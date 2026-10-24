@@ -73,6 +73,7 @@ function formatLead(lead) {
     email: lead.email,
     phone: lead.phone || '',
     source: lead.source,
+    externalId: lead.externalId || null,
     value: lead.value?.toString() || '',
     status: lead.status,
     date: lead.createdAt.toISOString().slice(0, 10),

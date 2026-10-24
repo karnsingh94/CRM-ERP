@@ -342,8 +342,39 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
   const [isDeletingService, setIsDeletingService] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
-  const [clientModalMode, setClientModalMode] = useState('create'); // 'create' | 'permissions' | 'details'
+  const [clientModalMode, setClientModalMode] = useState('create'); // 'create' | 'permissions' | 'details' | 'integrations'
   const [clientToDelete, setClientToDelete] = useState(null);
+
+  const DEFAULT_LEAD_INTEGRATIONS = {
+    INDIAMART: { glusrCrmKey: '', status: 'INACTIVE' },
+    META_FACEBOOK: { pageId: '', pageAccessToken: '', status: 'INACTIVE' },
+    META_INSTAGRAM: { instagramAccountId: '', accessToken: '', status: 'INACTIVE' },
+    WEBSITE_WEBHOOK: { defaultSourceTag: 'Website Ingestion', status: 'ACTIVE' },
+    GMAIL: { inquiryEmail: '', status: 'INACTIVE' },
+    JUSTDIAL: { apiKey: '', status: 'INACTIVE' },
+  };
+  const [clientLeadIntegrations, setClientLeadIntegrations] = useState(DEFAULT_LEAD_INTEGRATIONS);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [showSecretMap, setShowSecretMap] = useState({});
+  const [leadChannelFilter, setLeadChannelFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'INACTIVE'
+
+  const handleCopyWebhookUrl = (webhookPath) => {
+    if (!webhookPath) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const backendBase = API_BASE.replace(/\/api\/?$/, '');
+    const fullUrl = webhookPath.startsWith('http') ? webhookPath : `${backendBase}${webhookPath}`;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(fullUrl);
+      setCopiedWebhook(true);
+      showToast('Copied to Clipboard! 📋', 'Universal Webhook URL copied.', 'info');
+      setTimeout(() => setCopiedWebhook(false), 2500);
+    }
+  };
+
+  const toggleSecretVisibility = (key) => {
+    setShowSecretMap(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
 
   // Dynamic Client Panel Simulator
   const [simulatedClient, setSimulatedClient] = useState(null);
@@ -1103,8 +1134,29 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
       theme_color: '#7f22fe'
     });
     setClientAccessTree({ services: [] });
+    setClientLeadIntegrations(DEFAULT_LEAD_INTEGRATIONS);
     setShowClientPassword(false);
     setShowClientModal(true);
+  };
+
+  const fetchClientLeadIntegrations = async (clientId) => {
+    try {
+      const res = await fetch(`${API_BASE}/clients/${clientId}/crm/lead-integrations`);
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data)) {
+        const mapped = {};
+        json.data.forEach(item => {
+          mapped[item.id] = {
+            ...(item.credentials || {}),
+            status: item.status || 'INACTIVE',
+            webhookToken: item.webhookToken,
+            webhookUrl: item.webhookUrl,
+            totalSynced: item.totalSynced || 0
+          };
+        });
+        setClientLeadIntegrations(prev => ({ ...prev, ...mapped }));
+      }
+    } catch {}
   };
 
   // Open dedicated PERMISSIONS-ONLY view (Section 2 only)
@@ -1121,6 +1173,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
       theme_color: client.theme_color || client.themeColor || '#7f22fe'
     });
     setClientAccessTree(client.access || { services: [] });
+    fetchClientLeadIntegrations(client.id);
     setShowClientPassword(false);
     setShowClientModal(true);
   };
@@ -1139,9 +1192,30 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
       theme_color: client.theme_color || client.themeColor || '#7f22fe'
     });
     setClientAccessTree(client.access || { services: [] });
+    fetchClientLeadIntegrations(client.id);
     setShowClientPassword(false);
     setShowClientModal(true);
   };
+
+  // Open dedicated LEAD CHANNELS & APIS view (Section 3 only)
+  const handleOpenIntegrationsModal = (client) => {
+    setEditingClient(client);
+    setClientModalMode('integrations');
+    setClientForm({
+      name: client.name,
+      email: client.email,
+      mobile: client.mobile || '',
+      organization_name: client.organization_name,
+      password: '',
+      status: client.status,
+      theme_color: client.theme_color || client.themeColor || '#7f22fe'
+    });
+    setClientAccessTree(client.access || { services: [] });
+    fetchClientLeadIntegrations(client.id);
+    setShowClientPassword(false);
+    setShowClientModal(true);
+  };
+
 
   const handleToggleClientStatus = async (id, orgName) => {
     // 1. Instant Optimistic toggle for clients
@@ -1229,6 +1303,26 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
       return;
     }
 
+    // 1.1 If in dedicated LEAD INTEGRATIONS mode, save integrations directly
+    if (clientModalMode === 'integrations' && editingClient) {
+      try {
+        const promises = Object.entries(clientLeadIntegrations).map(([provider, conf]) => {
+          return fetch(`${API_BASE}/clients/${editingClient.id}/crm/lead-integrations/${provider}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credentials: conf, status: conf.status || 'ACTIVE' })
+          });
+        });
+        await Promise.all(promises);
+        setShowClientModal(false);
+        showToast('Lead Integrations Saved! ⚡', `Configured API channels for "${editingClient.organization_name}".`, 'success');
+        fetchData(true);
+      } catch (err) {
+        showToast('Error', err.message, 'danger');
+      }
+      return;
+    }
+
     // 2. Organization & Admin Name & Email validation (for Create & Details modes)
     if (!clientForm.organization_name.trim()) {
       showToast('Validation Error', 'Company / Organization name is required.', 'danger');
@@ -1290,7 +1384,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
       const payload = {
         ...clientForm,
         mobile: clientForm.mobile ? clientForm.mobile.trim().replace(/\D/g, '') : null,
-        access: clientAccessTree
+        access: clientAccessTree,
+        leadIntegrations: clientLeadIntegrations
       };
 
       let res;
@@ -1781,6 +1876,14 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                                   </button>
                                   <button
                                     className={`${styles.btnSecondary} ${styles.btnSm}`}
+                                    onClick={() => handleOpenIntegrationsModal(c)}
+                                    style={{ background: '#fdf4ff', color: '#9333ea', borderColor: '#e9d5ff', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                                    title="Manage Lead Channels & API Ingestions"
+                                  >
+                                    <span>⚡</span> Lead Channels
+                                  </button>
+                                  <button
+                                    className={`${styles.btnSecondary} ${styles.btnSm}`}
                                     onClick={() => handleOpenEditClientModal(c)}
                                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                                     title="Edit Company Details & Credentials"
@@ -2257,12 +2360,21 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                                   </button>
                                   <button
                                     className={`${styles.btnSecondary} ${styles.btnSm}`}
+                                    onClick={() => handleOpenIntegrationsModal(c)}
+                                    style={{ background: '#fdf4ff', color: '#9333ea', borderColor: '#e9d5ff', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                                    title="Manage Lead Channels & API Ingestions"
+                                  >
+                                    <span>⚡</span> Lead Channels
+                                  </button>
+                                  <button
+                                    className={`${styles.btnSecondary} ${styles.btnSm}`}
                                     onClick={() => handleOpenEditClientModal(c)}
                                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                                     title="Edit Company Details & Credentials"
                                   >
                                     <IconPencil size={14} /> Edit
                                   </button>
+
                                   <button
                                     className={styles.btnDanger}
                                     onClick={() => handleRequestDeleteClient(c)}
@@ -3387,17 +3499,21 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
               <div>
                 <h3>
                   {clientModalMode === 'permissions'
-                    ? `🛡️ Manage Permissions: ${editingClient?.organization_name || clientForm.organization_name}`
+                    ? `🛡️ Manage Permissions: ${editingClient?.organization_name || clientForm.organization_name || 'Client'}`
                     : clientModalMode === 'details'
-                    ? `✏️ Edit Company Details: ${editingClient?.organization_name || clientForm.organization_name}`
-                    : 'Create New Admin / Client Panel'}
+                    ? `✏️ Edit Company Profile: ${editingClient?.organization_name || clientForm.organization_name || 'Client'}`
+                    : clientModalMode === 'integrations'
+                    ? `⚡ Lead Channels & API Credentials: ${editingClient?.organization_name || clientForm.organization_name || 'Client'}`
+                    : '✨ Create New Admin / Client Panel'}
                 </h3>
                 <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
                   {clientModalMode === 'permissions'
-                    ? `Configure permitted Core Services, Modules, and Sub-Modules for "${editingClient?.organization_name || clientForm.organization_name}"`
+                    ? `Configure permitted Core Services, Modules, and Sub-Modules for "${editingClient?.organization_name || clientForm.organization_name || 'this company'}"`
                     : clientModalMode === 'details'
                     ? 'Update company profile, admin contact, and login credentials'
-                    : 'Assign company details and configure granular Service → Module → Sub-Module permissions'}
+                    : clientModalMode === 'integrations'
+                    ? 'Connect IndiaMART, Meta (Facebook / Instagram), and Webhooks for automated lead capture'
+                    : 'Assign company details, granular permissions, and external lead API channels'}
                 </span>
               </div>
               <button className={styles.closeBtn} onClick={() => setShowClientModal(false)}>&times;</button>
@@ -3405,51 +3521,105 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
 
             <form onSubmit={handleSaveClient}>
               <div className={styles.modalBody}>
-                {/* Mode Switcher Tabs for existing client */}
-                {editingClient && (
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
-                    <button
-                      type="button"
-                      onClick={() => setClientModalMode('permissions')}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.45rem 0.95rem',
-                        borderRadius: '8px',
-                        fontWeight: 700,
-                        fontSize: '0.83rem',
-                        border: 'none',
-                        cursor: 'pointer',
-                        background: clientModalMode === 'permissions' ? '#7f22fe' : '#f1f5f9',
-                        color: clientModalMode === 'permissions' ? '#ffffff' : '#475569',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <IconShield size={14} /> Permissions Only
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setClientModalMode('details')}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.45rem 0.95rem',
-                        borderRadius: '8px',
-                        fontWeight: 700,
-                        fontSize: '0.83rem',
-                        border: 'none',
-                        cursor: 'pointer',
-                        background: clientModalMode === 'details' ? '#7f22fe' : '#f1f5f9',
-                        color: clientModalMode === 'details' ? '#ffffff' : '#475569',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <IconPencil size={14} /> Company &amp; Admin Details
-                    </button>
-                  </div>
-                )}
+                {/* Modern Segmented Navigation Tabs */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: '#f1f5f9',
+                  padding: '4px',
+                  borderRadius: '12px',
+                  gap: '4px',
+                  marginBottom: '1.25rem',
+                  border: '1px solid #e2e8f0',
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setClientModalMode(editingClient ? 'details' : 'create')}
+                    style={{
+                      flex: 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.45rem',
+                      padding: '0.55rem 0.85rem',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '0.84rem',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: (clientModalMode === 'details' || clientModalMode === 'create') ? '#ffffff' : 'transparent',
+                      color: (clientModalMode === 'details' || clientModalMode === 'create') ? '#0f172a' : '#64748b',
+                      boxShadow: (clientModalMode === 'details' || clientModalMode === 'create') ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <IconPencil size={15} /> 1. Company Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClientModalMode('permissions')}
+                    style={{
+                      flex: 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.45rem',
+                      padding: '0.55rem 0.85rem',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '0.84rem',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: clientModalMode === 'permissions' ? '#ffffff' : 'transparent',
+                      color: clientModalMode === 'permissions' ? '#0f172a' : '#64748b',
+                      boxShadow: clientModalMode === 'permissions' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <IconShield size={15} /> 2. Permissions Matrix
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClientModalMode('integrations')}
+                    style={{
+                      flex: 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.45rem',
+                      padding: '0.55rem 0.85rem',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '0.84rem',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: clientModalMode === 'integrations' ? '#7f22fe' : 'transparent',
+                      color: clientModalMode === 'integrations' ? '#ffffff' : '#64748b',
+                      boxShadow: clientModalMode === 'integrations' ? '0 4px 12px rgba(127, 34, 254, 0.25)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span>⚡</span> 3. Lead Channels &amp; APIs
+                    <span style={{
+                      fontSize: '0.72rem',
+                      padding: '2px 7px',
+                      borderRadius: '999px',
+                      background: clientModalMode === 'integrations' ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                      color: clientModalMode === 'integrations' ? '#ffffff' : '#475569',
+                      fontWeight: 800
+                    }}>
+                      {[
+                        clientLeadIntegrations.INDIAMART?.status === 'ACTIVE',
+                        clientLeadIntegrations.META_FACEBOOK?.status === 'ACTIVE',
+                        clientLeadIntegrations.META_INSTAGRAM?.status === 'ACTIVE',
+                        clientLeadIntegrations.WEBSITE_WEBHOOK?.status !== 'INACTIVE',
+                        clientLeadIntegrations.GMAIL?.status === 'ACTIVE',
+                        clientLeadIntegrations.JUSTDIAL?.status === 'ACTIVE'
+                      ].filter(Boolean).length} Active
+                    </span>
+                  </button>
+                </div>
+
 
                 {/* Company Context Badge when in Permissions mode */}
                 {clientModalMode === 'permissions' && editingClient && (
@@ -3790,6 +3960,600 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                 />
                   </>
                 )}
+
+                {/* 3. Lead Channels & API Ingestion (rendered when mode is 'create' or 'integrations') */}
+                {(clientModalMode === 'create' || clientModalMode === 'integrations') && (() => {
+                  const channels = [
+                    {
+                      id: 'INDIAMART',
+                      title: 'IndiaMART Buyer Leads API',
+                      subtitle: 'Auto-sync verified B2B buyer leads into CRM every 15 min',
+                      icon: '🇮🇳',
+                      brandColor: '#005b9f',
+                      brandBg: '#eff6ff',
+                      isActive: clientLeadIntegrations.INDIAMART?.status === 'ACTIVE',
+                      fields: (
+                        <div>
+                          <label style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                            IndiaMART CRM Key (GLUSR_CRM_KEY) *
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type={showSecretMap['INDIAMART'] ? 'text' : 'password'}
+                              placeholder="e.g. mRxxxxxxxxxxxxxxxxxxxx=="
+                              value={clientLeadIntegrations.INDIAMART?.glusrCrmKey || ''}
+                              onChange={(e) => setClientLeadIntegrations(prev => ({
+                                ...prev,
+                                INDIAMART: { ...prev.INDIAMART, glusrCrmKey: e.target.value }
+                              }))}
+                              className={styles.formInput}
+                              style={{ fontSize: '0.82rem', padding: '0.5rem 2.4rem 0.5rem 0.75rem', width: '100%', fontFamily: showSecretMap['INDIAMART'] ? 'monospace' : 'inherit' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleSecretVisibility('INDIAMART')}
+                              style={{
+                                position: 'absolute',
+                                right: '8px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: '0.95rem',
+                                color: '#64748b',
+                                padding: '4px'
+                              }}
+                              title={showSecretMap['INDIAMART'] ? 'Hide Secret' : 'Show Secret'}
+                            >
+                              {showSecretMap['INDIAMART'] ? '🙈' : '👁️'}
+                            </button>
+                          </div>
+                          <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.3rem', display: 'block' }}>
+                            💡 Find in IndiaMART Seller Panel &rarr; Settings &rarr; CRM API &rarr; Copy Key.
+                          </span>
+                        </div>
+                      )
+                    },
+                    {
+                      id: 'WEBSITE_WEBHOOK',
+                      title: 'Website & Landing Page Webhook',
+                      subtitle: 'Auto-capture form leads from WordPress, Elementor, CF7, Webflow, Zapier',
+                      icon: '🌐',
+                      brandColor: '#059669',
+                      brandBg: '#ecfdf5',
+                      isActive: clientLeadIntegrations.WEBSITE_WEBHOOK?.status !== 'INACTIVE',
+                      fields: (() => {
+                        const webhookPath = clientLeadIntegrations.WEBSITE_WEBHOOK?.webhookUrl ||
+                          (editingClient?.id ? `/api/webhooks/leads/${clientLeadIntegrations.WEBSITE_WEBHOOK?.webhookToken || ''}` : null);
+                        const backendBase = API_BASE.replace(/\/api\/?$/, '');
+                        const fullWebhookUrl = webhookPath && clientLeadIntegrations.WEBSITE_WEBHOOK?.webhookToken
+                          ? `${backendBase}${webhookPath}`
+                          : null;
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                            {fullWebhookUrl ? (
+                              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>
+                                    Universal Ingestion URL:
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyWebhookUrl(fullWebhookUrl)}
+                                    style={{
+                                      background: copiedWebhook ? '#15803d' : '#059669',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      padding: '0.25rem 0.6rem',
+                                      fontSize: '0.74rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.3rem',
+                                      transition: 'background-color 0.15s ease'
+                                    }}
+                                  >
+                                    {copiedWebhook ? '✅ Copied!' : '📋 Copy Webhook URL'}
+                                  </button>
+                                </div>
+                                <div style={{ fontSize: '0.78rem', fontFamily: 'monospace', color: '#14532d', wordBreak: 'break-all', background: '#dcfce7', padding: '4px 8px', borderRadius: '4px' }}>
+                                  {fullWebhookUrl}
+                                </div>
+                                <span style={{ fontSize: '0.71rem', color: '#166534', display: 'block', marginTop: '0.35rem' }}>
+                                  Accepts POST request with any form data (JSON or multipart).
+                                </span>
+                              </div>
+                            ) : (
+                              <div style={{ background: '#f0fdf4', border: '1px dashed #86efac', borderRadius: '8px', padding: '0.65rem 0.75rem', fontSize: '0.76rem', color: '#166534' }}>
+                                ⚡ Unique Webhook Endpoint URL will be auto-generated and ready to copy as soon as you save this client panel.
+                              </div>
+                            )}
+
+                            <div>
+                              <label style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                                CRM Source Label
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Website Form / Landing Page"
+                                value={clientLeadIntegrations.WEBSITE_WEBHOOK?.defaultSourceTag || 'Website Ingestion'}
+                                onChange={(e) => setClientLeadIntegrations(prev => ({
+                                  ...prev,
+                                  WEBSITE_WEBHOOK: { ...prev.WEBSITE_WEBHOOK, defaultSourceTag: e.target.value }
+                                }))}
+                                className={styles.formInput}
+                                style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem', width: '100%' }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()
+                    },
+                    {
+                      id: 'META_FACEBOOK',
+                      title: 'Facebook Lead Ads',
+                      subtitle: 'Auto-sync leads from Meta ad instant forms directly into CRM',
+                      icon: '📘',
+                      brandColor: '#1877f2',
+                      brandBg: '#eff6ff',
+                      isActive: clientLeadIntegrations.META_FACEBOOK?.status === 'ACTIVE',
+                      fields: (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <div>
+                            <label style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                              Facebook Page ID / Form ID *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 1092837465920"
+                              value={clientLeadIntegrations.META_FACEBOOK?.pageId || ''}
+                              onChange={(e) => setClientLeadIntegrations(prev => ({
+                                ...prev,
+                                META_FACEBOOK: { ...prev.META_FACEBOOK, pageId: e.target.value }
+                              }))}
+                              className={styles.formInput}
+                              style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem', width: '100%' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                              Page Access Token (Permanent) *
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                type={showSecretMap['META_FACEBOOK'] ? 'text' : 'password'}
+                                placeholder="EAABw..."
+                                value={clientLeadIntegrations.META_FACEBOOK?.pageAccessToken || ''}
+                                onChange={(e) => setClientLeadIntegrations(prev => ({
+                                  ...prev,
+                                  META_FACEBOOK: { ...prev.META_FACEBOOK, pageAccessToken: e.target.value }
+                                }))}
+                                className={styles.formInput}
+                                style={{ fontSize: '0.82rem', padding: '0.45rem 2.4rem 0.45rem 0.65rem', width: '100%', fontFamily: showSecretMap['META_FACEBOOK'] ? 'monospace' : 'inherit' }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => toggleSecretVisibility('META_FACEBOOK')}
+                                style={{
+                                  position: 'absolute',
+                                  right: '8px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontSize: '0.95rem',
+                                  color: '#64748b',
+                                  padding: '4px'
+                                }}
+                              >
+                                {showSecretMap['META_FACEBOOK'] ? '🙈' : '👁️'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    },
+                    {
+                      id: 'META_INSTAGRAM',
+                      title: 'Instagram Leads & Direct',
+                      subtitle: 'Ingest inquiries from Instagram Ads and profile contact actions',
+                      icon: '📸',
+                      brandColor: '#e1306c',
+                      brandBg: '#fdf2f8',
+                      isActive: clientLeadIntegrations.META_INSTAGRAM?.status === 'ACTIVE',
+                      fields: (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <div>
+                            <label style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                              Instagram Professional Account ID *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 178414000000000"
+                              value={clientLeadIntegrations.META_INSTAGRAM?.instagramAccountId || ''}
+                              onChange={(e) => setClientLeadIntegrations(prev => ({
+                                ...prev,
+                                META_INSTAGRAM: { ...prev.META_INSTAGRAM, instagramAccountId: e.target.value }
+                              }))}
+                              className={styles.formInput}
+                              style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem', width: '100%' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                              Graph API Access Token *
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                type={showSecretMap['META_INSTAGRAM'] ? 'text' : 'password'}
+                                placeholder="EAAI..."
+                                value={clientLeadIntegrations.META_INSTAGRAM?.accessToken || ''}
+                                onChange={(e) => setClientLeadIntegrations(prev => ({
+                                  ...prev,
+                                  META_INSTAGRAM: { ...prev.META_INSTAGRAM, accessToken: e.target.value }
+                                }))}
+                                className={styles.formInput}
+                                style={{ fontSize: '0.82rem', padding: '0.45rem 2.4rem 0.45rem 0.65rem', width: '100%', fontFamily: showSecretMap['META_INSTAGRAM'] ? 'monospace' : 'inherit' }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => toggleSecretVisibility('META_INSTAGRAM')}
+                                style={{
+                                  position: 'absolute',
+                                  right: '8px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontSize: '0.95rem',
+                                  color: '#64748b',
+                                  padding: '4px'
+                                }}
+                              >
+                                {showSecretMap['META_INSTAGRAM'] ? '🙈' : '👁️'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    },
+                    {
+                      id: 'GMAIL',
+                      title: 'Gmail / Email Sales Ingestion',
+                      subtitle: 'Auto-parse incoming buyer sales emails into CRM leads',
+                      icon: '✉️',
+                      brandColor: '#ea4335',
+                      brandBg: '#fef2f2',
+                      isActive: clientLeadIntegrations.GMAIL?.status === 'ACTIVE',
+                      fields: (
+                        <div>
+                          <label style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                            Sales &amp; Inquiries Email Address *
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="e.g. sales@company.com"
+                            value={clientLeadIntegrations.GMAIL?.inquiryEmail || ''}
+                            onChange={(e) => setClientLeadIntegrations(prev => ({
+                              ...prev,
+                              GMAIL: { ...prev.GMAIL, inquiryEmail: e.target.value }
+                            }))}
+                            className={styles.formInput}
+                            style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem', width: '100%' }}
+                          />
+                          <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.3rem', display: 'block' }}>
+                            💡 Inbound emails sent to this inbox will automatically generate new leads in the pipeline.
+                          </span>
+                        </div>
+                      )
+                    },
+                    {
+                      id: 'JUSTDIAL',
+                      title: 'JustDial & TradeIndia Leads',
+                      subtitle: 'Ingest telephonic & directory buyer leads directly into CRM',
+                      icon: '📞',
+                      brandColor: '#d97706',
+                      brandBg: '#fffbeb',
+                      isActive: clientLeadIntegrations.JUSTDIAL?.status === 'ACTIVE',
+                      fields: (
+                        <div>
+                          <label style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                            API Secret Token / Push Key *
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type={showSecretMap['JUSTDIAL'] ? 'text' : 'password'}
+                              placeholder="Directory API token or webhook secret"
+                              value={clientLeadIntegrations.JUSTDIAL?.apiKey || ''}
+                              onChange={(e) => setClientLeadIntegrations(prev => ({
+                                ...prev,
+                                JUSTDIAL: { ...prev.JUSTDIAL, apiKey: e.target.value }
+                              }))}
+                              className={styles.formInput}
+                              style={{ fontSize: '0.82rem', padding: '0.45rem 2.4rem 0.45rem 0.65rem', width: '100%', fontFamily: showSecretMap['JUSTDIAL'] ? 'monospace' : 'inherit' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleSecretVisibility('JUSTDIAL')}
+                              style={{
+                                position: 'absolute',
+                                right: '8px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: '0.95rem',
+                                color: '#64748b',
+                                padding: '4px'
+                              }}
+                            >
+                              {showSecretMap['JUSTDIAL'] ? '🙈' : '👁️'}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    }
+                  ];
+
+                  const activeCount = channels.filter(c => c.isActive).length;
+                  const filteredChannels = channels.filter(c => {
+                    if (leadChannelFilter === 'ACTIVE') return c.isActive;
+                    if (leadChannelFilter === 'INACTIVE') return !c.isActive;
+                    return true;
+                  });
+
+                  return (
+                    <div style={{
+                      marginTop: clientModalMode === 'integrations' ? 0 : '1.75rem',
+                      borderTop: clientModalMode === 'integrations' ? 'none' : '1px solid #e2e8f0',
+                      paddingTop: clientModalMode === 'integrations' ? 0 : '1.25rem'
+                    }}>
+                      {/* Top Toolbar: Description + Filter Chips */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '0.75rem',
+                        marginBottom: '1rem',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '0.85rem 1rem'
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '1.25rem' }}>⚡</span>
+                            <h4 style={{ fontSize: '0.96rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                              External Lead Ingestion &amp; API Channels
+                            </h4>
+                            <span style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              background: activeCount > 0 ? '#dcfce7' : '#f1f5f9',
+                              color: activeCount > 0 ? '#15803d' : '#64748b',
+                              border: activeCount > 0 ? '1px solid #86efac' : '1px solid #cbd5e1'
+                            }}>
+                              {activeCount} of {channels.length} Connected
+                            </span>
+                          </div>
+                          <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                            Toggle any channel ON to enter API keys. Leads will auto-stream into CRM with source tags.
+                          </p>
+                        </div>
+
+                        {/* Filter Tabs */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#e2e8f0', padding: '3px', borderRadius: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setLeadChannelFilter('ALL')}
+                            style={{
+                              padding: '3px 9px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              borderRadius: '6px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              background: leadChannelFilter === 'ALL' ? '#ffffff' : 'transparent',
+                              color: leadChannelFilter === 'ALL' ? '#0f172a' : '#64748b',
+                              boxShadow: leadChannelFilter === 'ALL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            All ({channels.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLeadChannelFilter('ACTIVE')}
+                            style={{
+                              padding: '3px 9px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              borderRadius: '6px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              background: leadChannelFilter === 'ACTIVE' ? '#ffffff' : 'transparent',
+                              color: leadChannelFilter === 'ACTIVE' ? '#15803d' : '#64748b',
+                              boxShadow: leadChannelFilter === 'ACTIVE' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            🟢 Active ({activeCount})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLeadChannelFilter('INACTIVE')}
+                            style={{
+                              padding: '3px 9px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              borderRadius: '6px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              background: leadChannelFilter === 'INACTIVE' ? '#ffffff' : 'transparent',
+                              color: leadChannelFilter === 'INACTIVE' ? '#64748b' : '#94a3b8',
+                              boxShadow: leadChannelFilter === 'INACTIVE' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            ⚪ Inactive ({channels.length - activeCount})
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Channel Cards Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+                        {filteredChannels.map(ch => {
+                          const isAct = ch.isActive;
+                          return (
+                            <div
+                              key={ch.id}
+                              style={{
+                                borderRadius: '12px',
+                                border: isAct ? `1.5px solid ${ch.brandColor}` : '1px solid #e2e8f0',
+                                background: isAct ? '#ffffff' : '#f8fafc',
+                                padding: '1rem',
+                                boxShadow: isAct ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                                transition: 'all 0.2s ease',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between'
+                              }}
+                            >
+                              <div>
+                                {/* Card Header with Brand Icon, Titles, and iOS Switch */}
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                    <div style={{
+                                      width: '38px',
+                                      height: '38px',
+                                      borderRadius: '10px',
+                                      background: ch.brandBg,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '1.25rem',
+                                      flexShrink: 0,
+                                      border: `1px solid ${ch.brandColor}33`
+                                    }}>
+                                      {ch.icon}
+                                    </div>
+                                    <div>
+                                      <h5 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
+                                        {ch.title}
+                                      </h5>
+                                      <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block', marginTop: '2px', lineHeight: 1.3 }}>
+                                        {ch.subtitle}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Real iOS Slide Toggle Switch */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                    <button
+                                      type="button"
+                                      role="switch"
+                                      aria-checked={isAct}
+                                      onClick={() => {
+                                        const nextStatus = isAct ? 'INACTIVE' : 'ACTIVE';
+                                        setClientLeadIntegrations(prev => ({
+                                          ...prev,
+                                          [ch.id]: { ...(prev[ch.id] || {}), status: nextStatus }
+                                        }));
+                                      }}
+                                      style={{
+                                        position: 'relative',
+                                        width: '44px',
+                                        height: '24px',
+                                        background: isAct ? '#10b981' : '#cbd5e1',
+                                        borderRadius: '999px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        padding: '2px',
+                                        transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        outline: 'none',
+                                        boxShadow: isAct ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none'
+                                      }}
+                                      title={isAct ? 'Click to Disable' : 'Click to Enable'}
+                                    >
+                                      <span
+                                        style={{
+                                          display: 'inline-block',
+                                          width: '20px',
+                                          height: '20px',
+                                          borderRadius: '50%',
+                                          background: '#ffffff',
+                                          boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
+                                          transform: isAct ? 'translateX(20px)' : 'translateX(0)',
+                                          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                        }}
+                                      />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Status Pill Indicator */}
+                                <div style={{ marginBottom: isAct ? '0.75rem' : '0' }}>
+                                  <span style={{
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: '999px',
+                                    background: isAct ? '#dcfce7' : '#f1f5f9',
+                                    color: isAct ? '#15803d' : '#64748b',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem'
+                                  }}>
+                                    <span>{isAct ? '🟢' : '⚪'}</span>
+                                    {isAct ? 'Active & Connected' : 'Inactive / Disabled'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Collapsible Content */}
+                              {isAct ? (
+                                <div style={{
+                                  borderTop: '1px solid #f1f5f9',
+                                  paddingTop: '0.75rem',
+                                  marginTop: '0.25rem',
+                                  animation: 'fadeIn 0.2s ease'
+                                }}>
+                                  {ch.fields}
+                                </div>
+                              ) : (
+                                <div style={{
+                                  fontSize: '0.74rem',
+                                  color: '#94a3b8',
+                                  fontStyle: 'italic',
+                                  marginTop: '0.4rem',
+                                  padding: '0.4rem 0.6rem',
+                                  background: '#ffffff',
+                                  borderRadius: '6px',
+                                  border: '1px dashed #cbd5e1'
+                                }}>
+                                  Toggle switch to enable and configure {ch.title}.
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
               </div>
 
               <div className={styles.modalFooter}>
@@ -3801,6 +4565,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                     ? 'Save Permissions'
                     : clientModalMode === 'details'
                     ? 'Save Details'
+                    : clientModalMode === 'integrations'
+                    ? 'Save Lead Integrations'
                     : 'Provision Client Panel'}
                 </button>
               </div>

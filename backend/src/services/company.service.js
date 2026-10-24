@@ -1,9 +1,11 @@
+import crypto from 'crypto';
 import prisma from '../config/prisma.js';
 import { hashPassword } from '../utils/hash.js';
 import { formatClient, clientAccessInclude } from '../utils/formatters.js';
 import { signToken } from '../utils/token.js';
 import { isUuid } from '../utils/uuid.js';
 import auditService from './audit.service.js';
+import leadIntegrationService from './lead-integration.service.js';
 
 /**
  * Service for managing Tenant Companies (Clients) and their dynamic permission trees
@@ -30,7 +32,9 @@ export const companyService = {
       include: clientAccessInclude,
     });
     if (!client || client.deletedAt) return null;
-    return formatClient(client);
+    const formatted = formatClient(client);
+    const integrations = await leadIntegrationService.getCompanyIntegrations(client.id);
+    return { ...formatted, leadIntegrations: integrations };
   },
 
   /**
@@ -55,6 +59,32 @@ export const companyService = {
       // Save initial permissions if provided
       if (data.access && Array.isArray(data.access.services)) {
         await this._saveAccessInternal(tx, client.id, data.access.services, assignedBy);
+      }
+
+      // Save lead integrations if provided
+      if (data.leadIntegrations) {
+        const list = Array.isArray(data.leadIntegrations)
+          ? data.leadIntegrations
+          : Object.entries(data.leadIntegrations).map(([k, v]) => ({ provider: k, ...v }));
+        for (const item of list) {
+          if (item?.provider) {
+            const token = `wh_${item.provider.toLowerCase().slice(0, 4)}_${crypto.randomBytes(12).toString('hex')}`;
+            await tx.companyLeadIntegration.upsert({
+              where: { companyId_provider: { companyId: client.id, provider: item.provider } },
+              create: {
+                companyId: client.id,
+                provider: item.provider,
+                status: item.status || 'ACTIVE',
+                credentials: item.credentials || item,
+                webhookToken: token,
+              },
+              update: {
+                status: item.status || 'ACTIVE',
+                credentials: item.credentials || item,
+              },
+            });
+          }
+        }
       }
 
       await tx.auditLog.create({
@@ -120,6 +150,35 @@ export const companyService = {
 
         // Save new permissions
         await this._saveAccessInternal(tx, client.id, data.access.services, assignedBy);
+      }
+
+      // Save lead integrations if provided
+      if (data.leadIntegrations) {
+        const list = Array.isArray(data.leadIntegrations)
+          ? data.leadIntegrations
+          : Object.entries(data.leadIntegrations).map(([k, v]) => ({ provider: k, ...v }));
+        for (const item of list) {
+          if (item?.provider) {
+            const existingInteg = await tx.companyLeadIntegration.findUnique({
+              where: { companyId_provider: { companyId: client.id, provider: item.provider } },
+            });
+            const token = existingInteg?.webhookToken || `wh_${item.provider.toLowerCase().slice(0, 4)}_${crypto.randomBytes(12).toString('hex')}`;
+            await tx.companyLeadIntegration.upsert({
+              where: { companyId_provider: { companyId: client.id, provider: item.provider } },
+              create: {
+                companyId: client.id,
+                provider: item.provider,
+                status: item.status || 'ACTIVE',
+                credentials: item.credentials || item,
+                webhookToken: token,
+              },
+              update: {
+                status: item.status || 'ACTIVE',
+                credentials: item.credentials || item,
+              },
+            });
+          }
+        }
       }
 
       await tx.auditLog.create({

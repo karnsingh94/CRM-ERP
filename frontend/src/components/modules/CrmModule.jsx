@@ -18,6 +18,7 @@ import Modal from '../ui/Modal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import EmptyState from '../ui/EmptyState';
 import ServiceDepartments from '../departments/ServiceDepartments';
+import LeadIntegrationsModal from '../crm/LeadIntegrationsModal';
 
 const formatLeadValue = (value) => {
   if (value === '' || value === null || value === undefined) return '—';
@@ -99,6 +100,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   const [isSavingLead, setIsSavingLead] = useState(false);
   const [updatingLeadId, setUpdatingLeadId] = useState(null);
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [showIntegrationsModal, setShowIntegrationsModal] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState('ALL');
+  const [isSyncingIndiaMart, setIsSyncingIndiaMart] = useState(false);
   const [newLeadForm, setNewLeadForm] = useState({
     name: '',
     company: '',
@@ -108,6 +112,100 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     value: '',
     status: 'NEW',
   });
+  const [leadIntegrations, setLeadIntegrations] = useState([]);
+
+  useEffect(() => {
+    if (!activeCompany?.id) return;
+    let isCurrent = true;
+    const fetchLeadIntegrations = async () => {
+      try {
+        const res = await api.get(`/companies/${activeCompany.id}/crm/lead-integrations`);
+        if (isCurrent && res.data) {
+          setLeadIntegrations(res.data);
+        }
+      } catch {}
+    };
+    fetchLeadIntegrations();
+    return () => { isCurrent = false; };
+  }, [activeCompany?.id, leadLoadVersion]);
+
+  // Only channels that were configured and activated by Super Admin
+  const activeLeadChannels = leadIntegrations.filter(
+    (item) => item.status === 'ACTIVE' && item.configured
+  );
+
+  const isIndiaMartActive = activeLeadChannels.some(
+    (item) => item.id === 'INDIAMART'
+  );
+
+  const handleQuickSyncIndiaMart = async () => {
+    if (!activeCompany?.id) return;
+    setIsSyncingIndiaMart(true);
+    try {
+      const res = await api.post(`/companies/${activeCompany.id}/crm/lead-integrations/sync-indiamart`, {});
+      if (showToast) {
+        showToast('IndiaMART Sync Complete! 🇮🇳', res.message || 'Leads synchronized.', 'success');
+      }
+      setLeadLoadVersion((v) => v + 1);
+    } catch (err) {
+      if (showToast) {
+        showToast('IndiaMART Sync Notice', err.message || 'Configure your IndiaMART CRM Key first.', 'danger');
+      }
+    } finally {
+      setIsSyncingIndiaMart(false);
+    }
+  };
+
+  const renderLeadSourceBadge = (source = '') => {
+    const s = String(source || '').toLowerCase();
+    if (s.includes('indiamart')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 700, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', whiteSpace: 'nowrap' }}>
+          <span>🇮🇳</span> IndiaMART
+        </span>
+      );
+    }
+    if (s.includes('facebook')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 700, background: '#eff6ff', color: '#1877f2', border: '1px solid #c7d2fe', whiteSpace: 'nowrap' }}>
+          <span>📘</span> Facebook
+        </span>
+      );
+    }
+    if (s.includes('instagram')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 700, background: '#fdf2f8', color: '#db2777', border: '1px solid #fbcfe8', whiteSpace: 'nowrap' }}>
+          <span>📸</span> Instagram
+        </span>
+      );
+    }
+    if (s.includes('website') || s.includes('webhook')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 700, background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', whiteSpace: 'nowrap' }}>
+          <span>🌐</span> Website Form
+        </span>
+      );
+    }
+    if (s.includes('mail')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 700, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', whiteSpace: 'nowrap' }}>
+          <span>✉️</span> Email
+        </span>
+      );
+    }
+    if (s.includes('justdial')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 700, background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', whiteSpace: 'nowrap' }}>
+          <span>📞</span> JustDial
+        </span>
+      );
+    }
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 600, background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+        <span>👤</span> {source || 'Manual'}
+      </span>
+    );
+  };
 
   useEffect(() => {
     let isCurrent = true;
@@ -185,7 +283,8 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       String(l.company || '').toLowerCase().includes(q) ||
       String(l.email || '').toLowerCase().includes(q);
     const matchesStatus = statusFilter === 'ALL' || l.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesSource = sourceFilter === 'ALL' || String(l.source || '').toLowerCase().includes(sourceFilter.toLowerCase());
+    return matchesSearch && matchesStatus && matchesSource;
   });
 
   // -----------------------------------------------------------------
@@ -511,26 +610,80 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
         {/* Dynamic Action Button based on Active Tab */}
         {activeTab === 'leads' && (
-          <button
-            type="button"
-            onClick={() => setShowAddLeadModal(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 1.25rem',
-              background: '#7f22fe',
-              color: '#ffffff',
-              borderRadius: '8px',
-              fontWeight: 700,
-              fontSize: '0.86rem',
-              boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <IconPlus size={16} /> Add New Lead
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            {/* Render Lead Channels modal trigger ONLY if Super Admin has activated channels */}
+            {activeLeadChannels.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowIntegrationsModal(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.62rem 1.1rem',
+                  background: '#ffffff',
+                  color: '#7f22fe',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  border: '1px solid #c4b5fd',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease',
+                }}
+                title={`${activeLeadChannels.length} active lead channels provisioned by Super Admin`}
+              >
+                <span>⚡</span> Connected Channels ({activeLeadChannels.length})
+              </button>
+            )}
+
+            {/* Render IndiaMART quick sync button ONLY if IndiaMART is provisioned & active by Super Admin */}
+            {isIndiaMartActive && (
+              <button
+                type="button"
+                onClick={handleQuickSyncIndiaMart}
+                disabled={isSyncingIndiaMart}
+                title="Click to fetch latest buyer inquiries from IndiaMART"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.62rem 1.1rem',
+                  background: '#005b9f',
+                  color: '#ffffff',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  border: 'none',
+                  cursor: isSyncingIndiaMart ? 'wait' : 'pointer',
+                  boxShadow: '0 2px 6px rgba(0, 91, 159, 0.25)',
+                }}
+              >
+                <span>🇮🇳</span> {isSyncingIndiaMart ? 'Syncing...' : 'Sync IndiaMART'}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowAddLeadModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1.25rem',
+                background: '#7f22fe',
+                color: '#ffffff',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.86rem',
+                boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <IconPlus size={16} /> Add New Lead
+            </button>
+          </div>
         )}
 
         {activeTab === 'customers' && (
@@ -748,27 +901,52 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Status:</span>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{
-                  padding: '0.45rem 0.75rem',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.82rem',
-                  background: '#ffffff',
-                }}
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="NEW">New</option>
-                <option value="CONTACTED">Contacted</option>
-                <option value="QUALIFIED">Qualified</option>
-                <option value="PROPOSAL">Proposal</option>
-                <option value="WON">Won</option>
-                <option value="LOST">Lost</option>
-              </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Source:</span>
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  style={{
+                    padding: '0.45rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.82rem',
+                    background: '#ffffff',
+                  }}
+                >
+                  <option value="ALL">All Sources</option>
+                  <option value="indiamart">🇮🇳 IndiaMART</option>
+                  <option value="facebook">📘 Facebook</option>
+                  <option value="instagram">📸 Instagram</option>
+                  <option value="website">🌐 Website Form</option>
+                  <option value="mail">✉️ Email</option>
+                  <option value="justdial">📞 JustDial</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Status:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{
+                    padding: '0.45rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.82rem',
+                    background: '#ffffff',
+                  }}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="NEW">New</option>
+                  <option value="CONTACTED">Contacted</option>
+                  <option value="QUALIFIED">Qualified</option>
+                  <option value="PROPOSAL">Proposal</option>
+                  <option value="WON">Won</option>
+                  <option value="LOST">Lost</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -820,8 +998,8 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
                         {lead.company || '—'}
                       </td>
-                      <td style={{ padding: '0.85rem 1rem', color: '#64748b', whiteSpace: 'nowrap' }}>
-                        {lead.source}
+                      <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
+                        {renderLeadSourceBadge(lead.source)}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
                         {formatLeadValue(lead.value)}
@@ -1677,6 +1855,15 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
         message={`Are you sure you want to delete "${itemToDelete?.name}"? This action cannot be undone.`}
         confirmLabel="Confirm Delete"
         isDanger={true}
+      />
+
+      {/* MULTI-CHANNEL LEAD INTEGRATIONS MODAL */}
+      <LeadIntegrationsModal
+        companyId={activeCompany?.id}
+        isOpen={showIntegrationsModal}
+        onClose={() => setShowIntegrationsModal(false)}
+        showToast={showToast}
+        onLeadsSynced={() => setLeadLoadVersion((v) => v + 1)}
       />
     </div>
   );

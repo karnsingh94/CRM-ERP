@@ -132,6 +132,49 @@ function getEmployeeFeatureAccess(tree, modules, serviceId) {
   return { moduleIds, subModuleIds };
 }
 
+function buildTreeFromEmployeePermissions(permissions, availableModules, serviceId) {
+  if (!serviceId) return { services: [] };
+  const featureAccess = permissions?.featureAccess || { moduleIds: [], subModuleIds: [] };
+  const permittedModuleIds = new Set((featureAccess.moduleIds || []).map(String));
+  const permittedSubModuleIds = new Set((featureAccess.subModuleIds || []).map(String));
+
+  const modulesList = availableModules || [];
+  const allModulesPermitted = modulesList.length > 0 && modulesList.every((m) => permittedModuleIds.has(String(m.id)));
+
+  const modules = [];
+  modulesList.forEach((m) => {
+    const modId = String(m.id);
+    if (permittedModuleIds.has(modId)) {
+      modules.push({
+        module_id: modId,
+        access_mode: 'FULL',
+        sub_module_ids: (m.subModules || []).map((subModule) => String(subModule.id)),
+      });
+    } else {
+      const allowedSubs = (m.subModules || [])
+        .map((subModule) => String(subModule.id))
+        .filter((subId) => permittedSubModuleIds.has(subId));
+      if (allowedSubs.length > 0) {
+        modules.push({
+          module_id: modId,
+          access_mode: 'CUSTOM',
+          sub_module_ids: allowedSubs,
+        });
+      }
+    }
+  });
+
+  return {
+    services: [
+      {
+        service_id: String(serviceId),
+        full_service: allModulesPermitted,
+        modules,
+      },
+    ],
+  };
+}
+
 export default function ServiceDepartments({
   activeCompany: providedCompany,
   serviceCode,
@@ -158,9 +201,19 @@ export default function ServiceDepartments({
   const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
   const [deletingDeptHeadId, setDeletingDeptHeadId] = useState(null);
   const [deletingEmployeeId, setDeletingEmployeeId] = useState(null);
+  const [editingDeptHeadId, setEditingDeptHeadId] = useState(null);
+  const [togglingDeptHeadId, setTogglingDeptHeadId] = useState(null);
+  const [editingTeamId, setEditingTeamId] = useState(null);
+  const [togglingTeamId, setTogglingTeamId] = useState(null);
+  const [togglingEmployeeId, setTogglingEmployeeId] = useState(null);
+  const [activeTeamTab, setActiveTeamTab] = useState('members');
 
   // Form states
-  const [teamName, setTeamName] = useState('');
+  const [teamFormData, setTeamFormData] = useState({
+    name: '',
+    description: '',
+    headEmployeeId: '',
+  });
   const [deptHeadPermissionTree, setDeptHeadPermissionTree] = useState({ services: [] });
   const [newDeptHead, setNewDeptHead] = useState({
     name: '',
@@ -226,6 +279,7 @@ export default function ServiceDepartments({
   }, [loadTeams]);
 
   const resetDeptHeadForm = () => {
+    setEditingDeptHeadId(null);
     setDeptHeadPermissionTree({ services: [] });
     setNewDeptHead({
       name: '',
@@ -252,82 +306,246 @@ export default function ServiceDepartments({
     setShowEmployeePassword(false);
   };
 
-  // ==================== CREATE DEPARTMENT HEAD ====================
+  // ==================== CREATE / UPDATE DEPARTMENT HEAD ====================
   const handleCreateDeptHead = async (event) => {
     event.preventDefault();
     setActionError('');
-    const validationError = validateEmployeeForm(newDeptHead, { requirePhone: true });
-    if (validationError) {
-      setActionError(validationError);
-      return;
+
+    if (editingDeptHeadId) {
+      if (!newDeptHead.name || newDeptHead.name.trim().length < 2) {
+        setActionError('Full name must be at least 2 characters.');
+        return;
+      }
+      if (!newDeptHead.phone || newDeptHead.phone.trim().length !== 10) {
+        setActionError('A valid 10-digit mobile number is required.');
+        return;
+      }
+      if (newDeptHead.password && newDeptHead.password.trim().length < 8) {
+        setActionError('New password must be at least 8 characters long.');
+        return;
+      }
+    } else {
+      const validationError = validateEmployeeForm(newDeptHead, { requirePhone: true });
+      if (validationError) {
+        setActionError(validationError);
+        return;
+      }
     }
 
     setIsCreatingDeptHead(true);
     try {
-      const response = await api.post(
-        `/companies/${activeCompany.id}/services/${normalizedCode}/department-heads`,
-        {
+      if (editingDeptHeadId) {
+        const payload = {
           name: newDeptHead.name.trim(),
-          email: newDeptHead.email.trim().toLowerCase(),
           phone: newDeptHead.phone.trim(),
           role: newDeptHead.role.trim() || 'Department Head',
-          password: newDeptHead.password,
           permissions: newDeptHead.permissions,
+        };
+        if (newDeptHead.password && newDeptHead.password.trim().length >= 8) {
+          payload.password = newDeptHead.password.trim();
         }
-      );
-      resetDeptHeadForm();
-      setShowCreateDeptHead(false);
-      await loadTeams();
-      showToast?.('Department Head Created', `${response.data.name} is now a Department Head.`, 'success');
-    } catch (createError) {
-      setActionError(createError.message || 'Could not create Department Head.');
-      showToast?.('Department Head Not Created', createError.message || 'Could not create Department Head.', 'danger');
+
+        const response = await api.put(
+          `/companies/${activeCompany.id}/services/${normalizedCode}/department-heads/${editingDeptHeadId}`,
+          payload
+        );
+
+        setTeamData((prev) => ({
+          ...prev,
+          departmentHeads: (prev?.departmentHeads || []).map((head) =>
+            head.id === editingDeptHeadId ? { ...head, ...response.data } : head
+          ),
+        }));
+
+        resetDeptHeadForm();
+        setShowCreateDeptHead(false);
+        showToast?.('Department Head Saved', `${response.data.name}'s permissions and profile updated.`, 'success');
+      } else {
+        const response = await api.post(
+          `/companies/${activeCompany.id}/services/${normalizedCode}/department-heads`,
+          {
+            name: newDeptHead.name.trim(),
+            email: newDeptHead.email.trim().toLowerCase(),
+            phone: newDeptHead.phone.trim(),
+            role: newDeptHead.role.trim() || 'Department Head',
+            password: newDeptHead.password,
+            permissions: newDeptHead.permissions,
+          }
+        );
+        resetDeptHeadForm();
+        setShowCreateDeptHead(false);
+        await loadTeams();
+        showToast?.('Department Head Created', `${response.data.name} is now a Department Head.`, 'success');
+      }
+    } catch (saveError) {
+      setActionError(saveError.message || `Could not ${editingDeptHeadId ? 'update' : 'create'} Department Head.`);
+      showToast?.(`Department Head Not ${editingDeptHeadId ? 'Updated' : 'Created'}`, saveError.message || 'Operation failed.', 'danger');
     } finally {
       setIsCreatingDeptHead(false);
     }
   };
 
-  // ==================== REMOVE DEPARTMENT HEAD ====================
-  const handleRemoveDeptHead = async (deptHead) => {
-    if (!window.confirm(`Remove ${deptHead.name} as Department Head? This will revoke their administrative dashboard access.`)) {
-      return;
-    }
+  // ==================== EDIT DEPARTMENT HEAD ====================
+  const handleEditDeptHead = (head) => {
     setActionError('');
-    setDeletingDeptHeadId(deptHead.id);
+    setEditingDeptHeadId(head.id);
+    setNewDeptHead({
+      name: head.name || '',
+      email: head.email || '',
+      phone: head.phone || '',
+      role: head.role || '',
+      password: '',
+      permissions: head.permissions || DEFAULT_DEPT_HEAD_PERMISSIONS,
+    });
+
+    const tree = buildTreeFromEmployeePermissions(
+      head.permissions,
+      teamData?.availableModules || [],
+      teamData?.service?.id
+    );
+    setDeptHeadPermissionTree(tree);
+    setShowCreateDeptHead(true);
+    setShowCreateTeam(false);
+    setShowCreateEmployee(false);
+    window.scrollTo({ top: 120, behavior: 'smooth' });
+  };
+
+  // ==================== TOGGLE DEPARTMENT HEAD STATUS ====================
+  const handleToggleDeptHeadStatus = async (head) => {
+    setActionError('');
+    setTogglingDeptHeadId(head.id);
+    const targetStatus = head.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
-      await api.delete(
-        `/companies/${activeCompany.id}/services/${normalizedCode}/department-heads/${deptHead.id}`
+      const response = await api.patch(
+        `/companies/${activeCompany.id}/services/${normalizedCode}/department-heads/${head.id}/status`
       );
-      await loadTeams();
-      showToast?.('Department Head Removed', `${deptHead.name} was removed.`, 'success');
-    } catch (removeError) {
-      setActionError(removeError.message || 'Could not remove Department Head.');
-      showToast?.('Removal Failed', removeError.message || 'Could not remove Department Head.', 'danger');
+      setTeamData((prev) => ({
+        ...prev,
+        departmentHeads: (prev?.departmentHeads || []).map((h) =>
+          h.id === head.id ? { ...h, status: response.data?.status || targetStatus } : h
+        ),
+      }));
+      showToast?.(
+        `Department Head ${targetStatus === 'ACTIVE' ? 'Activated' : 'Deactivated'}`,
+        `${head.name} is now ${targetStatus.toLowerCase()}.`,
+        'success'
+      );
+    } catch (toggleError) {
+      setActionError(toggleError.message || 'Could not change status.');
+      showToast?.('Status Change Failed', toggleError.message || 'Could not change status.', 'danger');
     } finally {
-      setDeletingDeptHeadId(null);
+      setTogglingDeptHeadId(null);
     }
   };
 
-  // ==================== CREATE TEAM ====================
+  // ==================== CREATE / UPDATE TEAM ====================
   const handleCreateTeam = async (event) => {
     event.preventDefault();
     setActionError('');
+    if (!teamFormData.name || !teamFormData.name.trim()) {
+      setActionError('Team name is required.');
+      return;
+    }
     setIsCreatingTeam(true);
     try {
-      const response = await api.post(
-        `/companies/${activeCompany.id}/services/${normalizedCode}/teams`,
-        { name: teamName.trim() }
-      );
-      setTeamName('');
-      setShowCreateTeam(false);
-      await loadTeams();
-      setSelectedTeamId(response.data.id.toString());
-      showToast?.('Team Created', `${response.data.name} has been created.`, 'success');
+      if (editingTeamId) {
+        const response = await api.put(
+          `/companies/${activeCompany.id}/services/${normalizedCode}/teams/${editingTeamId}`,
+          {
+            name: teamFormData.name.trim(),
+            description: teamFormData.description?.trim() || null,
+          }
+        );
+        setTeamData((prev) => ({
+          ...prev,
+          teams: (prev?.teams || []).map((t) => (t.id === editingTeamId ? { ...t, ...response.data } : t)),
+        }));
+        setEditingTeamId(null);
+        setTeamFormData({ name: '', description: '', headEmployeeId: '' });
+        setShowCreateTeam(false);
+        showToast?.('Team Saved', `${response.data.name} details updated.`, 'success');
+      } else {
+        const response = await api.post(
+          `/companies/${activeCompany.id}/services/${normalizedCode}/teams`,
+          {
+            name: teamFormData.name.trim(),
+            description: teamFormData.description?.trim() || null,
+            headEmployeeId: teamFormData.headEmployeeId || undefined,
+          }
+        );
+        setTeamFormData({ name: '', description: '', headEmployeeId: '' });
+        setShowCreateTeam(false);
+        await loadTeams();
+        setSelectedTeamId(response.data.id.toString());
+        showToast?.('Team Created', `${response.data.name} has been created in ${departmentName}.`, 'success');
+      }
     } catch (createError) {
-      setActionError(createError.message || 'Could not create this team.');
-      showToast?.('Team Not Created', createError.message || 'Could not create this team.', 'danger');
+      setActionError(createError.message || 'Could not save team.');
+      showToast?.('Team Operation Failed', createError.message || 'Could not save team.', 'danger');
     } finally {
       setIsCreatingTeam(false);
+    }
+  };
+
+  // ==================== TOGGLE TEAM STATUS ====================
+  const handleToggleTeamStatus = async (team) => {
+    setActionError('');
+    setTogglingTeamId(team.id);
+    const targetStatus = team.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    try {
+      const response = await api.patch(
+        `/companies/${activeCompany.id}/services/${normalizedCode}/teams/${team.id}/status`
+      );
+      setTeamData((prev) => ({
+        ...prev,
+        teams: (prev?.teams || []).map((t) =>
+          t.id === team.id ? { ...t, status: response.data?.status || targetStatus } : t
+        ),
+      }));
+      showToast?.(
+        `Team ${targetStatus === 'ACTIVE' ? 'Activated' : 'Deactivated'}`,
+        `${team.name} is now ${targetStatus.toLowerCase()}.`,
+        'success'
+      );
+    } catch (toggleErr) {
+      setActionError(toggleErr.message || 'Could not toggle team status.');
+      showToast?.('Status Change Failed', toggleErr.message || 'Could not toggle team status.', 'danger');
+    } finally {
+      setTogglingTeamId(null);
+    }
+  };
+
+  // ==================== TOGGLE EMPLOYEE STATUS ====================
+  const handleToggleEmployeeStatus = async (employee) => {
+    setActionError('');
+    setTogglingEmployeeId(employee.id);
+    const targetStatus = employee.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    try {
+      const response = await api.patch(
+        `/companies/${activeCompany.id}/employees/${employee.id}/status`
+      );
+      setTeamData((prev) => ({
+        ...prev,
+        teams: (prev?.teams || []).map((t) => {
+          if (!t.employees) return t;
+          return {
+            ...t,
+            employees: t.employees.map((emp) =>
+              emp.id === employee.id ? { ...emp, status: response.data?.status || targetStatus } : emp
+            ),
+          };
+        }),
+      }));
+      showToast?.(
+        `Employee ${targetStatus === 'ACTIVE' ? 'Activated' : 'Deactivated'}`,
+        `${employee.name} is now ${targetStatus.toLowerCase()}.`,
+        'success'
+      );
+    } catch (toggleErr) {
+      setActionError(toggleErr.message || 'Could not change employee status.');
+      showToast?.('Status Change Failed', toggleErr.message || 'Could not change employee status.', 'danger');
+    } finally {
+      setTogglingEmployeeId(null);
     }
   };
 
@@ -447,8 +665,14 @@ export default function ServiceDepartments({
             <button
               type="button"
               onClick={() => {
-                setShowCreateDeptHead((v) => !v);
-                setShowCreateTeam(false);
+                if (showCreateDeptHead) {
+                  setShowCreateDeptHead(false);
+                  resetDeptHeadForm();
+                } else {
+                  resetDeptHeadForm();
+                  setShowCreateDeptHead(true);
+                  setShowCreateTeam(false);
+                }
               }}
               style={{
                 display: 'inline-flex',
@@ -465,35 +689,10 @@ export default function ServiceDepartments({
                 transition: 'all 0.15s ease',
               }}
             >
-              <span>{showCreateDeptHead ? 'Cancel' : '+ Add Department Head'}</span>
+              <span>{showCreateDeptHead ? (editingDeptHeadId ? 'Cancel Edit' : 'Cancel') : '+ Add Department Head'}</span>
             </button>
           )}
 
-          {canManageTeams && (
-            <button
-              type="button"
-              onClick={() => {
-                setShowCreateTeam((v) => !v);
-                setShowCreateDeptHead(false);
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.62rem 1rem',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                color: '#334155',
-                background: showCreateTeam ? '#f1f5f9' : '#ffffff',
-                fontWeight: 700,
-                fontSize: '0.84rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>{showCreateTeam ? 'Cancel' : '+ Create Team'}</span>
-            </button>
-          )}
         </div>
       </header>
 
@@ -503,15 +702,17 @@ export default function ServiceDepartments({
         </p>
       )}
 
-      {/* ==================== CREATE DEPARTMENT HEAD FORM ==================== */}
+      {/* ==================== CREATE / EDIT DEPARTMENT HEAD FORM ==================== */}
       {showCreateDeptHead && canManageDeptHeads && (
         <form onSubmit={handleCreateDeptHead} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem 1.5rem', border: '1px solid #ddd6fe', borderRadius: '14px', background: '#faf5ff' }}>
           <div>
             <h3 style={{ margin: '0 0 0.35rem', color: '#0f172a', fontSize: '1.05rem', fontWeight: 800 }}>
-              Create Department Head Account
+              {editingDeptHeadId ? `Edit Department Head: ${newDeptHead.name}` : 'Create Department Head Account'}
             </h3>
             <p style={{ margin: 0, color: '#64748b', fontSize: '0.83rem' }}>
-              Assign an official Department Head for {departmentName}. They can log in with their email &amp; password and manage approved modules &amp; teams.
+              {editingDeptHeadId
+                ? `Update details and modular permissions for ${newDeptHead.name}.`
+                : `Assign an official Department Head for ${departmentName}. They can log in with their email & password and manage approved modules & teams.`}
             </p>
           </div>
 
@@ -537,11 +738,12 @@ export default function ServiceDepartments({
             {/* Login Email */}
             <div>
               <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
-                Login ID / Work Email *
+                Login ID / Work Email {editingDeptHeadId ? '(Immutable)' : '*'}
               </label>
               <input
                 required
                 type="email"
+                disabled={Boolean(editingDeptHeadId)}
                 maxLength={254}
                 placeholder="e.g. anand@company.com"
                 value={newDeptHead.email}
@@ -549,7 +751,10 @@ export default function ServiceDepartments({
                   setActionError('');
                   setNewDeptHead((prev) => ({ ...prev, email: e.target.value }));
                 }}
-                style={fieldStyle}
+                style={{
+                  ...fieldStyle,
+                  ...(editingDeptHeadId ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}),
+                }}
               />
             </div>
 
@@ -609,15 +814,15 @@ export default function ServiceDepartments({
           {/* Password with Show/Hide and SuperAdmin Live Validation */}
           <div style={{ maxWidth: '440px' }}>
             <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
-              Password (8+ chars) *
+              {editingDeptHeadId ? 'New Password (leave blank to keep current)' : 'Password (8+ chars) *'}
             </label>
             <div style={{ position: 'relative' }}>
               <input
-                required
+                required={!editingDeptHeadId}
                 type={showDeptHeadPassword ? 'text' : 'password'}
-                minLength={8}
+                minLength={editingDeptHeadId ? 0 : 8}
                 maxLength={128}
-                placeholder="e.g. DeptHead@2026!"
+                placeholder={editingDeptHeadId ? '•••••••• (leave blank to keep current)' : 'e.g. DeptHead@2026!'}
                 value={newDeptHead.password}
                 onChange={(e) => {
                   setActionError('');
@@ -655,45 +860,47 @@ export default function ServiceDepartments({
             </div>
 
             {/* Live Password Rules Indicator */}
-            <div style={{
-              marginTop: '0.45rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.22rem',
-              fontSize: '0.73rem',
-              padding: '0.5rem 0.65rem',
-              borderRadius: '8px',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-            }}>
-              <span style={{
-                color: (newDeptHead.password || '').length >= 8 ? '#16a34a' : '#64748b',
-                fontWeight: (newDeptHead.password || '').length >= 8 ? 700 : 500,
+            {(!editingDeptHeadId || (newDeptHead.password && newDeptHead.password.length > 0)) && (
+              <div style={{
+                marginTop: '0.45rem',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
+                flexDirection: 'column',
+                gap: '0.22rem',
+                fontSize: '0.73rem',
+                padding: '0.5rem 0.65rem',
+                borderRadius: '8px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
               }}>
-                <span>{(newDeptHead.password || '').length >= 8 ? '✅' : '○'}</span> At least 8 characters
-              </span>
-              <span style={{
-                color: /[A-Z]/.test(newDeptHead.password || '') ? '#16a34a' : '#64748b',
-                fontWeight: /[A-Z]/.test(newDeptHead.password || '') ? 700 : 500,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}>
-                <span>{/[A-Z]/.test(newDeptHead.password || '') ? '✅' : '○'}</span> At least 1 uppercase letter (A-Z)
-              </span>
-              <span style={{
-                color: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? '#16a34a' : '#64748b',
-                fontWeight: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? 700 : 500,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}>
-                <span>{/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? '✅' : '○'}</span> At least 1 special character (!@#$%^&* etc.)
-              </span>
-            </div>
+                <span style={{
+                  color: (newDeptHead.password || '').length >= 8 ? '#16a34a' : '#64748b',
+                  fontWeight: (newDeptHead.password || '').length >= 8 ? 700 : 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}>
+                  <span>{(newDeptHead.password || '').length >= 8 ? '✅' : '○'}</span> At least 8 characters
+                </span>
+                <span style={{
+                  color: /[A-Z]/.test(newDeptHead.password || '') ? '#16a34a' : '#64748b',
+                  fontWeight: /[A-Z]/.test(newDeptHead.password || '') ? 700 : 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}>
+                  <span>{/[A-Z]/.test(newDeptHead.password || '') ? '✅' : '○'}</span> At least 1 uppercase letter (A-Z)
+                </span>
+                <span style={{
+                  color: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? '#16a34a' : '#64748b',
+                  fontWeight: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? 700 : 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}>
+                  <span>{/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newDeptHead.password || '') ? '✅' : '○'}</span> At least 1 special character (!@#$%^&* etc.)
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Department Head Permissions Tree */}
@@ -814,33 +1021,11 @@ export default function ServiceDepartments({
                 boxShadow: '0 2px 6px rgba(127, 34, 254, 0.25)',
               }}
             >
-              {isCreatingDeptHead ? 'Creating Department Head...' : '+ Create Department Head'}
+              {isCreatingDeptHead
+                ? (editingDeptHeadId ? 'Saving Changes...' : 'Creating Department Head...')
+                : (editingDeptHeadId ? 'Save Department Head' : '+ Create Department Head')}
             </button>
           </div>
-        </form>
-      )}
-
-      {/* ==================== CREATE TEAM FORM ==================== */}
-      {showCreateTeam && canManageTeams && (
-        <form onSubmit={handleCreateTeam} style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap', padding: '1.1rem 1.25rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
-          <label style={{ flex: '1 1 240px', color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
-            Team Name *
-            <input
-              required
-              maxLength={150}
-              placeholder="e.g. Sales Outreach Team"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              style={fieldStyle}
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={isCreatingTeam}
-            style={{ padding: '0.65rem 1.2rem', border: 0, borderRadius: '8px', color: '#ffffff', background: isCreatingTeam ? '#94a3b8' : '#7f22fe', fontWeight: 700, cursor: isCreatingTeam ? 'wait' : 'pointer' }}
-          >
-            {isCreatingTeam ? 'Creating...' : 'Create Team'}
-          </button>
         </form>
       )}
 
@@ -862,25 +1047,25 @@ export default function ServiceDepartments({
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '0.8rem 1rem' }}>Name</th>
-                  <th style={{ padding: '0.8rem 1rem' }}>Login ID</th>
-                  <th style={{ padding: '0.8rem 1rem' }}>Designation</th>
-                  <th style={{ padding: '0.8rem 1rem' }}>Role</th>
-                  <th style={{ padding: '0.8rem 1rem' }}>Capabilities</th>
-                  <th style={{ padding: '0.8rem 1rem' }}>Status</th>
-                  {canManageDeptHeads && <th style={{ padding: '0.8rem 1rem' }}>Actions</th>}
+                  <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Name</th>
+                  <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Login ID</th>
+                  <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Designation</th>
+                  <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Role</th>
+                  <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Capabilities</th>
+                  <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Status</th>
+                  {canManageDeptHeads && <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {departmentHeads.map((head) => (
                   <tr key={head.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '0.8rem 1rem', color: '#0f172a', fontWeight: 700 }}>
+                    <td style={{ padding: '0.8rem 1rem', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{ fontSize: '1rem' }}>👤</span>
                         <span>{head.name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '0.8rem 1rem', color: '#64748b' }}>
+                    <td style={{ padding: '0.8rem 1rem', color: '#64748b', whiteSpace: 'nowrap' }}>
                       <div style={{ color: '#0f172a', fontWeight: 600 }}>{head.email}</div>
                       {head.phone && (
                         <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -888,59 +1073,107 @@ export default function ServiceDepartments({
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: '0.8rem 1rem', color: '#334155' }}>{head.role || 'Department Head'}</td>
-                    <td style={{ padding: '0.8rem 1rem' }}>
-                      <span style={{ padding: '0.2rem 0.55rem', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: '#f5f0ff', color: '#7f22fe', border: '1px solid #ebdfff' }}>
+                    <td style={{ padding: '0.8rem 1rem', color: '#334155', whiteSpace: 'nowrap' }}>
+                      {head.role || 'Department Head'}
+                    </td>
+                    <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
+                      <span style={{ padding: '0.25rem 0.65rem', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: '#f5f0ff', color: '#7f22fe', border: '1px solid #ebdfff', whiteSpace: 'nowrap', display: 'inline-block' }}>
                         Department Head
                       </span>
                     </td>
-                    <td style={{ padding: '0.8rem 1rem' }}>
-                      <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                    <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
                         {head.permissions?.manageTeams && (
-                          <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem', background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }}>
+                          <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 600, background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', whiteSpace: 'nowrap' }}>
                             Teams
                           </span>
                         )}
                         {head.permissions?.manageMembers && (
-                          <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem', background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }}>
+                          <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 600, background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', whiteSpace: 'nowrap' }}>
                             Members
                           </span>
                         )}
                         {head.permissions?.assignWork && (
-                          <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe' }}>
+                          <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 600, background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', whiteSpace: 'nowrap' }}>
                             Work
                           </span>
                         )}
                         {head.permissions?.manageServiceRecords && (
-                          <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem', background: '#faf5ff', color: '#6b21a8', border: '1px solid #e9d5ff' }}>
+                          <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 600, background: '#faf5ff', color: '#6b21a8', border: '1px solid #e9d5ff', whiteSpace: 'nowrap' }}>
                             Records
                           </span>
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '0.8rem 1rem', color: head.status === 'ACTIVE' ? '#047857' : '#b91c1c', fontWeight: 600 }}>
-                      {head.status}
+                    <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDeptHeadStatus(head)}
+                        disabled={togglingDeptHeadId === head.id}
+                        title="Click to toggle Active / Inactive"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: togglingDeptHeadId === head.id ? 'wait' : 'pointer',
+                          background: head.status === 'ACTIVE' ? '#f0fdf4' : '#fef2f2',
+                          color: head.status === 'ACTIVE' ? '#15803d' : '#b91c1c',
+                          border: head.status === 'ACTIVE' ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.65rem' }}>{head.status === 'ACTIVE' ? '🟢' : '🔴'}</span>
+                        <span>{togglingDeptHeadId === head.id ? 'Updating...' : head.status}</span>
+                      </button>
                     </td>
                     {canManageDeptHeads && (
-                      <td style={{ padding: '0.8rem 1rem' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDeptHead(head)}
-                          disabled={deletingDeptHeadId !== null}
-                          aria-label={`Remove ${head.name} as Department Head`}
-                          style={{
-                            padding: '0.35rem 0.65rem',
-                            border: '1px solid #fecaca',
-                            borderRadius: '6px',
-                            color: '#b91c1c',
-                            background: '#ffffff',
-                            fontWeight: 700,
-                            fontSize: '0.78rem',
-                            cursor: deletingDeptHeadId !== null ? 'wait' : 'pointer',
-                          }}
-                        >
-                          {deletingDeptHeadId === head.id ? 'Removing...' : 'Delete'}
-                        </button>
+                      <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleEditDeptHead(head)}
+                            title="Edit permissions and profile"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              padding: '0.35rem 0.75rem',
+                              border: '1px solid #c4b5fd',
+                              borderRadius: '6px',
+                              color: '#7f22fe',
+                              background: '#ffffff',
+                              fontWeight: 700,
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <span>✏️</span> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDeptHeadStatus(head)}
+                            disabled={togglingDeptHeadId === head.id}
+                            style={{
+                              padding: '0.35rem 0.65rem',
+                              border: head.status === 'ACTIVE' ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                              borderRadius: '6px',
+                              color: head.status === 'ACTIVE' ? '#b91c1c' : '#15803d',
+                              background: '#ffffff',
+                              fontWeight: 600,
+                              fontSize: '0.78rem',
+                              cursor: togglingDeptHeadId === head.id ? 'wait' : 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {head.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -971,64 +1204,449 @@ export default function ServiceDepartments({
         )}
       </div>
 
-      {/* ==================== SECTION 2: DEPARTMENT TEAMS & EMPLOYEES ==================== */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+      {/* ==================== SECTION 2: DEPARTMENT TEAMS & WORKSPACE ==================== */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '0.75rem' }}>
+        {/* Section Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', paddingBottom: '0.65rem', borderBottom: '1px solid #e2e8f0' }}>
           <div>
-            <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.05rem', fontWeight: 800 }}>
-              Department Teams ({teams.length})
-            </h3>
-            <p style={{ margin: '0.2rem 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-              Teams working under {departmentName}. Select a team to manage members and leaders.
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>👥</span>
+              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.15rem', fontWeight: 800 }}>
+                Department Teams ({teams.length})
+              </h3>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.18rem 0.55rem', borderRadius: '9999px', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>
+                {teams.filter((t) => t.status !== 'INACTIVE').length} Active
+              </span>
+            </div>
+            <p style={{ margin: '0.25rem 0 0', color: '#64748b', fontSize: '0.83rem' }}>
+              Operational teams working inside <strong>{departmentName}</strong>. Select any team below to inspect its members, leaders, and tasks.
             </p>
           </div>
+
+          {canManageTeams && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreateTeam((v) => !v);
+                setEditingTeamId(null);
+                setTeamFormData({ name: '', description: '', headEmployeeId: '' });
+                setShowCreateDeptHead(false);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.62rem 1.15rem',
+                border: '1px solid #7f22fe',
+                borderRadius: '8px',
+                color: showCreateTeam ? '#7f22fe' : '#ffffff',
+                background: showCreateTeam ? '#f5f0ff' : '#7f22fe',
+                fontWeight: 700,
+                fontSize: '0.84rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 5px rgba(127, 34, 254, 0.2)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>{showCreateTeam ? '✕ Cancel' : `+ Create Team in ${departmentName}`}</span>
+            </button>
+          )}
         </div>
 
-        {teams.length > 0 ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: '1rem', flexWrap: 'wrap', padding: '1rem 1.1rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff' }}>
-              <label style={{ flex: '1 1 260px', maxWidth: '420px', color: '#334155', fontSize: '0.84rem', fontWeight: 700 }}>
-                Select Team
-                <select
-                  value={selectedTeamId}
-                  onChange={(event) => {
-                    setSelectedTeamId(event.target.value);
-                    resetEmployeeForm();
-                  }}
-                  style={fieldStyle}
-                >
-                  <option value="">Choose a team</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name} ({team.employees?.length || 0} members)
-                    </option>
-                  ))}
-                </select>
-              </label>
+        {/* ==================== CREATE / EDIT TEAM FORM ==================== */}
+        {showCreateTeam && canManageTeams && (
+          <form
+            onSubmit={handleCreateTeam}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              padding: '1.25rem 1.5rem',
+              border: '1px solid #c4b5fd',
+              borderRadius: '14px',
+              background: '#faf5ff',
+            }}
+          >
+            <div>
+              <h4 style={{ margin: '0 0 0.25rem', color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>
+                {editingTeamId ? `Edit Team: ${teamFormData.name}` : `Create Team inside ${departmentName}`}
+              </h4>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.82rem' }}>
+                Teams structure the employees and work items for this department. Each team can have an appointed Team Leader and assigned members.
+              </p>
+            </div>
 
-              {canManageMembers && selectedTeam && (
-                <button
-                  type="button"
-                  onClick={() => setShowCreateEmployee((visible) => !visible)}
-                  style={{
-                    padding: '0.65rem 1rem',
-                    border: 0,
-                    borderRadius: '8px',
-                    color: '#ffffff',
-                    background: '#7f22fe',
-                    fontWeight: 700,
-                    fontSize: '0.84rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {showCreateEmployee ? 'Cancel' : '+ Add Employee to Team'}
-                </button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.9rem' }}>
+              <div>
+                <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                  Team Name *
+                </label>
+                <input
+                  required
+                  maxLength={150}
+                  placeholder="e.g. Sales Outreach Team"
+                  value={teamFormData.name}
+                  onChange={(e) => setTeamFormData((prev) => ({ ...prev, name: e.target.value }))}
+                  style={fieldStyle}
+                />
+              </div>
+
+              <div>
+                <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                  Team Purpose / Description
+                </label>
+                <input
+                  maxLength={255}
+                  placeholder="e.g. Inbound leads, client calls and deals"
+                  value={teamFormData.description}
+                  onChange={(e) => setTeamFormData((prev) => ({ ...prev, description: e.target.value }))}
+                  style={fieldStyle}
+                />
+              </div>
+
+              {!editingTeamId && (
+                <div>
+                  <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                    Initial Team Leader (Optional)
+                  </label>
+                  <select
+                    value={teamFormData.headEmployeeId}
+                    onChange={(e) => setTeamFormData((prev) => ({ ...prev, headEmployeeId: e.target.value }))}
+                    style={fieldStyle}
+                  >
+                    <option value="">Appoint Leader Later</option>
+                    {(departmentHeads || []).map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name} ({h.email}) - Department Head
+                      </option>
+                    ))}
+                    {teams.flatMap((t) => t.employees || []).map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} ({emp.email}) - {emp.role || 'Employee'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
 
-            {/* Form to add employee to team */}
-            {showCreateEmployee && selectedTeam && (
-              <form onSubmit={handleCreateEmployee} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', padding: '1.1rem 1.25rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateTeam(false);
+                  setEditingTeamId(null);
+                  setTeamFormData({ name: '', description: '', headEmployeeId: '' });
+                }}
+                style={{ padding: '0.58rem 1.1rem', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#475569', background: '#ffffff', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isCreatingTeam}
+                style={{
+                  padding: '0.58rem 1.3rem',
+                  border: 0,
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  background: isCreatingTeam ? '#94a3b8' : '#7f22fe',
+                  fontWeight: 700,
+                  cursor: isCreatingTeam ? 'wait' : 'pointer',
+                  boxShadow: '0 2px 6px rgba(127, 34, 254, 0.25)',
+                }}
+              >
+                {isCreatingTeam ? 'Saving Team...' : editingTeamId ? 'Save Team' : '+ Create Team'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ==================== TEAMS DIRECTORY CARDS ==================== */}
+        {teams.length > 0 ? (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+            gap: '1rem',
+          }}>
+            {teams.map((team) => {
+              const isSelected = team.id === selectedTeamId;
+              const isInactive = team.status === 'INACTIVE';
+              const memberCount = team.employees?.length || 0;
+              return (
+                <div
+                  key={team.id}
+                  onClick={() => setSelectedTeamId(team.id)}
+                  style={{
+                    padding: '1.1rem 1.2rem',
+                    borderRadius: '12px',
+                    border: isSelected ? '2px solid #7f22fe' : '1px solid #e2e8f0',
+                    background: isSelected ? '#faf5ff' : '#ffffff',
+                    cursor: 'pointer',
+                    boxShadow: isSelected ? '0 4px 14px rgba(127, 34, 254, 0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '0.85rem',
+                    position: 'relative',
+                  }}
+                >
+                  <div>
+                    {/* Top Row: Team Name & Status Badge */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                        <span style={{ fontSize: '1.15rem' }}>👥</span>
+                        <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>
+                          {team.name}
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleTeamStatus(team);
+                        }}
+                        disabled={togglingTeamId === team.id}
+                        title="Click to toggle Active / Inactive"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          cursor: togglingTeamId === team.id ? 'wait' : 'pointer',
+                          background: team.status === 'ACTIVE' || !team.status ? '#f0fdf4' : '#fef2f2',
+                          color: team.status === 'ACTIVE' || !team.status ? '#15803d' : '#b91c1c',
+                          border: team.status === 'ACTIVE' || !team.status ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span>{team.status === 'ACTIVE' || !team.status ? '🟢' : '🔴'}</span>
+                        <span>{togglingTeamId === team.id ? '...' : team.status || 'ACTIVE'}</span>
+                      </button>
+                    </div>
+
+                    {/* Description if present */}
+                    {team.description && (
+                      <p style={{ margin: '0.4rem 0 0', color: '#64748b', fontSize: '0.79rem', lineHeight: 1.4 }}>
+                        {team.description}
+                      </p>
+                    )}
+
+                    {/* Team Leader & Members Meta */}
+                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.8rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#334155' }}>
+                        <span style={{ color: '#7f22fe', fontWeight: 700 }}>👑 Leader:</span>
+                        <span style={{ fontWeight: 600, color: team.head ? '#0f172a' : '#94a3b8' }}>
+                          {team.head ? team.head.name : 'Not appointed'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b' }}>
+                        <span>👤 Members:</span>
+                        <span style={{ fontWeight: 700, color: '#0f172a' }}>{memberCount} employees</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Action Footer */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingTop: '0.65rem',
+                    borderTop: isSelected ? '1px solid #ebdfff' : '1px solid #f1f5f9',
+                  }}>
+                    <span style={{
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      color: isSelected ? '#7f22fe' : '#64748b',
+                    }}>
+                      {isSelected ? '✓ Viewing Team' : 'Click to inspect →'}
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.35rem' }}>
+                      {canManageTeams && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTeamId(team.id);
+                            setTeamFormData({
+                              name: team.name,
+                              description: team.description || '',
+                              headEmployeeId: team.head?.id || '',
+                            });
+                            setShowCreateTeam(true);
+                          }}
+                          style={{
+                            padding: '0.25rem 0.55rem',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            background: '#ffffff',
+                            color: '#334155',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleTeamStatus(team);
+                        }}
+                        disabled={togglingTeamId === team.id}
+                        style={{
+                          padding: '0.25rem 0.55rem',
+                          border: team.status === 'ACTIVE' || !team.status ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                          borderRadius: '6px',
+                          background: '#ffffff',
+                          color: team.status === 'ACTIVE' || !team.status ? '#b91c1c' : '#15803d',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: togglingTeamId === team.id ? 'wait' : 'pointer',
+                        }}
+                      >
+                        {team.status === 'ACTIVE' || !team.status ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{
+            padding: '1.75rem',
+            textAlign: 'center',
+            border: '1px dashed #cbd5e1',
+            borderRadius: '12px',
+            background: '#ffffff',
+          }}>
+            <p style={{ margin: 0, color: '#475569', fontSize: '0.92rem', fontWeight: 600 }}>
+              No teams created in {departmentName} yet.
+            </p>
+            <p style={{ margin: '0.3rem 0 1rem', color: '#64748b', fontSize: '0.82rem' }}>
+              Create your first team to assign staff, designate a team leader, and manage tasks.
+            </p>
+            {canManageTeams && (
+              <button
+                type="button"
+                onClick={() => setShowCreateTeam(true)}
+                style={{
+                  padding: '0.6rem 1.2rem',
+                  border: 0,
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  background: '#7f22fe',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                }}
+              >
+                + Create First Team in {departmentName}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ==================== SELECTED TEAM WORKSPACE ==================== */}
+        {selectedTeam && (
+          <div style={{
+            marginTop: '0.5rem',
+            border: '1px solid #ddd6fe',
+            borderRadius: '14px',
+            background: '#ffffff',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            overflow: 'hidden',
+          }}>
+            {/* Team Workspace Top Bar */}
+            <div style={{
+              padding: '1.1rem 1.35rem',
+              background: '#fcfaff',
+              borderBottom: '1px solid #ebdfff',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.85rem',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1.15rem', fontWeight: 800 }}>
+                    {selectedTeam.name} Workspace
+                  </h4>
+                  <span style={{
+                    padding: '0.2rem 0.55rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    background: selectedTeam.status === 'ACTIVE' || !selectedTeam.status ? '#ecfdf5' : '#fef2f2',
+                    color: selectedTeam.status === 'ACTIVE' || !selectedTeam.status ? '#059669' : '#dc2626',
+                    border: selectedTeam.status === 'ACTIVE' || !selectedTeam.status ? '1px solid #a7f3d0' : '1px solid #fecaca',
+                  }}>
+                    {selectedTeam.status === 'ACTIVE' || !selectedTeam.status ? '🟢 Active Team' : '🔴 Inactive Team'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.35rem', fontSize: '0.83rem', color: '#475569' }}>
+                  <span>
+                    👑 <strong>Team Leader:</strong>{' '}
+                    {selectedTeam.head ? (
+                      <span style={{ color: '#7f22fe', fontWeight: 700 }}>
+                        {selectedTeam.head.name} ({selectedTeam.head.email})
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94a3b8' }}>No leader appointed</span>
+                    )}
+                  </span>
+                  <span>•</span>
+                  <span>👥 <strong>{selectedTeam.employees?.length || 0}</strong> Team Members</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {canManageMembers && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateEmployee((v) => !v)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      padding: '0.55rem 1rem',
+                      border: 0,
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      background: '#7f22fe',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 5px rgba(127, 34, 254, 0.25)',
+                    }}
+                  >
+                    <span>{showCreateEmployee ? '✕ Cancel' : `+ Add Employee to ${selectedTeam.name}`}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Form to add employee to selected team */}
+            {showCreateEmployee && (
+              <form onSubmit={handleCreateEmployee} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', padding: '1.25rem 1.35rem', borderBottom: '1px solid #ddd6fe', background: '#faf5ff' }}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <h4 style={{ margin: '0 0 0.2rem', color: '#0f172a', fontSize: '0.96rem', fontWeight: 800 }}>
+                    Add Employee to {selectedTeam.name}
+                  </h4>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.81rem' }}>
+                    Create login credentials and job details for this team member.
+                  </p>
+                </div>
+
                 <label style={{ color: '#334155', fontSize: '0.82rem', fontWeight: 700 }}>
                   Employee Name *
                   <input
@@ -1147,46 +1765,6 @@ export default function ServiceDepartments({
                       <span>{showEmployeePassword ? 'Hide' : 'Show'}</span>
                     </button>
                   </div>
-
-                  <div style={{
-                    marginTop: '0.45rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.22rem',
-                    fontSize: '0.73rem',
-                    padding: '0.5rem 0.65rem',
-                    borderRadius: '8px',
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                  }}>
-                    <span style={{
-                      color: (newEmployee.password || '').length >= 8 ? '#16a34a' : '#64748b',
-                      fontWeight: (newEmployee.password || '').length >= 8 ? 700 : 500,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}>
-                      <span>{(newEmployee.password || '').length >= 8 ? '✅' : '○'}</span> At least 8 characters
-                    </span>
-                    <span style={{
-                      color: /[A-Z]/.test(newEmployee.password || '') ? '#16a34a' : '#64748b',
-                      fontWeight: /[A-Z]/.test(newEmployee.password || '') ? 700 : 500,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}>
-                      <span>{/[A-Z]/.test(newEmployee.password || '') ? '✅' : '○'}</span> At least 1 uppercase letter (A-Z)
-                    </span>
-                    <span style={{
-                      color: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newEmployee.password || '') ? '#16a34a' : '#64748b',
-                      fontWeight: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newEmployee.password || '') ? 700 : 500,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}>
-                      <span>{/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newEmployee.password || '') ? '✅' : '○'}</span> At least 1 special character (!@#$%^&* etc.)
-                    </span>
-                  </div>
                 </div>
 
                 <label style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', gridColumn: '1 / -1', color: '#334155', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
@@ -1258,133 +1836,229 @@ export default function ServiceDepartments({
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={isCreatingEmployee}
-                  style={{ alignSelf: 'end', justifySelf: 'start', padding: '0.65rem 1.1rem', border: 0, borderRadius: '8px', color: '#ffffff', background: isCreatingEmployee ? '#94a3b8' : '#7f22fe', fontWeight: 700, cursor: isCreatingEmployee ? 'wait' : 'pointer' }}
-                >
-                  {isCreatingEmployee ? 'Adding...' : `Add to ${selectedTeam.name}`}
-                </button>
+                <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '0.65rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateEmployee(false);
+                      resetEmployeeForm();
+                    }}
+                    style={{ padding: '0.58rem 1.1rem', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#475569', background: '#ffffff', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingEmployee}
+                    style={{ padding: '0.58rem 1.3rem', border: 0, borderRadius: '8px', color: '#ffffff', background: isCreatingEmployee ? '#94a3b8' : '#7f22fe', fontWeight: 700, cursor: isCreatingEmployee ? 'wait' : 'pointer', boxShadow: '0 2px 6px rgba(127, 34, 254, 0.25)' }}
+                  >
+                    {isCreatingEmployee ? 'Adding...' : `Add to ${selectedTeam.name}`}
+                  </button>
+                </div>
               </form>
             )}
 
-            {selectedTeam ? (
-              <>
-                <div style={{ padding: '1rem 1.1rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <div>
-                    <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>Team Leader:</strong>
-                    <span style={{ marginLeft: '0.5rem', color: selectedTeam.head ? '#7f22fe' : '#64748b', fontWeight: 700, fontSize: '0.86rem' }}>
-                      {selectedTeam?.head ? `${selectedTeam.head.name} (${selectedTeam.head.email})` : 'No Team Leader appointed yet.'}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                    {selectedTeam?.employees?.length || 0} Total Team Members
-                  </span>
-                </div>
+            {/* Workspace Navigation Tabs */}
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem',
+              padding: '0.65rem 1.35rem 0',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#ffffff',
+            }}>
+              <button
+                type="button"
+                onClick={() => setActiveTeamTab('members')}
+                style={{
+                  padding: '0.6rem 1.1rem',
+                  border: 0,
+                  borderBottom: activeTeamTab === 'members' ? '3px solid #7f22fe' : '3px solid transparent',
+                  background: 'none',
+                  color: activeTeamTab === 'members' ? '#7f22fe' : '#64748b',
+                  fontWeight: activeTeamTab === 'members' ? 800 : 600,
+                  fontSize: '0.86rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                <span>👥 Team Members</span>
+                <span style={{
+                  padding: '1px 6px',
+                  borderRadius: '9999px',
+                  fontSize: '0.72rem',
+                  background: activeTeamTab === 'members' ? '#f5f0ff' : '#f1f5f9',
+                  color: activeTeamTab === 'members' ? '#7f22fe' : '#64748b',
+                }}>
+                  {selectedTeam.employees?.length || 0}
+                </span>
+              </button>
 
-                <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                    <thead>
-                      <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '0.8rem 1rem' }}>Name</th>
-                        <th style={{ padding: '0.8rem 1rem' }}>Login ID</th>
-                        <th style={{ padding: '0.8rem 1rem' }}>Team Role</th>
-                        <th style={{ padding: '0.8rem 1rem' }}>Designation</th>
-                        <th style={{ padding: '0.8rem 1rem' }}>Status</th>
-                        {canManageMembers && <th style={{ padding: '0.8rem 1rem' }}>Actions</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(selectedTeam?.employees || []).map((employee) => (
-                        <tr key={employee.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '0.8rem 1rem', color: '#0f172a', fontWeight: 700 }}>{employee.name}</td>
-                          <td style={{ padding: '0.8rem 1rem', color: '#64748b' }}>
-                            <div style={{ color: '#0f172a', fontWeight: 600 }}>{employee.email}</div>
-                            {employee.phone && (
-                              <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                <span>📞</span> {employee.phone}
-                              </div>
-                            )}
-                          </td>
-                          <td style={{ padding: '0.8rem 1rem', color: '#7f22fe', fontWeight: 700 }}>
-                            {ROLE_LABELS[employee.accessRole] || ROLE_LABELS.EMPLOYEE}
-                          </td>
-                          <td style={{ padding: '0.8rem 1rem', color: '#475569' }}>{employee.role}</td>
-                          <td style={{ padding: '0.8rem 1rem', color: employee.status === 'ACTIVE' ? '#047857' : '#b91c1c', fontWeight: 600 }}>
-                            {employee.status}
-                          </td>
-                          {canManageMembers && (
-                            <td style={{ padding: '0.8rem 1rem' }}>
+              {canUseWorkBoard && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTeamTab('tasks')}
+                  style={{
+                    padding: '0.6rem 1.1rem',
+                    border: 0,
+                    borderBottom: activeTeamTab === 'tasks' ? '3px solid #7f22fe' : '3px solid transparent',
+                    background: 'none',
+                    color: activeTeamTab === 'tasks' ? '#7f22fe' : '#64748b',
+                    fontWeight: activeTeamTab === 'tasks' ? 800 : 600,
+                    fontSize: '0.86rem',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <span>📋 Team Work &amp; Tasks</span>
+                </button>
+              )}
+            </div>
+
+            {/* TAB 1: MEMBERS */}
+            {activeTeamTab === 'members' && (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
+                      <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Employee Name</th>
+                      <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Login ID / Phone</th>
+                      <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Team Role</th>
+                      <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Designation</th>
+                      <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Status</th>
+                      {canManageMembers && <th style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedTeam?.employees || []).map((employee) => (
+                      <tr key={employee.id} style={{ borderTop: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '0.8rem 1rem', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '1rem' }}>👤</span>
+                            <span>{employee.name}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.8rem 1rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          <div style={{ color: '#0f172a', fontWeight: 600 }}>{employee.email}</div>
+                          {employee.phone && (
+                            <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.15rem' }}>
+                              📞 {employee.phone}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
+                          <span style={{
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            background: employee.accessRole === 'TEAM_LEADER' ? '#fef3c7' : '#f1f5f9',
+                            color: employee.accessRole === 'TEAM_LEADER' ? '#b45309' : '#475569',
+                            border: employee.accessRole === 'TEAM_LEADER' ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {employee.accessRole === 'TEAM_LEADER' ? '👑 Team Leader' : '👤 Team Member'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.8rem 1rem', color: '#475569', whiteSpace: 'nowrap' }}>
+                          {employee.role || 'Member'}
+                        </td>
+                        <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleEmployeeStatus(employee)}
+                            disabled={togglingEmployeeId === employee.id}
+                            title="Click to toggle Active / Inactive"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              cursor: togglingEmployeeId === employee.id ? 'wait' : 'pointer',
+                              background: employee.status === 'ACTIVE' ? '#f0fdf4' : '#fef2f2',
+                              color: employee.status === 'ACTIVE' ? '#15803d' : '#b91c1c',
+                              border: employee.status === 'ACTIVE' ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <span style={{ fontSize: '0.65rem' }}>{employee.status === 'ACTIVE' ? '🟢' : '🔴'}</span>
+                            <span>{togglingEmployeeId === employee.id ? 'Updating...' : employee.status}</span>
+                          </button>
+                        </td>
+                        {canManageMembers && (
+                          <td style={{ padding: '0.8rem 1rem', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleEmployeeStatus(employee)}
+                                disabled={togglingEmployeeId === employee.id}
+                                style={{
+                                  padding: '0.3rem 0.65rem',
+                                  border: employee.status === 'ACTIVE' ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                                  borderRadius: '6px',
+                                  color: employee.status === 'ACTIVE' ? '#b91c1c' : '#15803d',
+                                  background: '#ffffff',
+                                  fontWeight: 600,
+                                  fontSize: '0.76rem',
+                                  cursor: togglingEmployeeId === employee.id ? 'wait' : 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {employee.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveEmployee(employee)}
                                 disabled={deletingEmployeeId !== null}
-                                aria-label={`Remove ${employee.name} from ${selectedTeam.name}`}
+                                title="Unassign this employee from this team"
                                 style={{
-                                  padding: '0.35rem 0.65rem',
-                                  border: '1px solid #fecaca',
+                                  padding: '0.3rem 0.65rem',
+                                  border: '1px solid #fed7aa',
                                   borderRadius: '6px',
-                                  color: '#b91c1c',
+                                  color: '#c2410c',
                                   background: '#ffffff',
-                                  fontWeight: 700,
-                                  fontSize: '0.78rem',
+                                  fontWeight: 600,
+                                  fontSize: '0.76rem',
                                   cursor: deletingEmployeeId !== null ? 'wait' : 'pointer',
+                                  whiteSpace: 'nowrap',
                                 }}
                               >
-                                {deletingEmployeeId === employee.id ? 'Removing...' : 'Delete'}
+                                {deletingEmployeeId === employee.id ? 'Removing...' : 'Remove from Team'}
                               </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                      {!selectedTeam?.employees?.length && (
-                        <tr>
-                          <td colSpan={canManageMembers ? 6 : 5} style={{ padding: '1.25rem', color: '#64748b', textAlign: 'center' }}>
-                            No employees are assigned to this team yet.
+                            </div>
                           </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* ==================== WORK BOARD ==================== */}
-                {canUseWorkBoard && (
-                  <div style={{ padding: '1.1rem 1.25rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff' }}>
-                    <ServiceWorkBoard
-                      activeCompany={activeCompany}
-                      serviceCode={normalizedCode}
-                      currentUser={currentUser}
-                      employees={selectedTeam?.employees || []}
-                      teamId={selectedTeam?.id}
-                    />
-                  </div>
-                )}
-              </>
-            ) : (
-              <div style={{ padding: '1.25rem', border: '1px solid #e2e8f0', borderRadius: '12px', color: '#64748b', background: '#ffffff' }}>
-                Choose a team to view its members and work.
+                        )}
+                      </tr>
+                    ))}
+                    {!selectedTeam?.employees?.length && (
+                      <tr>
+                        <td colSpan={canManageMembers ? 6 : 5} style={{ padding: '2rem', color: '#64748b', textAlign: 'center' }}>
+                          No employees are assigned to {selectedTeam.name} yet. Click <strong>+ Add Employee</strong> above to add members.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
-          </>
-        ) : (
-          <div style={{ padding: '1.25rem 1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', color: '#64748b', background: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <p style={{ margin: 0, color: '#475569', fontSize: '0.88rem', fontWeight: 600 }}>
-                No teams exist for {departmentName} yet.
-              </p>
-              <p style={{ margin: '0.2rem 0 0', color: '#64748b', fontSize: '0.8rem' }}>
-                Create a team to add employees and designate Team Leaders.
-              </p>
-            </div>
-            {canManageTeams && (
-              <button
-                type="button"
-                onClick={() => setShowCreateTeam(true)}
-                style={{ padding: '0.5rem 0.9rem', border: '1px solid #7f22fe', borderRadius: '7px', color: '#7f22fe', background: '#f5f0ff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
-              >
-                + Create Team
-              </button>
+
+            {/* TAB 2: WORK BOARD */}
+            {activeTeamTab === 'tasks' && canUseWorkBoard && (
+              <div style={{ padding: '1.25rem 1.35rem' }}>
+                <ServiceWorkBoard
+                  activeCompany={activeCompany}
+                  serviceCode={normalizedCode}
+                  currentUser={currentUser}
+                  team={selectedTeam}
+                  showToast={showToast}
+                />
+              </div>
             )}
           </div>
         )}
