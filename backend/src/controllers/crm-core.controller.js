@@ -24,6 +24,16 @@ export const crmCoreController = {
       res.status(201).json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
+  async updateCustomer(req, res, next) {
+    try {
+      const data = await crmCoreService.updateCustomer(
+        String(req.params.companyId),
+        String(req.params.customerId),
+        req.body || {}
+      );
+      res.json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
   async removeCustomer(req, res, next) {
     try {
       await crmCoreService.removeCustomer(String(req.params.companyId), req.params.customerId);

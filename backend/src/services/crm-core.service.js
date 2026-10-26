@@ -57,6 +57,29 @@ export const crmCoreService = {
     return { ...customer, createdContact };
   },
 
+  async updateCustomer(companyId, customerId, data) {
+    const existing = await prisma.crmCustomer.findFirst({
+      where: { id: customerId, companyId },
+    });
+    if (!existing) throw coreError('Customer not found.', 404);
+
+    const updateData = {};
+    if (data.companyName !== undefined) updateData.companyName = String(data.companyName).trim();
+    if (data.gstin !== undefined) updateData.gstin = data.gstin ? String(data.gstin).trim() : null;
+    if (data.contactPerson !== undefined) updateData.contactPerson = data.contactPerson ? String(data.contactPerson).trim() : null;
+    if (data.email !== undefined) updateData.email = data.email ? String(data.email).trim() : null;
+    if (data.phone !== undefined) updateData.phone = data.phone ? String(data.phone).trim() : null;
+    if (data.industry !== undefined) updateData.industry = data.industry ? String(data.industry).trim() : 'Technology & IT';
+    if (data.requirements !== undefined) updateData.requirements = data.requirements ? String(data.requirements).trim() : null;
+    if (data.assignedTo !== undefined) updateData.assignedTo = data.assignedTo ? String(data.assignedTo).trim() : null;
+    if (data.status !== undefined) updateData.status = String(data.status).trim();
+
+    return prisma.crmCustomer.update({
+      where: { id: customerId },
+      data: updateData,
+    });
+  },
+
   async removeCustomer(companyId, customerId) {
     const existing = await prisma.crmCustomer.findFirst({
       where: { id: customerId, companyId },

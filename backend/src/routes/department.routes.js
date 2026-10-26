@@ -29,6 +29,7 @@ router.delete('/companies/:companyId/crm/leads/:leadId', validateSubModuleAccess
 // ==================== CRM CUSTOMERS ====================
 router.get('/companies/:companyId/crm/customers', validateSubModuleAccess('crm_customers'), crmCoreController.listCustomers);
 router.post('/companies/:companyId/crm/customers', validateSubModuleAccess('crm_customers'), crmCoreController.createCustomer);
+router.patch('/companies/:companyId/crm/customers/:customerId', validateSubModuleAccess('crm_customers'), crmCoreController.updateCustomer);
 router.delete('/companies/:companyId/crm/customers/:customerId', validateSubModuleAccess('crm_customers'), crmCoreController.removeCustomer);
 
 // ==================== CRM CONTACTS ====================

@@ -83,6 +83,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
         customers: ['customers', '/crm/customers', 'crm_customers'],
         contacts: ['contacts', '/crm/contacts', 'crm_contacts'],
         opportunities: ['opportunities', '/crm/opportunities', 'crm_followups'],
+        sales: ['sales', 'sales_quotations', 'sales_orders', 'quotations', 'orders', '/sales/quotations', '/sales/orders'],
       };
       return (featureAliases[featureKey] || [featureKey])
         .some((alias) => hasSubModuleAccess(alias));
@@ -108,6 +109,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       customers: ['crm_customers', 'customers', '75a5e4f8-cea5-11f1-9511-b05cda618678'],
       contacts: ['crm_contacts', 'contacts', '75a5e73f-cea5-11f1-9511-b05cda618678'],
       opportunities: ['crm_followups', 'opportunities', 'followups', '75a5e896-cea5-11f1-9511-b05cda618678'],
+      sales: ['sales', 'sales_quotations', 'sales_orders', 'quotations', 'orders', '75a5cb8a-cea5-11f1-9511-b05cda618678'],
     };
 
     const targetList = KEY_MAP[featureKey] || [featureKey];
@@ -548,6 +550,61 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       showToast('Customer Not Created', err.message || 'Could not register customer.', 'danger');
     } finally {
       setIsSavingCustomer(false);
+    }
+  };
+
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [isUpdatingCustomer, setIsUpdatingCustomer] = useState(false);
+  const [editCustomerForm, setEditCustomerForm] = useState({
+    companyName: '',
+    gstin: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    industry: 'Technology & IT',
+    requirements: '',
+    assignedTo: '',
+    status: 'ACTIVE',
+  });
+
+  const handleOpenEditCustomerModal = (customer) => {
+    setEditingCustomer(customer);
+    setEditCustomerForm({
+      companyName: customer.companyName || '',
+      gstin: customer.gstin || '',
+      contactPerson: customer.contactPerson || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      industry: customer.industry || 'Technology & IT',
+      requirements: customer.requirements || '',
+      assignedTo: customer.assignedTo || '',
+      status: customer.status || 'ACTIVE',
+    });
+  };
+
+  const handleUpdateCustomer = async (e) => {
+    e.preventDefault();
+    if (!editCustomerForm.companyName?.trim()) {
+      showToast('Validation Error', 'Company name is required.', 'danger');
+      return;
+    }
+    setIsUpdatingCustomer(true);
+    try {
+      const res = await api.patch(
+        `/companies/${activeCompany.id}/crm/customers/${editingCustomer.id}`,
+        editCustomerForm
+      );
+      const updated = res.data?.data || res.data;
+      setCustomers((current) => current.map((c) => (c.id === editingCustomer.id ? updated : c)));
+      if (viewingCustomer?.id === editingCustomer.id) {
+        setViewingCustomer(updated);
+      }
+      setEditingCustomer(null);
+      showToast('Customer Updated! 🏢', `Client "${updated.companyName}" profile updated successfully.`, 'success');
+    } catch (err) {
+      showToast('Update Failed', err.message || 'Could not update customer.', 'danger');
+    } finally {
+      setIsUpdatingCustomer(false);
     }
   };
 
@@ -1441,13 +1498,13 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
             </div>
           )}
 
-          {/* Sales Workflow Guidance Banner */}
+          {/* Corporate Customer Directory Banner */}
           <div style={{
             margin: '1.25rem 1.25rem 0.5rem 1.25rem',
+            background: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)',
+            border: '1px solid #bbf7d0',
+            borderRadius: '12px',
             padding: '1rem 1.25rem',
-            background: 'linear-gradient(135deg, #f5f0ff 0%, #eff6ff 100%)',
-            borderRadius: '10px',
-            border: '1px solid #ebdfff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -1455,60 +1512,18 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
             gap: '1rem',
           }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                <span style={{ fontSize: '1.15rem' }}>🏢</span>
-                <span style={{ fontSize: '0.94rem', fontWeight: 800, color: '#1e1b4b' }}>
-                  Verified Customer Directory &amp; Sales Pipeline
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>🏢</span>
+                <span style={{ fontSize: '0.98rem', fontWeight: 800, color: '#14532d' }}>
+                  Verified Corporate Customer Directory
                 </span>
-                <span style={{ padding: '2px 8px', borderRadius: '9999px', background: '#dcfce7', color: '#15803d', fontSize: '0.72rem', fontWeight: 800 }}>
+                <span style={{ padding: '2px 9px', borderRadius: '9999px', background: '#dcfce7', color: '#15803d', fontSize: '0.74rem', fontWeight: 800 }}>
                   {customers.length} Accounts Active
                 </span>
               </div>
-              <p style={{ margin: 0, fontSize: '0.82rem', color: '#475569', lineHeight: 1.5 }}>
-                Lead convert hone ke baad customer yahan add ho jata hai. Ab aap yahan se direct customer ko <strong>Quotation</strong> bhej sakte hain aur <strong>Sales Order</strong> issue kar sakte hain.
+              <p style={{ margin: 0, fontSize: '0.82rem', color: '#334155', lineHeight: 1.5 }}>
+                Converted leads and verified client accounts. Manage contact details, GSTINs, corporate requirements, and account statuses.
               </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => router.push('/sales/quotations')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.9rem',
-                  borderRadius: '6px',
-                  background: '#ffffff',
-                  color: '#7f22fe',
-                  border: '1px solid #ddd6fe',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                }}
-              >
-                <span>📄</span> All Quotations ➡️
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push('/sales/orders')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.9rem',
-                  borderRadius: '6px',
-                  background: '#7f22fe',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(127, 34, 254, 0.25)',
-                }}
-              >
-                <span>🛒</span> All Sales Orders ➡️
-              </button>
             </div>
           </div>
 
@@ -1619,50 +1634,8 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', justifyContent: 'flex-end' }}>
                           <button
                             type="button"
-                            onClick={() => router.push(`/sales/quotations?customer=${encodeURIComponent(cust.companyName)}`)}
-                            title="Generate Quotation for this Customer"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              padding: '0.35rem 0.65rem',
-                              borderRadius: '6px',
-                              background: '#eff6ff',
-                              color: '#1d4ed8',
-                              border: '1px solid #bfdbfe',
-                              fontSize: '0.74rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <span>📄</span> Quote
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/sales/orders?customer=${encodeURIComponent(cust.companyName)}`)}
-                            title="Create Sales Order for this Customer"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              padding: '0.35rem 0.65rem',
-                              borderRadius: '6px',
-                              background: '#f5f3ff',
-                              color: '#6d28d9',
-                              border: '1px solid #ddd6fe',
-                              fontSize: '0.74rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <span>🛒</span> Order
-                          </button>
-
-                          <button
-                            type="button"
                             onClick={() => setViewingCustomer(cust)}
-                            title="View Customer Profile & Details"
+                            title="View Customer Profile & Requirements"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -1679,6 +1652,54 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                           >
                             <span>👁️</span> Details
                           </button>
+
+                          {canPerformAction('customers') && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditCustomerModal(cust)}
+                              title="Edit Customer Profile & Requirements"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.35rem 0.65rem',
+                                borderRadius: '6px',
+                                background: '#eff6ff',
+                                color: '#1d4ed8',
+                                border: '1px solid #bfdbfe',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <span>✏️</span> Edit
+                            </button>
+                          )}
+
+                          {canPerformAction('sales') && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                router.push(`/sales/quotations?customer=${encodeURIComponent(cust.companyName)}`);
+                              }}
+                              title="Generate Quotation for this Customer"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.35rem 0.65rem',
+                                borderRadius: '6px',
+                                background: '#faf5ff',
+                                color: '#7e22ce',
+                                border: '1px solid #e9d5ff',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <span>📄</span> Quote
+                            </button>
+                          )}
 
                           {canPerformAction('customers') ? (
                             <button
@@ -2757,76 +2778,307 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                   {viewingCustomer.phone || '—'}
                 </span>
               </div>
-            </div>
 
-            <div style={{ padding: '1rem', background: '#f5f0ff', borderRadius: '8px', border: '1px solid #ebdfff' }}>
-              <span style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#5b21b6', marginBottom: '0.35rem' }}>
-                ⚡ Quick Sales Execution Actions for {viewingCustomer.companyName}:
-              </span>
-              <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.78rem', color: '#6b21a8' }}>
-                Yahan se direct is customer ke naam par Quotation banayein ya Sales Order issue karein.
-              </p>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const custName = viewingCustomer.companyName;
-                    setViewingCustomer(null);
-                    router.push(`/sales/quotations?customer=${encodeURIComponent(custName)}`);
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    padding: '0.55rem 1rem',
-                    borderRadius: '6px',
-                    background: '#ffffff',
-                    color: '#7f22fe',
-                    border: '1px solid #c4b5fd',
-                    fontWeight: 700,
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span>📄</span> Issue Quotation Proposal ➡️
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const custName = viewingCustomer.companyName;
-                    setViewingCustomer(null);
-                    router.push(`/sales/orders?customer=${encodeURIComponent(custName)}`);
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    padding: '0.55rem 1rem',
-                    borderRadius: '6px',
-                    background: '#7f22fe',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontWeight: 700,
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(127, 34, 254, 0.25)',
-                  }}
-                >
-                  <span>🛒</span> Create Sales Order ➡️
-                </button>
+              <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>
+                  Assigned Account Manager / Rep
+                </span>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0284c7' }}>
+                  👤 {viewingCustomer.assignedTo || 'Unassigned'}
+                </span>
+              </div>
+
+              <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>
+                  Account Created Date
+                </span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                  📅 {viewingCustomer.date || 'Active Account'}
+                </span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            {/* Customer Requirement / Scope of Work */}
+            <div style={{ padding: '0.9rem 1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, display: 'block', marginBottom: '0.35rem', textTransform: 'uppercase' }}>
+                📝 Customer Requirements &amp; Scope of Work (Carried from Lead)
+              </span>
+              <p style={{ margin: 0, fontSize: '0.86rem', color: viewingCustomer.requirements ? '#1e293b' : '#94a3b8', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                {viewingCustomer.requirements || 'No specific product requirements or notes recorded for this client.'}
+              </p>
+            </div>
+
+            {/* Sales Operations or CRM Notice */}
+            {canPerformAction('sales') ? (
+              <div style={{ padding: '1rem', background: '#f5f0ff', borderRadius: '8px', border: '1px solid #ebdfff' }}>
+                <span style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#5b21b6', marginBottom: '0.35rem' }}>
+                  ⚡ Quick Sales Execution Actions for {viewingCustomer.companyName}:
+                </span>
+                <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.78rem', color: '#6b21a8' }}>
+                  Yahan se direct is customer ke naam par Quotation banayein ya Sales Order issue karein.
+                </p>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const custName = viewingCustomer.companyName;
+                      setViewingCustomer(null);
+                      router.push(`/sales/quotations?customer=${encodeURIComponent(custName)}`);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.55rem 1rem',
+                      borderRadius: '6px',
+                      background: '#ffffff',
+                      color: '#7f22fe',
+                      border: '1px solid #c4b5fd',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>📄</span> Issue Quotation Proposal ➡️
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const custName = viewingCustomer.companyName;
+                      setViewingCustomer(null);
+                      router.push(`/sales/orders?customer=${encodeURIComponent(custName)}`);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.55rem 1rem',
+                      borderRadius: '6px',
+                      background: '#7f22fe',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(127, 34, 254, 0.25)',
+                    }}
+                  >
+                    <span>🛒</span> Create Sales Order ➡️
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: '0.8rem 1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ fontSize: '1.1rem' }}>🤝</span>
+                <span style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.5 }}>
+                  <strong>Sales Workflow Handover:</strong> Is customer ki requirements CRM mein record ho chuki hain. Sales Department in requirements ke aadhar par rate decide karke Quotation aur Sales Order process karega.
+                </span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              {canPerformAction('customers') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const toEdit = viewingCustomer;
+                    setViewingCustomer(null);
+                    handleOpenEditCustomerModal(toEdit);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.55rem 1.25rem',
+                    borderRadius: '6px',
+                    border: '1px solid #bfdbfe',
+                    background: '#eff6ff',
+                    color: '#1d4ed8',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  <span>✏️</span> Edit Profile & Requirements
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setViewingCustomer(null)}
-                style={{ padding: '0.55rem 1.25rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+                style={{ padding: '0.55rem 1.25rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '0.82rem' }}
               >
                 Close
               </button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL 2C: EDIT CUSTOMER PROFILE */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        isOpen={Boolean(editingCustomer)}
+        onClose={() => setEditingCustomer(null)}
+        title="Edit Customer Profile & Requirements 🏢"
+      >
+        {editingCustomer && (
+          <form onSubmit={handleUpdateCustomer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                  Company / Organization Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editCustomerForm.companyName}
+                  onChange={(e) => setEditCustomerForm({ ...editCustomerForm, companyName: e.target.value })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                  GSTIN / Tax ID
+                </label>
+                <input
+                  type="text"
+                  value={editCustomerForm.gstin}
+                  onChange={(e) => setEditCustomerForm({ ...editCustomerForm, gstin: e.target.value.toUpperCase() })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontFamily: 'monospace' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                  Primary Contact Person
+                </label>
+                <input
+                  type="text"
+                  value={editCustomerForm.contactPerson}
+                  onChange={(e) => setEditCustomerForm({ ...editCustomerForm, contactPerson: e.target.value })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                  Official Email Address
+                </label>
+                <input
+                  type="email"
+                  value={editCustomerForm.email}
+                  onChange={(e) => setEditCustomerForm({ ...editCustomerForm, email: e.target.value })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                  Mobile / Phone Number
+                </label>
+                <input
+                  type="text"
+                  value={editCustomerForm.phone}
+                  onChange={(e) => setEditCustomerForm({ ...editCustomerForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                  Account Status
+                </label>
+                <select
+                  value={editCustomerForm.status}
+                  onChange={(e) => setEditCustomerForm({ ...editCustomerForm, status: e.target.value })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="ONBOARDING">ONBOARDING</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                  Industry Vertical
+                </label>
+                <select
+                  value={editCustomerForm.industry}
+                  onChange={(e) => setEditCustomerForm({ ...editCustomerForm, industry: e.target.value })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+                >
+                  <option value="Technology & IT">Technology & IT</option>
+                  <option value="Manufacturing & Industrial">Manufacturing & Industrial</option>
+                  <option value="Construction & Real Estate">Construction & Real Estate</option>
+                  <option value="Healthcare & Pharma">Healthcare & Pharma</option>
+                  <option value="Finance & Banking">Finance & Banking</option>
+                  <option value="Retail & E-commerce">Retail & E-commerce</option>
+                  <option value="Services & Consulting">Services & Consulting</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                  Assigned Account Rep / Executive
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. manoj or sales_rep"
+                  value={editCustomerForm.assignedTo}
+                  onChange={(e) => setEditCustomerForm({ ...editCustomerForm, assignedTo: e.target.value })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                Customer Requirements & Scope of Work (Carried from Lead)
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Product specifications, customization needs, quantity requirement..."
+                value={editCustomerForm.requirements}
+                onChange={(e) => setEditCustomerForm({ ...editCustomerForm, requirements: e.target.value })}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', resize: 'vertical' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setEditingCustomer(null)}
+                style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isUpdatingCustomer}
+                style={{
+                  padding: '0.6rem 1.35rem',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#1d4ed8',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  cursor: isUpdatingCustomer ? 'not-allowed' : 'pointer',
+                  opacity: isUpdatingCustomer ? 0.7 : 1,
+                }}
+              >
+                {isUpdatingCustomer ? 'Saving...' : 'Update Customer Profile'}
+              </button>
+            </div>
+          </form>
         )}
       </Modal>
 
