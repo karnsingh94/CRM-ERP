@@ -22,7 +22,7 @@ function scopeCompanyAccessForUser(company, user) {
   const services = (company.access?.services || []).filter(
     (service) => String(service.serviceId || service.service_id || service.id) === serviceId
   );
-  const featureAccess = ['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER'].includes(user.role)
+  const featureAccess = ['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(user.role)
     ? user.permissions?.featureAccess || {}
     : null;
   const moduleIds = new Set(Array.isArray(featureAccess?.moduleIds) ? featureAccess.moduleIds.map(String) : []);

@@ -154,6 +154,8 @@ export function formatEmployee(e) {
         : e.team?.headEmployeeId === e.id || e.accessRole === 'TEAM_LEADER'
           ? 'TEAM_LEADER'
           : e.accessRole || 'EMPLOYEE',
+    created_by_employee_id: e.permissions?.memberOwnerId ? String(e.permissions.memberOwnerId) : null,
+    createdByEmployeeId: e.permissions?.memberOwnerId ? String(e.permissions.memberOwnerId) : null,
     permissions: normalizeTeamPermissions(e.permissions),
     status: e.status,
     created_at: e.createdAt,

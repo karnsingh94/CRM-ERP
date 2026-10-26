@@ -77,6 +77,17 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       return true;
     }
 
+    if (role === 'EMPLOYEE' && typeof hasSubModuleAccess === 'function') {
+      const featureAliases = {
+        leads: ['leads', '/crm/leads', 'crm_leads'],
+        customers: ['customers', '/crm/customers', 'crm_customers'],
+        contacts: ['contacts', '/crm/contacts', 'crm_contacts'],
+        opportunities: ['opportunities', '/crm/opportunities', 'crm_followups'],
+      };
+      return (featureAliases[featureKey] || [featureKey])
+        .some((alias) => hasSubModuleAccess(alias));
+    }
+
     const featureAccess = currentUser?.permissions?.featureAccess;
     if (!featureAccess) return true;
 
@@ -167,7 +178,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   const [leadIntegrations, setLeadIntegrations] = useState([]);
 
   useEffect(() => {
-    if (!activeCompany?.id) return;
+    if (!activeCompany?.id || (currentUser?.role === 'EMPLOYEE' && !isLeadsAllowed)) return;
     let isCurrent = true;
     const fetchLeadIntegrations = async () => {
       try {
@@ -179,7 +190,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     };
     fetchLeadIntegrations();
     return () => { isCurrent = false; };
-  }, [activeCompany?.id, leadLoadVersion]);
+  }, [activeCompany?.id, currentUser?.role, isLeadsAllowed, leadLoadVersion]);
 
   // Only channels that were configured and activated by Super Admin
   const activeLeadChannels = leadIntegrations.filter(
@@ -285,10 +296,10 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   useEffect(() => {
     let isCurrent = true;
     const loadLeads = async () => {
-      if (!activeCompany?.id) {
+      if (!activeCompany?.id || (currentUser?.role === 'EMPLOYEE' && !isLeadsAllowed)) {
         setLeads([]);
         setIsLoadingLeads(false);
-        setLeadError('Choose a company workspace to view leads.');
+        setLeadError(activeCompany?.id ? '' : 'Choose a company workspace to view leads.');
         return;
       }
       if (leads.length === 0) {
@@ -311,7 +322,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     return () => {
       isCurrent = false;
     };
-  }, [activeCompany?.id, leadLoadVersion]);
+  }, [activeCompany?.id, currentUser?.role, isLeadsAllowed, leadLoadVersion]);
 
   const handleCreateLead = async (e) => {
     e.preventDefault();
@@ -467,6 +478,8 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     if (customers.length === 0) {
       setIsLoadingCustomers(true);
     }
+    if (!activeCompany?.id || (currentUser?.role === 'EMPLOYEE' && !isCustomersAllowed)) return;
+    setIsLoadingCustomers(true);
     try {
       const res = await api.get(`/companies/${activeCompany.id}/crm/customers`, { noCache: true });
       setCustomers(res.data || []);
@@ -542,6 +555,8 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     if (contacts.length === 0) {
       setIsLoadingContacts(true);
     }
+    if (!activeCompany?.id || (currentUser?.role === 'EMPLOYEE' && !isContactsAllowed)) return;
+    setIsLoadingContacts(true);
     try {
       const res = await api.get(`/companies/${activeCompany.id}/crm/contacts`, { noCache: true });
       setContacts(res.data || []);
@@ -616,6 +631,8 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     if (opportunities.length === 0) {
       setIsLoadingOpportunities(true);
     }
+    if (!activeCompany?.id || (currentUser?.role === 'EMPLOYEE' && !isOpportunitiesAllowed)) return;
+    setIsLoadingOpportunities(true);
     try {
       const res = await api.get(`/companies/${activeCompany.id}/crm/opportunities`, { noCache: true });
       setOpportunities(res.data || []);
@@ -1038,28 +1055,30 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => handleTabChange('departments')}
-          style={{
-            padding: '0.65rem 1.25rem',
-            fontWeight: activeTab === 'departments' ? 800 : 600,
-            color: activeTab === 'departments' ? '#7f22fe' : '#64748b',
-            borderBottom: activeTab === 'departments' ? '2px solid #7f22fe' : '2px solid transparent',
-            background: 'transparent',
-            borderTop: 'none',
-            borderLeft: 'none',
-            borderRight: 'none',
-            fontSize: '0.88rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            cursor: 'pointer',
-          }}
-        >
-          <span>🏢</span>
-          <span>Department Head</span>
-        </button>
+        {currentUser?.role !== 'EMPLOYEE' && (
+          <button
+            type="button"
+            onClick={() => handleTabChange('departments')}
+            style={{
+              padding: '0.65rem 1.25rem',
+              fontWeight: activeTab === 'departments' ? 800 : 600,
+              color: activeTab === 'departments' ? '#7f22fe' : '#64748b',
+              borderBottom: activeTab === 'departments' ? '2px solid #7f22fe' : '2px solid transparent',
+              background: 'transparent',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              fontSize: '0.88rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              cursor: 'pointer',
+            }}
+          >
+            <span>🏢</span>
+            <span>Department Head</span>
+          </button>
+        )}
       </div>
 
       {/* ------------------------------------------------------------- */}

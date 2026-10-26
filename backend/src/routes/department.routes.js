@@ -7,6 +7,7 @@ import {
   requireCompanyAdmin,
   requireCompanyUser,
   requireServiceTeamPermission,
+  requireTeamStructureManager,
   validateCompanyAccess,
   validateSubModuleAccess,
 } from '../middlewares/auth.middleware.js';
@@ -92,17 +93,17 @@ router.get(
 );
 router.post(
   '/companies/:companyId/services/:serviceCode/teams',
-  requireServiceTeamPermission(['manageTeams', 'manageMembers']),
+  requireTeamStructureManager,
   departmentController.createServiceTeam
 );
 router.put(
   '/companies/:companyId/services/:serviceCode/teams/:teamId',
-  requireServiceTeamPermission(['manageTeams', 'manageMembers']),
+  requireTeamStructureManager,
   departmentController.updateServiceTeam
 );
 router.patch(
   '/companies/:companyId/services/:serviceCode/teams/:teamId/status',
-  requireServiceTeamPermission(['manageTeams', 'manageMembers']),
+  requireTeamStructureManager,
   departmentController.toggleServiceTeamStatus
 );
 router.get(
@@ -117,12 +118,12 @@ router.delete(
 );
 router.put(
   '/companies/:companyId/services/:serviceCode/team/head',
-  requireServiceTeamPermission(['manageTeams', 'manageMembers']),
+  requireTeamStructureManager,
   departmentController.setServiceTeamHead
 );
 router.put(
   '/companies/:companyId/services/:serviceCode/team/permissions',
-  requireServiceTeamPermission(['manageTeams', 'manageMembers']),
+  requireTeamStructureManager,
   departmentController.setServiceTeamPermissions
 );
 

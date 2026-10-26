@@ -25,6 +25,7 @@ export default function ServiceWorkBoard({
   currentUser,
   employees: providedEmployees,
   teamId: providedTeamId,
+  accentColor = '#7f22fe',
 }) {
   const [items, setItems] = useState([]);
   const [employees, setEmployees] = useState(providedEmployees || []);
@@ -147,7 +148,7 @@ export default function ServiceWorkBoard({
           <button
             type="button"
             onClick={() => setShowCreate((visible) => !visible)}
-            style={{ padding: '0.6rem 0.9rem', border: 0, borderRadius: '8px', color: '#fff', background: '#7f22fe', fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '0.6rem 0.9rem', border: 0, borderRadius: '8px', color: '#fff', background: accentColor, fontWeight: 700, cursor: 'pointer' }}
           >
             {showCreate ? 'Cancel' : '＋ Assign Work'}
           </button>
@@ -175,7 +176,7 @@ export default function ServiceWorkBoard({
             Details
             <textarea rows={2} maxLength={10000} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} style={{ ...fieldStyle, display: 'block', marginTop: '0.3rem', resize: 'vertical' }} />
           </label>
-          <button type="submit" disabled={isSaving || activeEmployees.length === 0} style={{ justifySelf: 'start', padding: '0.6rem 1rem', border: 0, borderRadius: '7px', color: '#fff', background: isSaving ? '#94a3b8' : '#7f22fe', fontWeight: 700, cursor: isSaving ? 'wait' : 'pointer' }}>
+          <button type="submit" disabled={isSaving || activeEmployees.length === 0} style={{ justifySelf: 'start', padding: '0.6rem 1rem', border: 0, borderRadius: '7px', color: '#fff', background: isSaving ? '#94a3b8' : accentColor, fontWeight: 700, cursor: isSaving ? 'wait' : 'pointer' }}>
             {isSaving ? 'Saving...' : 'Create Work'}
           </button>
           {!activeEmployees.length && <span style={{ color: '#b45309', fontSize: '0.82rem' }}>Add an active service employee before assigning work.</span>}

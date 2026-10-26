@@ -69,7 +69,8 @@ export const departmentController = {
       const employee = await departmentService.toggleCompanyEmployeeStatus(
         req.params.companyId,
         req.params.employeeId,
-        req.meta || {}
+        req.meta || {},
+        req.user
       );
       res.json({ success: true, data: employee });
     } catch (err) {
@@ -137,7 +138,8 @@ export const departmentController = {
         req.params.companyId,
         req.params.serviceCode,
         req.body,
-        req.meta || {}
+        req.meta || {},
+        req.user
       );
       res.status(201).json({ success: true, data: team });
     } catch (err) {
@@ -155,7 +157,8 @@ export const departmentController = {
         req.params.serviceCode,
         req.params.teamId,
         req.body,
-        req.meta || {}
+        req.meta || {},
+        req.user
       );
       res.json({ success: true, data: team });
     } catch (err) {
@@ -172,7 +175,8 @@ export const departmentController = {
         req.params.companyId,
         req.params.serviceCode,
         req.params.teamId,
-        req.meta || {}
+        req.meta || {},
+        req.user
       );
       res.json({ success: true, data: team });
     } catch (err) {
@@ -190,7 +194,8 @@ export const departmentController = {
         req.params.serviceCode,
         req.body.headId,
         req.meta || {},
-        req.body.teamId
+        req.body.teamId,
+        req.user
       );
       res.json({ success: true, data: team });
     } catch (err) {
@@ -208,7 +213,8 @@ export const departmentController = {
         req.params.serviceCode,
         req.body.permissions,
         req.meta || {},
-        req.body.teamId
+        req.body.teamId,
+        req.user
       );
       res.json({ success: true, data: team });
     } catch (err) {

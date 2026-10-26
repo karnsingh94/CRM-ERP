@@ -20,7 +20,12 @@ export default function DepartmentHeadSettings({
   onAccentChange,
   onNotificationsChange,
 }) {
-  const roleLabel = currentUser?.role === 'TEAM_LEADER' ? 'Team Leader' : 'Department Head';
+  const isEmployee = currentUser?.role === 'EMPLOYEE';
+  const roleLabel = isEmployee
+    ? 'Employee'
+    : currentUser?.role === 'TEAM_LEADER'
+      ? 'Team Leader'
+      : 'Department Head';
   const [activeTab, setActiveTab] = useState('appearance');
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -266,8 +271,12 @@ export default function DepartmentHeadSettings({
             </div>
           </section>
           <section className={styles.infoCard}>
-            <strong>Department access is managed by your Company Admin</strong>
-            <span>Contact your Company Admin if you need a different department, module, screen, or permission assigned.</span>
+            <strong>{isEmployee ? 'Employee access is managed by your Team Leader' : 'Department access is managed by your Company Admin'}</strong>
+            <span>
+              {isEmployee
+                ? 'Contact your Team Leader if you need a different module, screen, work item, or permission assigned.'
+                : 'Contact your Company Admin if you need a different department, module, screen, or permission assigned.'}
+            </span>
           </section>
         </div>
       )}
