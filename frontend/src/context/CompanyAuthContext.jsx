@@ -89,15 +89,21 @@ export function CompanyAuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
   // Verify the company session on entry and whenever the page regains focus.
   const loadCompanySession = useCallback(async () => {
-    if (pathname.startsWith('/super-admin')) {
+    const currentPath = pathnameRef.current || (typeof window !== 'undefined' ? window.location.pathname : '');
+    if (currentPath.startsWith('/super-admin')) {
       restoreSuperAdminSession();
       setIsLoading(false);
       return;
     }
 
-    if (pathname === '/login') {
+    if (currentPath === '/login') {
       setIsLoading(false);
       return;
     }
@@ -264,7 +270,7 @@ export function CompanyAuthProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, [pathname, router]);
+  }, [router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

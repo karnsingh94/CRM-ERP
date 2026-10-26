@@ -9,6 +9,13 @@ import ServiceDepartments from '../departments/ServiceDepartments';
 
 export default function PurchaseModule({ activeCompany, showToast, initialSubTab }) {
   const [activeTab, setActiveTab] = useState(initialSubTab || 'orders'); // 'orders', 'vendors'
+
+  useEffect(() => {
+    if (initialSubTab && activeTab !== initialSubTab) {
+      setActiveTab(initialSubTab);
+    }
+  }, [initialSubTab, activeTab]);
+
   const [searchQuery, setSearchQuery] = useState('');
 
   const [vendors, setVendors] = useState([]);
@@ -21,7 +28,9 @@ export default function PurchaseModule({ activeCompany, showToast, initialSubTab
 
   const loadVendors = async () => {
     if (!activeCompany?.id) return;
-    setIsLoadingVendors(true);
+    if (vendors.length === 0) {
+      setIsLoadingVendors(true);
+    }
     try {
       const res = await api.get(`/companies/${activeCompany.id}/purchase/vendors`, { noCache: true });
       setVendors(res.data || []);

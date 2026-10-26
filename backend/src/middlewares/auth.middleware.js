@@ -250,12 +250,32 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
         });
       }
 
+      const SUBMODULE_CODE_ALIASES = {
+        quotations: 'sales_quotations',
+        quotes: 'sales_quotations',
+        proforma_invoices: 'sales_proforma_invoices',
+        proforma: 'sales_proforma_invoices',
+        product_list: 'product_master',
+        vendor_list: 'vendor_directory',
+        leads: 'crm_leads',
+        customers: 'crm_customers',
+        contacts: 'crm_contacts',
+        opportunities: 'crm_followups',
+        orders: 'sales_orders',
+      };
+      const resolvedCode = SUBMODULE_CODE_ALIASES[subModuleCodeOrRoute] || subModuleCodeOrRoute;
+
       const subModule = await prisma.subModule.findFirst({
         where: {
           OR: [
+            { code: resolvedCode },
             { code: subModuleCodeOrRoute },
             { route: subModuleCodeOrRoute },
             { route: `/crm/${subModuleCodeOrRoute}` },
+            { route: `/sales/${subModuleCodeOrRoute}` },
+            { route: `/products/${subModuleCodeOrRoute}` },
+            { route: `/purchase/${subModuleCodeOrRoute}` },
+            { route: `/procurement/${subModuleCodeOrRoute}` },
           ],
         },
         include: {

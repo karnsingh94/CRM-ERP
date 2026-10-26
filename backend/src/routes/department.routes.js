@@ -42,9 +42,9 @@ router.patch('/companies/:companyId/crm/opportunities/:opportunityId', validateS
 router.delete('/companies/:companyId/crm/opportunities/:opportunityId', validateSubModuleAccess('crm_followups'), crmCoreController.removeOpportunity);
 
 // ==================== PRODUCTS ====================
-router.get('/companies/:companyId/products', validateSubModuleAccess('product_list'), crmCoreController.listProducts);
-router.post('/companies/:companyId/products', validateSubModuleAccess('product_list'), crmCoreController.createProduct);
-router.delete('/companies/:companyId/products/:productId', validateSubModuleAccess('product_list'), crmCoreController.removeProduct);
+router.get('/companies/:companyId/products', validateSubModuleAccess('product_master'), crmCoreController.listProducts);
+router.post('/companies/:companyId/products', validateSubModuleAccess('product_master'), crmCoreController.createProduct);
+router.delete('/companies/:companyId/products/:productId', validateSubModuleAccess('product_master'), crmCoreController.removeProduct);
 
 // ==================== SALES ORDERS ====================
 router.get('/companies/:companyId/sales/orders', validateSubModuleAccess('sales_orders'), crmCoreController.listSalesOrders);
@@ -53,19 +53,22 @@ router.patch('/companies/:companyId/sales/orders/:orderId/status', validateSubMo
 router.delete('/companies/:companyId/sales/orders/:orderId', validateSubModuleAccess('sales_orders'), crmCoreController.removeSalesOrder);
 
 // ==================== SALES QUOTATIONS ====================
-router.get('/companies/:companyId/sales/quotations', validateSubModuleAccess('quotations'), crmCoreController.listQuotations);
-router.post('/companies/:companyId/sales/quotations', validateSubModuleAccess('quotations'), crmCoreController.createQuotation);
-router.delete('/companies/:companyId/sales/quotations/:quoteId', validateSubModuleAccess('quotations'), crmCoreController.removeQuotation);
+router.get('/companies/:companyId/sales/quotations', validateSubModuleAccess('sales_quotations'), crmCoreController.listQuotations);
+router.post('/companies/:companyId/sales/quotations', validateSubModuleAccess('sales_quotations'), crmCoreController.createQuotation);
+router.patch('/companies/:companyId/sales/quotations/:quoteId/status', validateSubModuleAccess('sales_quotations'), crmCoreController.updateQuotationStatus);
+router.post('/companies/:companyId/sales/quotations/:quoteId/convert-to-order', validateSubModuleAccess('sales_quotations'), crmCoreController.convertQuotationToOrder);
+router.delete('/companies/:companyId/sales/quotations/:quoteId', validateSubModuleAccess('sales_quotations'), crmCoreController.removeQuotation);
 
 // ==================== SALES PROFORMA ====================
-router.get('/companies/:companyId/sales/proforma', validateSubModuleAccess('proforma_invoices'), crmCoreController.listProformas);
-router.post('/companies/:companyId/sales/proforma', validateSubModuleAccess('proforma_invoices'), crmCoreController.createProforma);
-router.delete('/companies/:companyId/sales/proforma/:proformaId', validateSubModuleAccess('proforma_invoices'), crmCoreController.removeProforma);
+router.get('/companies/:companyId/sales/proforma', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.listProformas);
+router.post('/companies/:companyId/sales/proforma', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.createProforma);
+router.patch('/companies/:companyId/sales/proforma/:proformaId/status', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.updateProformaStatus);
+router.delete('/companies/:companyId/sales/proforma/:proformaId', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.removeProforma);
 
 // ==================== VENDORS ====================
-router.get('/companies/:companyId/purchase/vendors', validateSubModuleAccess('vendor_list'), crmCoreController.listVendors);
-router.post('/companies/:companyId/purchase/vendors', validateSubModuleAccess('vendor_list'), crmCoreController.createVendor);
-router.delete('/companies/:companyId/purchase/vendors/:vendorId', validateSubModuleAccess('vendor_list'), crmCoreController.removeVendor);
+router.get('/companies/:companyId/purchase/vendors', validateSubModuleAccess('vendor_directory'), crmCoreController.listVendors);
+router.post('/companies/:companyId/purchase/vendors', validateSubModuleAccess('vendor_directory'), crmCoreController.createVendor);
+router.delete('/companies/:companyId/purchase/vendors/:vendorId', validateSubModuleAccess('vendor_directory'), crmCoreController.removeVendor);
 
 // ==================== INVENTORY STOCKS ====================
 router.get('/companies/:companyId/inventory/stocks', validateSubModuleAccess('stock_levels'), crmCoreController.listInventoryStocks);
