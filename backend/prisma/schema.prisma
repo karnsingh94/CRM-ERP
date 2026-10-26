@@ -363,18 +363,20 @@ model ServiceWorkUpdate {
 }
 
 model Lead {
-  id         String     @id @default(uuid()) @db.Char(36)
-  companyId  String     @map("company_id") @db.Char(36)
-  name       String     @db.VarChar(150)
-  company    String?    @db.VarChar(180)
-  email      String     @db.VarChar(180)
-  phone      String?    @db.VarChar(40)
-  source     String     @default("Website Inquiry") @db.VarChar(100)
-  externalId String?    @map("external_id") @db.VarChar(191)
-  value      Decimal?   @db.Decimal(15, 2)
-  status     LeadStatus @default(NEW)
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
+  id           String     @id @default(uuid()) @db.Char(36)
+  companyId    String     @map("company_id") @db.Char(36)
+  name         String     @db.VarChar(150)
+  company      String?    @db.VarChar(180)
+  email        String     @db.VarChar(180)
+  phone        String?    @db.VarChar(40)
+  source       String     @default("Website Inquiry") @db.VarChar(100)
+  externalId   String?    @map("external_id") @db.VarChar(191)
+  value        Decimal?   @db.Decimal(15, 2)
+  requirements String?    @db.Text
+  assignedTo   String?    @map("assigned_to") @db.VarChar(150)
+  status       LeadStatus @default(NEW)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -413,6 +415,8 @@ model CrmCustomer {
   email         String?     @db.VarChar(180)
   phone         String?     @db.VarChar(40)
   industry      String      @default("Technology & IT") @db.VarChar(100)
+  requirements  String?     @db.Text
+  assignedTo    String?     @map("assigned_to") @db.VarChar(150)
   status        String      @default("ACTIVE") @db.VarChar(30)
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
@@ -488,6 +492,9 @@ model SalesOrder {
   date          DateTime    @default(now())
   itemsCount    Int         @default(1) @map("items_count")
   amount        Decimal     @default(0) @db.Decimal(15, 2)
+  items         Json?
+  notes         String?     @db.Text
+  assignedTo    String?     @map("assigned_to") @db.VarChar(150)
   status        String      @default("PENDING_APPROVAL") @db.VarChar(50)
   paymentStatus String      @default("PENDING") @map("payment_status") @db.VarChar(50)
   createdAt     DateTime    @default(now()) @map("created_at")
@@ -507,6 +514,8 @@ model SalesQuotation {
   customer    String      @db.VarChar(180)
   title       String      @db.VarChar(180)
   amount      Decimal     @default(0) @db.Decimal(15, 2)
+  items       Json?
+  notes       String?     @db.Text
   validUntil  DateTime?   @map("valid_until")
   status      String      @default("SENT") @db.VarChar(50)
   createdAt   DateTime    @default(now()) @map("created_at")

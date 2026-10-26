@@ -112,7 +112,12 @@ export const crmCoreController = {
   },
   async updateSalesOrderStatus(req, res, next) {
     try {
-      const data = await crmCoreService.updateSalesOrderStatus(String(req.params.companyId), req.params.orderId, req.body?.status);
+      const data = await crmCoreService.updateSalesOrderStatus(
+        String(req.params.companyId),
+        req.params.orderId,
+        req.body?.status,
+        req.body?.paymentStatus
+      );
       res.json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
@@ -136,6 +141,25 @@ export const crmCoreController = {
       res.status(201).json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
+  async updateQuotationStatus(req, res, next) {
+    try {
+      const data = await crmCoreService.updateQuotationStatus(
+        String(req.params.companyId),
+        req.params.quoteId,
+        req.body?.status
+      );
+      res.json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
+  async convertQuotationToOrder(req, res, next) {
+    try {
+      const data = await crmCoreService.convertQuotationToOrder(
+        String(req.params.companyId),
+        req.params.quoteId
+      );
+      res.status(201).json({ success: true, data, message: 'Quotation successfully converted to Sales Order!' });
+    } catch (err) { respondError(err, res, next); }
+  },
   async removeQuotation(req, res, next) {
     try {
       await crmCoreService.removeQuotation(String(req.params.companyId), req.params.quoteId);
@@ -154,6 +178,16 @@ export const crmCoreController = {
     try {
       const data = await crmCoreService.createProforma(String(req.params.companyId), req.body || {});
       res.status(201).json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
+  async updateProformaStatus(req, res, next) {
+    try {
+      const data = await crmCoreService.updateProformaStatus(
+        String(req.params.companyId),
+        req.params.proformaId,
+        req.body?.status
+      );
+      res.json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
   async removeProforma(req, res, next) {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './CompanyAdminPortal.module.css';
-import { CompanyAuthProvider } from '@/context/CompanyAuthContext';
+import { CompanyAuthProvider, useCompanyAuthContext } from '@/context/CompanyAuthContext';
 import { restoreSuperAdminSession } from '@/lib/auth';
 import { useCompanyAuth } from '@/hooks/useCompanyAuth';
 import { useCompanyAccess } from '@/hooks/useCompanyAccess';
@@ -537,11 +537,11 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       case 'crm_sales':
         if (subModuleCode === 'product') {
           if (!hasModuleAccess('product')) return renderModuleRestricted('Products & Catalogue');
-          return <ProductsModule key={`prod-${initialSubTab || 'all'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          return <ProductsModule key="module-product" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
         if (subModuleCode === 'sales') {
           if (!hasModuleAccess('sales')) return renderModuleRestricted('Sales Operations');
-          return <SalesModule key={`sales-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          return <SalesModule key="module-sales" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
         if (!hasModuleAccess('crm')) return renderModuleRestricted('CRM Management');
 
@@ -554,42 +554,42 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
           return renderFeatureRestricted('Leads Pipeline');
         }
 
-        return <CrmModule key={`crm-${initialSubTab || 'leads'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} />;
+        return <CrmModule key="module-crm" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} />;
 
       case 'purchase_vendor':
         if (subModuleCode === 'grn') {
           if (!hasModuleAccess('grn')) return renderModuleRestricted('Goods Receipt Notes');
-          return <GrnModule key={`grn-${initialSubTab || 'list'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          return <GrnModule key="module-grn" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
         if (!hasModuleAccess('vendor') && !hasModuleAccess('purchase')) return renderModuleRestricted('Purchase & Vendor');
-        return <PurchaseModule key={`pur-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        return <PurchaseModule key="module-purchase" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'inventory_warehouse':
         if (subModuleCode === 'gate_pass') {
           if (!hasModuleAccess('gate_pass')) return renderModuleRestricted('Gate Pass Operations');
-          return <GatePassModule key={`gate-${initialSubTab || 'all'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          return <GatePassModule key="module-gate-pass" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
         if (!hasModuleAccess('inventory')) return renderModuleRestricted('Inventory & Warehouse');
-        return <InventoryModule key={`inv-${initialSubTab || 'stock'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        return <InventoryModule key="module-inventory" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'manufacturing_production':
         if (!hasModuleAccess('production') && !hasModuleAccess('manufacturing')) return renderModuleRestricted('Manufacturing & Production');
-        return <ProductionModule key={`mfg-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        return <ProductionModule key="module-production" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'dispatch_returns':
         if (!hasModuleAccess('dispatch')) return renderModuleRestricted('Dispatch & Logistics');
-        return <DispatchModule key={`disp-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        return <DispatchModule key="module-dispatch" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'accounts_banking':
         if (!hasModuleAccess('accounts') && !hasModuleAccess('banking')) return renderModuleRestricted('Accounts & Banking');
-        return <AccountsModule key={`acc-${initialSubTab || 'invoices'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        return <AccountsModule key="module-accounts" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'permission_controls':
         if (currentUser?.role !== 'COMPANY_ADMIN' && !isSuperAdminSwitched) {
           return renderAdminRestricted('Team and permission administration');
         }
         if (!hasModuleAccess('team') && !hasModuleAccess('permission_controls')) return renderModuleRestricted('Team & Permissions');
-        return <TeamModule key={`team-${initialSubTab || 'members'}`} activeCompany={activeCompany} currentUser={currentUser} showToast={showToast} initialSubTab={initialSubTab} />;
+        return <TeamModule key="module-team" activeCompany={activeCompany} currentUser={currentUser} showToast={showToast} initialSubTab={initialSubTab} />;
 
       default:
         return (
@@ -602,12 +602,12 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     }
   };
 
-  if (!isMounted || isLoading || !currentUser) {
+  if (!currentUser && isLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#18181b', color: '#a1a1aa' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#64748b' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.95rem' }}>
-          <div style={{ width: '18px', height: '18px', border: '2px solid #7f22fe', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          Verifying workspace session...
+          <div style={{ width: '22px', height: '22px', border: '2.5px solid #7f22fe', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <span>Verifying workspace session...</span>
         </div>
       </div>
     );
@@ -765,6 +765,10 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
 }
 
 export default function CompanyAdminPortal(props) {
+  const existingContext = useCompanyAuthContext();
+  if (existingContext) {
+    return <CompanyAdminPortalInner {...props} />;
+  }
   return (
     <CompanyAuthProvider>
       <CompanyAdminPortalInner {...props} />

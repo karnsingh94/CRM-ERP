@@ -19,7 +19,7 @@ export const crmCoreService = {
     if (!data.companyName?.trim()) {
       throw coreError('Company name is required.');
     }
-    return prisma.crmCustomer.create({
+    const customer = await prisma.crmCustomer.create({
       data: {
         companyId,
         companyName: data.companyName.trim(),
@@ -28,9 +28,33 @@ export const crmCoreService = {
         email: data.email?.trim() || null,
         phone: data.phone?.trim() || null,
         industry: data.industry?.trim() || 'Technology & IT',
+        requirements: data.requirements?.trim() || null,
+        assignedTo: data.assignedTo?.trim() || null,
         status: data.status?.trim() || 'ACTIVE',
       },
     });
+
+    // Auto-register Contact person under Contacts if contactPerson is provided
+    let createdContact = null;
+    if (data.contactPerson?.trim()) {
+      try {
+        createdContact = await prisma.crmContact.create({
+          data: {
+            companyId,
+            name: data.contactPerson.trim(),
+            companyName: data.companyName.trim(),
+            role: data.role?.trim() || 'Primary Contact',
+            email: data.email?.trim() || null,
+            phone: data.phone?.trim() || null,
+            channel: data.channel?.trim() || 'Direct',
+          },
+        });
+      } catch (err) {
+        // Silently continue if contact already exists
+      }
+    }
+
+    return { ...customer, createdContact };
   },
 
   async removeCustomer(companyId, customerId) {
@@ -191,28 +215,50 @@ export const crmCoreService = {
     }
     const orderNo = data.orderNo?.trim() || `SO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const items = Array.isArray(data.items) && data.items.length > 0 ? data.items : null;
+    let computedAmount = parseFloat(data.amount) || 0;
+    let computedItemsCount = parseInt(data.itemsCount) || 1;
+
+    if (items) {
+      computedItemsCount = items.reduce((acc, it) => acc + (parseInt(it.qty) || 1), 0);
+      computedAmount = items.reduce((acc, it) => {
+        const qty = parseInt(it.qty) || 1;
+        const rate = parseFloat(it.rate) || 0;
+        const gstPct = parseFloat(it.gst) || 0;
+        const subtotal = qty * rate;
+        const total = subtotal + (subtotal * gstPct) / 100;
+        return acc + (it.total !== undefined ? parseFloat(it.total) : total);
+      }, 0);
+    }
+
     return prisma.salesOrder.create({
       data: {
         companyId,
         orderNo,
         customer: data.customer.trim(),
         date: data.date ? new Date(data.date) : new Date(),
-        itemsCount: parseInt(data.itemsCount) || 1,
-        amount: parseFloat(data.amount) || 0,
+        itemsCount: computedItemsCount,
+        amount: computedAmount,
+        items: items,
+        notes: data.notes?.trim() || null,
+        assignedTo: data.assignedTo?.trim() || null,
         status: data.status?.trim() || 'PENDING_APPROVAL',
         paymentStatus: data.paymentStatus?.trim() || 'PENDING',
       },
     });
   },
 
-  async updateSalesOrderStatus(companyId, orderId, status) {
+  async updateSalesOrderStatus(companyId, orderId, status, paymentStatus) {
     const existing = await prisma.salesOrder.findFirst({
       where: { id: orderId, companyId },
     });
     if (!existing) throw coreError('Sales order not found.', 404);
+    const updateData = {};
+    if (status !== undefined) updateData.status = status;
+    if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
     return prisma.salesOrder.update({
       where: { id: orderId },
-      data: { status },
+      data: updateData,
     });
   },
 
@@ -239,17 +285,77 @@ export const crmCoreService = {
     }
     const quoteNo = data.quoteNo?.trim() || `QT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const items = Array.isArray(data.items) && data.items.length > 0 ? data.items : null;
+    let computedAmount = parseFloat(data.amount) || 0;
+
+    if (items) {
+      computedAmount = items.reduce((acc, it) => {
+        const qty = parseInt(it.qty) || 1;
+        const rate = parseFloat(it.rate) || 0;
+        const gstPct = parseFloat(it.gst) || 0;
+        const subtotal = qty * rate;
+        const total = subtotal + (subtotal * gstPct) / 100;
+        return acc + (it.total !== undefined ? parseFloat(it.total) : total);
+      }, 0);
+    }
+
     return prisma.salesQuotation.create({
       data: {
         companyId,
         quoteNo,
         customer: data.customer.trim(),
         title: data.title.trim(),
-        amount: parseFloat(data.amount) || 0,
+        amount: computedAmount,
+        items: items,
+        notes: data.notes?.trim() || null,
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
         status: data.status?.trim() || 'SENT',
       },
     });
+  },
+
+  async updateQuotationStatus(companyId, quoteId, status) {
+    const existing = await prisma.salesQuotation.findFirst({
+      where: { id: quoteId, companyId },
+    });
+    if (!existing) throw coreError('Quotation not found.', 404);
+    return prisma.salesQuotation.update({
+      where: { id: quoteId },
+      data: { status },
+    });
+  },
+
+  async convertQuotationToOrder(companyId, quoteId) {
+    const quote = await prisma.salesQuotation.findFirst({
+      where: { id: quoteId, companyId },
+    });
+    if (!quote) throw coreError('Quotation not found.', 404);
+
+    const orderNo = `SO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const items = quote.items;
+    const itemsCount = Array.isArray(items) ? items.reduce((acc, it) => acc + (parseInt(it.qty) || 1), 0) : 1;
+
+    const newOrder = await prisma.salesOrder.create({
+      data: {
+        companyId,
+        orderNo,
+        customer: quote.customer,
+        date: new Date(),
+        itemsCount,
+        amount: quote.amount,
+        items: quote.items,
+        notes: quote.notes ? `Converted from Quote ${quote.quoteNo}. ${quote.notes}` : `Converted from Quote ${quote.quoteNo}`,
+        status: 'APPROVED',
+        paymentStatus: 'PENDING',
+      },
+    });
+
+    await prisma.salesQuotation.update({
+      where: { id: quoteId },
+      data: { status: 'ACCEPTED' },
+    });
+
+    return newOrder;
   },
 
   async removeQuotation(companyId, quoteId) {
@@ -285,6 +391,17 @@ export const crmCoreService = {
         date: data.date ? new Date(data.date) : new Date(),
         status: data.status?.trim() || 'ISSUED',
       },
+    });
+  },
+
+  async updateProformaStatus(companyId, proformaId, status) {
+    const existing = await prisma.salesProforma.findFirst({
+      where: { id: proformaId, companyId },
+    });
+    if (!existing) throw coreError('Proforma invoice not found.', 404);
+    return prisma.salesProforma.update({
+      where: { id: proformaId },
+      data: { status },
     });
   },
 

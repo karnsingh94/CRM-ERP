@@ -23,7 +23,7 @@ function normalizeValue(value) {
 
 function normalizeLeadInput(data, { partial = false } = {}) {
   const result = {};
-  const fields = ['name', 'company', 'email', 'phone', 'source', 'status', 'value'];
+  const fields = ['name', 'company', 'email', 'phone', 'source', 'status', 'value', 'requirements', 'assignedTo'];
   for (const field of fields) {
     if (data[field] === undefined) continue;
     if (field === 'value') {
@@ -40,9 +40,13 @@ function normalizeLeadInput(data, { partial = false } = {}) {
       throw leadError(`${field} must be text.`, 400);
     }
     const value = typeof data[field] === 'string' ? data[field].trim() : '';
-    if (field === 'company' || field === 'phone') result[field] = value || null;
-    else if (field === 'source') result.source = value || 'Website Inquiry';
-    else result[field] = value;
+    if (field === 'company' || field === 'phone' || field === 'requirements' || field === 'assignedTo') {
+      result[field] = value || null;
+    } else if (field === 'source') {
+      result.source = value || 'Manual';
+    } else {
+      result[field] = value;
+    }
   }
 
   if (!partial || result.name !== undefined) {
@@ -57,7 +61,17 @@ function normalizeLeadInput(data, { partial = false } = {}) {
     result.email = result.email.toLowerCase();
   }
   if (result.company?.length > 180) throw leadError('Organization must be at most 180 characters.', 400);
-  if (result.phone?.length > 40) throw leadError('Phone number must be at most 40 characters.', 400);
+  if (result.phone) {
+    let cleanPhone = result.phone.replace(/[\s\-\(\)]/g, '');
+    if (cleanPhone.startsWith('+91')) cleanPhone = cleanPhone.slice(3);
+    else if (cleanPhone.startsWith('91') && cleanPhone.length === 12) cleanPhone = cleanPhone.slice(2);
+    else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
+
+    if (cleanPhone.length > 10) {
+      throw leadError('Phone number cannot exceed 10 digits.', 400);
+    }
+    result.phone = cleanPhone;
+  }
   if (result.source !== undefined && result.source.length > 100) {
     throw leadError('Lead source must be at most 100 characters.', 400);
   }
@@ -75,6 +89,8 @@ function formatLead(lead) {
     source: lead.source,
     externalId: lead.externalId || null,
     value: lead.value?.toString() || '',
+    requirements: lead.requirements || '',
+    assignedTo: lead.assignedTo || '',
     status: lead.status,
     date: lead.createdAt.toISOString().slice(0, 10),
     createdAt: lead.createdAt.toISOString(),

@@ -7,8 +7,15 @@ import Modal from '../ui/Modal';
 import EmptyState from '../ui/EmptyState';
 import ServiceDepartments from '../departments/ServiceDepartments';
 
-export default function InventoryModule({ activeCompany, showToast }) {
-  const [activeTab, setActiveTab] = useState('stock'); // 'stock', 'departments'
+export default function InventoryModule({ activeCompany, showToast, initialSubTab }) {
+  const [activeTab, setActiveTab] = useState(initialSubTab || 'stock'); // 'stock', 'departments'
+
+  useEffect(() => {
+    if (initialSubTab && activeTab !== initialSubTab) {
+      setActiveTab(initialSubTab);
+    }
+  }, [initialSubTab, activeTab]);
+
   const [stockItems, setStockItems] = useState([]);
   const [isLoadingStock, setIsLoadingStock] = useState(false);
 
@@ -19,7 +26,9 @@ export default function InventoryModule({ activeCompany, showToast }) {
 
   const loadStock = async () => {
     if (!activeCompany?.id) return;
-    setIsLoadingStock(true);
+    if (stockItems.length === 0) {
+      setIsLoadingStock(true);
+    }
     try {
       const res = await api.get(`/companies/${activeCompany.id}/inventory/stocks`, { noCache: true });
       setStockItems(res.data || []);

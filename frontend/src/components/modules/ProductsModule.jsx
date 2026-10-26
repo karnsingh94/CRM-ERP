@@ -24,14 +24,19 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
 
   useEffect(() => {
     if (initialSubTab) {
-      setActiveTab(initialSubTab);
+      if (activeTab !== initialSubTab) {
+        setActiveTab(initialSubTab);
+      }
     } else if (pathname) {
-      if (pathname.includes('/products/categories')) setActiveTab('categories');
-      else if (pathname.includes('/products/pricing')) setActiveTab('pricing');
-      else if (pathname.includes('/departments')) setActiveTab('departments');
-      else if (pathname.includes('/products')) setActiveTab('all');
+      let resolved = 'all';
+      if (pathname.includes('/products/categories')) resolved = 'categories';
+      else if (pathname.includes('/products/pricing')) resolved = 'pricing';
+      else if (pathname.includes('/departments')) resolved = 'departments';
+      if (activeTab !== resolved) {
+        setActiveTab(resolved);
+      }
     }
-  }, [initialSubTab, pathname]);
+  }, [initialSubTab, pathname, activeTab]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(
@@ -39,6 +44,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
   );
 
   const handleTabChange = (newTab) => {
+    if (activeTab === newTab) return;
     setActiveTab(newTab);
     setSearchQuery('');
     const targetRoute = TAB_ROUTES[newTab];
@@ -65,7 +71,9 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
 
   const loadProducts = async () => {
     if (!activeCompany?.id) return;
-    setIsLoadingProducts(true);
+    if (products.length === 0) {
+      setIsLoadingProducts(true);
+    }
     try {
       const res = await api.get(`/companies/${activeCompany.id}/products`, { noCache: true });
       setProducts(res.data || []);

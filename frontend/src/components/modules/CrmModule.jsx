@@ -108,15 +108,20 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
   useEffect(() => {
     if (initialSubTab) {
-      setActiveTab(initialSubTab);
+      if (activeTab !== initialSubTab) {
+        setActiveTab(initialSubTab);
+      }
     } else if (pathname) {
-      if (pathname.includes('/crm/customers')) setActiveTab('customers');
-      else if (pathname.includes('/crm/contacts')) setActiveTab('contacts');
-      else if (pathname.includes('/crm/opportunities')) setActiveTab('opportunities');
-      else if (pathname.includes('/departments')) setActiveTab('departments');
-      else if (pathname.includes('/crm/leads')) setActiveTab('leads');
+      let resolved = 'leads';
+      if (pathname.includes('/crm/customers')) resolved = 'customers';
+      else if (pathname.includes('/crm/contacts')) resolved = 'contacts';
+      else if (pathname.includes('/crm/opportunities')) resolved = 'opportunities';
+      else if (pathname.includes('/departments')) resolved = 'departments';
+      if (activeTab !== resolved) {
+        setActiveTab(resolved);
+      }
     }
-  }, [initialSubTab, pathname]);
+  }, [initialSubTab, pathname, activeTab]);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,13 +129,14 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
   // Switch tab and immediately synchronize browser URL route so sidebar updates
   const handleTabChange = (newTab) => {
+    if (activeTab === newTab) return;
     setActiveTab(newTab);
     setSearchQuery('');
     setStatusFilter('ALL');
 
     const targetRoute = TAB_ROUTES[newTab];
     if (targetRoute && pathname !== targetRoute) {
-      router.push(targetRoute);
+      router.push(targetRoute, { scroll: false });
     }
   };
 
@@ -152,8 +158,10 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     company: '',
     email: '',
     phone: '',
-    source: 'Website Inquiry',
+    source: 'Manual',
     value: '',
+    requirements: '',
+    assignedTo: '',
     status: 'NEW',
   });
   const [leadIntegrations, setLeadIntegrations] = useState([]);
@@ -177,6 +185,29 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   const activeLeadChannels = leadIntegrations.filter(
     (item) => item.status === 'ACTIVE' && item.configured
   );
+
+  const PROVIDER_SOURCE_META = {
+    INDIAMART: { label: 'IndiaMART', icon: '🇮🇳' },
+    META_FACEBOOK: { label: 'Facebook Ads', icon: '📘' },
+    META_INSTAGRAM: { label: 'Instagram', icon: '📸' },
+    WEBSITE_WEBHOOK: { label: 'Website Inquiry', icon: '🌐' },
+    GMAIL: { label: 'Email Inquiry', icon: '✉️' },
+    JUSTDIAL: { label: 'JustDial', icon: '📞' },
+  };
+
+  const availableLeadSources = [
+    { value: 'Manual', label: '👤 Manual (Direct / Self-Created)' },
+    ...activeLeadChannels.map((channel) => {
+      const meta = PROVIDER_SOURCE_META[channel.id] || {
+        label: channel.name || channel.id,
+        icon: channel.icon || '🔗',
+      };
+      return {
+        value: meta.label,
+        label: `${meta.icon} ${meta.label}`,
+      };
+    }),
+  ];
 
   const isIndiaMartActive = activeLeadChannels.some(
     (item) => item.id === 'INDIAMART'
@@ -260,7 +291,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
         setLeadError('Choose a company workspace to view leads.');
         return;
       }
-      setIsLoadingLeads(true);
+      if (leads.length === 0) {
+        setIsLoadingLeads(true);
+      }
       setLeadError('');
       try {
         const response = await api.get(
@@ -286,15 +319,22 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       showToast('Validation Error', 'Lead contact name and email are required.', 'danger');
       return;
     }
+    if (newLeadForm.phone && newLeadForm.phone.length !== 10) {
+      showToast('Validation Error', 'Phone number must be exactly 10 digits.', 'danger');
+      return;
+    }
     setIsSavingLead(true);
     try {
       const response = await api.post(
         `/companies/${activeCompany.id}/crm/leads`,
-        newLeadForm
+        {
+          ...newLeadForm,
+          source: newLeadForm.source || 'Manual',
+        }
       );
       setLeads((current) => [response.data, ...current]);
       setShowAddLeadModal(false);
-      setNewLeadForm({ name: '', company: '', email: '', phone: '', source: 'Website Inquiry', value: '', status: 'NEW' });
+      setNewLeadForm({ name: '', company: '', email: '', phone: '', source: 'Manual', value: '', requirements: '', assignedTo: '', status: 'NEW' });
       showToast('Lead Created! 🎯', `Lead "${response.data.name}" added to pipeline.`, 'success');
     } catch (error) {
       showToast('Lead Not Created', error.message || 'Could not create this lead.', 'danger');
@@ -319,6 +359,79 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     }
   };
 
+  // Convert Lead to Customer state & handlers
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [leadToConvert, setLeadToConvert] = useState(null);
+  const [isConvertingLead, setIsConvertingLead] = useState(false);
+  const [convertForm, setConvertForm] = useState({
+    companyName: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    gstin: '',
+    industry: 'Technology & IT',
+    requirements: '',
+    assignedTo: '',
+  });
+
+  const handleOpenConvertModal = (lead) => {
+    setLeadToConvert(lead);
+    setConvertForm({
+      companyName: lead.company?.trim() || lead.name?.trim() || '',
+      contactPerson: lead.name || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      gstin: '',
+      industry: 'Technology & IT',
+      requirements: lead.requirements || '',
+      assignedTo: lead.assignedTo || '',
+    });
+    setShowConvertModal(true);
+  };
+
+  const handleConvertLeadToCustomer = async (e) => {
+    e.preventDefault();
+    if (!convertForm.companyName.trim()) {
+      showToast('Validation Error', 'Company / Account name is required.', 'danger');
+      return;
+    }
+    setIsConvertingLead(true);
+    try {
+      // 1. Create the customer in database
+      const customerRes = await api.post(`/companies/${activeCompany.id}/crm/customers`, {
+        ...convertForm,
+        status: 'ACTIVE',
+      });
+
+      // 2. Mark the lead as WON
+      const leadRes = await api.patch(`/companies/${activeCompany.id}/crm/leads/${leadToConvert.id}`, {
+        status: 'WON',
+      });
+
+      // 3. Update state
+      setLeads((current) => current.map((l) => (l.id === leadToConvert.id ? leadRes.data : l)));
+      setCustomers((current) => [customerRes.data, ...current]);
+      if (customerRes.data?.createdContact) {
+        setContacts((current) => [customerRes.data.createdContact, ...current]);
+      } else {
+        loadContacts();
+      }
+
+      setShowConvertModal(false);
+      const targetName = customerRes.data.companyName;
+      setLeadToConvert(null);
+
+      showToast('Lead Converted! 🏢', `"${targetName}" added to Customers and contact person saved to Contacts.`, 'success');
+
+      // 4. Switch to Customers tab so the user sees it in Customers list!
+      handleTabChange('customers');
+    } catch (err) {
+      showToast('Conversion Failed', err.message || 'Could not convert lead to customer.', 'danger');
+    } finally {
+      setIsConvertingLead(false);
+    }
+  };
+
   const filteredLeads = (leads || []).filter(l => {
     if (!l) return false;
     const q = (searchQuery || '').toLowerCase().trim();
@@ -337,6 +450,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   const [customers, setCustomers] = useState([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [viewingCustomer, setViewingCustomer] = useState(null);
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
   const [customerForm, setCustomerForm] = useState({
     companyName: '',
@@ -350,7 +464,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
   const loadCustomers = async () => {
     if (!activeCompany?.id) return;
-    setIsLoadingCustomers(true);
+    if (customers.length === 0) {
+      setIsLoadingCustomers(true);
+    }
     try {
       const res = await api.get(`/companies/${activeCompany.id}/crm/customers`, { noCache: true });
       setCustomers(res.data || []);
@@ -423,7 +539,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
   const loadContacts = async () => {
     if (!activeCompany?.id) return;
-    setIsLoadingContacts(true);
+    if (contacts.length === 0) {
+      setIsLoadingContacts(true);
+    }
     try {
       const res = await api.get(`/companies/${activeCompany.id}/crm/contacts`, { noCache: true });
       setContacts(res.data || []);
@@ -495,7 +613,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
   const loadOpportunities = async () => {
     if (!activeCompany?.id) return;
-    setIsLoadingOpportunities(true);
+    if (opportunities.length === 0) {
+      setIsLoadingOpportunities(true);
+    }
     try {
       const res = await api.get(`/companies/${activeCompany.id}/crm/opportunities`, { noCache: true });
       setOpportunities(res.data || []);
@@ -610,17 +730,17 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
   // -----------------------------------------------------------------
   const renderLeadStatusBadge = (status) => {
     const config = {
-      NEW: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-      CONTACTED: { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
-      QUALIFIED: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
-      PROPOSAL: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
-      WON: { bg: '#dcfce7', color: '#15803d', border: '#86efac' },
-      LOST: { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
-    }[status] || { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
+      NEW: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', label: '🔵 New' },
+      CONTACTED: { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe', label: '🟣 Contacted' },
+      QUALIFIED: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0', label: '🟢 Qualified' },
+      PROPOSAL: { bg: '#fffbeb', color: '#b45309', border: '#fde68a', label: '🟡 Proposal' },
+      WON: { bg: '#dcfce7', color: '#15803d', border: '#86efac', label: '✅ Customer (Won)' },
+      LOST: { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca', label: '❌ Lost' },
+    }[status] || { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1', label: status };
 
     return (
-      <span style={{ padding: '3px 8px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800, background: config.bg, color: config.color, border: `1px solid ${config.border}` }}>
-        {status}
+      <span style={{ padding: '4px 10px', borderRadius: '9999px', fontSize: '0.74rem', fontWeight: 800, background: config.bg, color: config.color, border: `1px solid ${config.border}`, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}>
+        {config.label || status}
       </span>
     );
   };
@@ -1011,6 +1131,7 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                   }}
                 >
                   <option value="ALL">All Sources</option>
+                  <option value="manual">👤 Manual</option>
                   <option value="indiamart">🇮🇳 IndiaMART</option>
                   <option value="facebook">📘 Facebook</option>
                   <option value="instagram">📸 Instagram</option>
@@ -1089,6 +1210,16 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                       <td style={{ padding: '0.85rem 1.25rem', whiteSpace: 'nowrap' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{lead.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{lead.email} {lead.phone ? `• ${lead.phone}` : ''}</div>
+                        {lead.assignedTo && (
+                          <div style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
+                            👤 Rep: {lead.assignedTo}
+                          </div>
+                        )}
+                        {lead.requirements && (
+                          <div style={{ fontSize: '0.72rem', color: '#6b21a8', marginTop: '3px', background: '#f5f3ff', padding: '2px 6px', borderRadius: '4px', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.requirements}>
+                            📝 Req: {lead.requirements}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
                         {lead.company || '—'}
@@ -1100,56 +1231,81 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         {formatLeadValue(lead.value)}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
-                        {canPerformAction('leads') ? (
-                          <select
-                            value={lead.status}
-                            disabled={updatingLeadId === lead.id}
-                            onChange={(e) => handleLeadStatusChange(lead.id, e.target.value)}
-                            style={{
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              border: '1px solid #cbd5e1',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              background: '#ffffff',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <option value="NEW">NEW</option>
-                            <option value="CONTACTED">CONTACTED</option>
-                            <option value="QUALIFIED">QUALIFIED</option>
-                            <option value="PROPOSAL">PROPOSAL</option>
-                            <option value="WON">WON</option>
-                            <option value="LOST">LOST</option>
-                          </select>
-                        ) : (
-                          renderLeadStatusBadge(lead.status)
-                        )}
+                        {renderLeadStatusBadge(lead.status)}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#64748b', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
                         {lead.date}
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {canPerformAction('leads') ? (
-                          <button
-                            type="button"
-                            onClick={() => setItemToDelete({ type: 'lead', item: lead, name: lead.name })}
-                            style={{
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              color: '#dc2626',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              background: '#fef2f2',
-                              border: '1px solid #fecaca',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Delete
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>🔒 View Only</span>
-                        )}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                          {canPerformAction('leads') && (
+                            lead.status === 'WON' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleTabChange('customers')}
+                                title="Lead converted! Click to view in Customers tab"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  padding: '0.4rem 0.8rem',
+                                  borderRadius: '6px',
+                                  background: '#ecfdf5',
+                                  color: '#059669',
+                                  border: '1px solid #a7f3d0',
+                                  fontSize: '0.76rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <span>✓</span> Customer ➡️
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenConvertModal(lead)}
+                                title="Click to promote this lead to an official Customer"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  padding: '0.4rem 0.85rem',
+                                  borderRadius: '6px',
+                                  background: '#7f22fe',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  fontSize: '0.76rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 4px rgba(127, 34, 254, 0.25)',
+                                }}
+                              >
+                                <span>🏢</span> Convert to Customer
+                              </button>
+                            )
+                          )}
+
+                          {canPerformAction('leads') ? (
+                            <button
+                              type="button"
+                              onClick={() => setItemToDelete({ type: 'lead', item: lead, name: lead.name })}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                color: '#dc2626',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>🔒 View Only</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1183,6 +1339,77 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
               </span>
             </div>
           )}
+
+          {/* Sales Workflow Guidance Banner */}
+          <div style={{
+            margin: '1.25rem 1.25rem 0.5rem 1.25rem',
+            padding: '1rem 1.25rem',
+            background: 'linear-gradient(135deg, #f5f0ff 0%, #eff6ff 100%)',
+            borderRadius: '10px',
+            border: '1px solid #ebdfff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '1.15rem' }}>🏢</span>
+                <span style={{ fontSize: '0.94rem', fontWeight: 800, color: '#1e1b4b' }}>
+                  Verified Customer Directory &amp; Sales Pipeline
+                </span>
+                <span style={{ padding: '2px 8px', borderRadius: '9999px', background: '#dcfce7', color: '#15803d', fontSize: '0.72rem', fontWeight: 800 }}>
+                  {customers.length} Accounts Active
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: '#475569', lineHeight: 1.5 }}>
+                Lead convert hone ke baad customer yahan add ho jata hai. Ab aap yahan se direct customer ko <strong>Quotation</strong> bhej sakte hain aur <strong>Sales Order</strong> issue kar sakte hain.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => router.push('/sales/quotations')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '6px',
+                  background: '#ffffff',
+                  color: '#7f22fe',
+                  border: '1px solid #ddd6fe',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                }}
+              >
+                <span>📄</span> All Quotations ➡️
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/sales/orders')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '6px',
+                  background: '#7f22fe',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(127, 34, 254, 0.25)',
+                }}
+              >
+                <span>🛒</span> All Sales Orders ➡️
+              </button>
+            </div>
+          </div>
 
           {/* Filter Bar */}
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
@@ -1250,7 +1477,9 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                     <tr key={cust.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '0.85rem 1.25rem', whiteSpace: 'nowrap' }}>
                         <div style={{ fontWeight: 800, color: '#0f172a' }}>{cust.companyName}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Added: {cust.createdAt}</div>
+                        <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                          Added: {cust.createdAt ? new Date(cust.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </div>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontFamily: 'monospace', color: '#475569', whiteSpace: 'nowrap' }}>
                         {cust.gstin || '—'}
@@ -1258,6 +1487,16 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                       <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
                         <div style={{ fontWeight: 600, color: '#334155' }}>{cust.contactPerson || '—'}</div>
                         <div style={{ fontSize: '0.74rem', color: '#64748b' }}>{cust.email} {cust.phone ? `• ${cust.phone}` : ''}</div>
+                        {cust.assignedTo && (
+                          <div style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
+                            👤 Rep: {cust.assignedTo}
+                          </div>
+                        )}
+                        {cust.requirements && (
+                          <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: '3px', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cust.requirements}>
+                            📝 Req: {cust.requirements}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#64748b', whiteSpace: 'nowrap' }}>
                         {cust.industry}
@@ -1276,26 +1515,91 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {canPerformAction('customers') ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', justifyContent: 'flex-end' }}>
                           <button
                             type="button"
-                            onClick={() => setItemToDelete({ type: 'customer', item: cust, name: cust.companyName })}
+                            onClick={() => router.push(`/sales/quotations?customer=${encodeURIComponent(cust.companyName)}`)}
+                            title="Generate Quotation for this Customer"
                             style={{
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              color: '#dc2626',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              background: '#fef2f2',
-                              border: '1px solid #fecaca',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '6px',
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              border: '1px solid #bfdbfe',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
                               cursor: 'pointer',
                             }}
                           >
-                            Delete
+                            <span>📄</span> Quote
                           </button>
-                        ) : (
-                          <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>🔒 View Only</span>
-                        )}
+
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/sales/orders?customer=${encodeURIComponent(cust.companyName)}`)}
+                            title="Create Sales Order for this Customer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '6px',
+                              background: '#f5f3ff',
+                              color: '#6d28d9',
+                              border: '1px solid #ddd6fe',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <span>🛒</span> Order
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setViewingCustomer(cust)}
+                            title="View Customer Profile & Details"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '6px',
+                              background: '#ffffff',
+                              color: '#475569',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.74rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <span>👁️</span> Details
+                          </button>
+
+                          {canPerformAction('customers') ? (
+                            <button
+                              type="button"
+                              onClick={() => setItemToDelete({ type: 'customer', item: cust, name: cust.companyName })}
+                              style={{
+                                padding: '0.35rem 0.55rem',
+                                borderRadius: '6px',
+                                color: '#dc2626',
+                                fontSize: '0.74rem',
+                                fontWeight: 600,
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>🔒 View Only</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1637,16 +1941,30 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
-                Phone Number
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>
+                  Phone Number
+                </label>
+                <span style={{ fontSize: '0.72rem', color: newLeadForm.phone?.length === 10 ? '#10b981' : '#64748b' }}>
+                  {newLeadForm.phone ? `${newLeadForm.phone.length}/10` : '10 digits'}
+                </span>
+              </div>
               <input
-                type="text"
-                placeholder="+91 98765 00000"
+                type="tel"
+                maxLength={10}
+                placeholder="e.g. 9876500000"
                 value={newLeadForm.phone}
-                onChange={(e) => setNewLeadForm({ ...newLeadForm, phone: e.target.value })}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setNewLeadForm({ ...newLeadForm, phone: cleaned });
+                }}
                 style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
               />
+              {newLeadForm.phone && newLeadForm.phone.length > 0 && newLeadForm.phone.length < 10 && (
+                <span style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '0.25rem', display: 'block' }}>
+                  Please enter 10 digits ({newLeadForm.phone.length}/10 entered)
+                </span>
+              )}
             </div>
 
             <div>
@@ -1667,13 +1985,63 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
             <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
               Lead Source
             </label>
+            <select
+              value={availableLeadSources.some((s) => s.value === newLeadForm.source) ? newLeadForm.source : 'Manual'}
+              onChange={(e) => setNewLeadForm({ ...newLeadForm, source: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '0.6rem 0.85rem',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#0f172a',
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+              }}
+            >
+              {availableLeadSources.map((sourceItem) => (
+                <option key={sourceItem.value} value={sourceItem.value}>
+                  {sourceItem.label}
+                </option>
+              ))}
+            </select>
+            {activeLeadChannels.length === 0 ? (
+              <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+                Only Manual is active. Connected sources (IndiaMART, Facebook, Webhooks, etc.) will appear here when active.
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.72rem', color: '#10b981', marginTop: '0.25rem', display: 'block' }}>
+                ✓ {activeLeadChannels.length} active channel{activeLeadChannels.length > 1 ? 's' : ''} connected
+              </span>
+            )}
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+              Customer Requirement / Product Specifics
+            </label>
+            <textarea
+              rows={2}
+              placeholder="e.g. Inquired for 50 Units of Laptops (Core i7, 16GB RAM) + 50 Wireless Mice. Required by next week."
+              value={newLeadForm.requirements}
+              onChange={(e) => setNewLeadForm({ ...newLeadForm, requirements: e.target.value })}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontSize: '0.84rem' }}
+            />
+            <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem', display: 'block' }}>
+              💡 Detail what the customer asked for so any handover employee can quote accurately.
+            </span>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+              Assigned Sales Executive / Handled By
+            </label>
             <input
               type="text"
-              maxLength={100}
-              placeholder="e.g. Website Inquiry"
-              value={newLeadForm.source}
-              onChange={(e) => setNewLeadForm({ ...newLeadForm, source: e.target.value })}
-              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+              placeholder="e.g. Karan / Alok (Name of sales executive handling this lead)"
+              value={newLeadForm.assignedTo}
+              onChange={(e) => setNewLeadForm({ ...newLeadForm, assignedTo: e.target.value })}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontSize: '0.84rem' }}
             />
           </div>
 
@@ -1691,6 +2059,166 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
               style={{ padding: '0.6rem 1.35rem', borderRadius: '6px', border: 'none', background: '#7f22fe', color: '#ffffff', fontWeight: 700, cursor: 'pointer' }}
             >
               {isSavingLead ? 'Saving...' : 'Save Lead'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL 1B: CONVERT LEAD TO CUSTOMER */}
+      {/* ------------------------------------------------------------- */}
+      <Modal isOpen={showConvertModal} onClose={() => { setShowConvertModal(false); setLeadToConvert(null); }} title="Convert Lead to Corporate Customer 🏢">
+        <form onSubmit={handleConvertLeadToCustomer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ padding: '0.75rem 1rem', background: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe', fontSize: '0.84rem', color: '#1e40af' }}>
+            <span>💡 <strong>Lead Conversion:</strong> Promotes this lead into an active Customer Account in your CRM, marks the lead as <strong>WON</strong>, and immediately takes you to the Customers list.</span>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+              Company / Account Name *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Acme Corp Pvt Ltd"
+              value={convertForm.companyName}
+              onChange={(e) => setConvertForm({ ...convertForm, companyName: e.target.value })}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                Primary Contact Person
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Ramesh Kulkarni"
+                value={convertForm.contactPerson}
+                onChange={(e) => setConvertForm({ ...convertForm, contactPerson: e.target.value })}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                Official Email Address
+              </label>
+              <input
+                type="email"
+                placeholder="ramesh@example.com"
+                value={convertForm.email}
+                onChange={(e) => setConvertForm({ ...convertForm, email: e.target.value })}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>
+                  Phone Number
+                </label>
+                <span style={{ fontSize: '0.72rem', color: convertForm.phone?.length === 10 ? '#10b981' : '#64748b' }}>
+                  {convertForm.phone ? `${convertForm.phone.length}/10` : '10 digits'}
+                </span>
+              </div>
+              <input
+                type="tel"
+                maxLength={10}
+                placeholder="e.g. 9876500000"
+                value={convertForm.phone}
+                onChange={(e) => setConvertForm({ ...convertForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+                GSTIN / Tax Registration No
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 27AABCM1234F1Z9"
+                value={convertForm.gstin}
+                onChange={(e) => setConvertForm({ ...convertForm, gstin: e.target.value })}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+              Industry / Domain
+            </label>
+            <select
+              value={convertForm.industry}
+              onChange={(e) => setConvertForm({ ...convertForm, industry: e.target.value })}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a' }}
+            >
+              <option value="Technology & IT">Technology &amp; IT</option>
+              <option value="Manufacturing & Industrial">Manufacturing &amp; Industrial</option>
+              <option value="Logistics & Supply Chain">Logistics &amp; Supply Chain</option>
+              <option value="Retail & E-commerce">Retail &amp; E-commerce</option>
+              <option value="Healthcare & Pharma">Healthcare &amp; Pharma</option>
+              <option value="Construction & Real Estate">Construction &amp; Real Estate</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+              Customer Requirement / Notes (Carried Over)
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Customer requirements..."
+              value={convertForm.requirements}
+              onChange={(e) => setConvertForm({ ...convertForm, requirements: e.target.value })}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.84rem' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#334155' }}>
+              Assigned Account Manager / Sales Rep
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Karan"
+              value={convertForm.assignedTo}
+              onChange={(e) => setConvertForm({ ...convertForm, assignedTo: e.target.value })}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.84rem' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+            <button
+              type="button"
+              onClick={() => { setShowConvertModal(false); setLeadToConvert(null); }}
+              style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isConvertingLead}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.6rem 1.4rem',
+                borderRadius: '6px',
+                border: 'none',
+                background: '#7f22fe',
+                color: '#ffffff',
+                fontWeight: 700,
+                cursor: isConvertingLead ? 'wait' : 'pointer',
+                boxShadow: '0 4px 6px rgba(127, 34, 254, 0.25)',
+              }}
+            >
+              {isConvertingLead ? 'Converting...' : '🏢 Confirm & Move to Customers 🚀'}
             </button>
           </div>
         </form>
@@ -1795,6 +2323,143 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
       </Modal>
 
       {/* ------------------------------------------------------------- */}
+      {/* MODAL 2B: VIEW CUSTOMER PROFILE & ACTIONS */}
+      {/* ------------------------------------------------------------- */}
+      <Modal isOpen={Boolean(viewingCustomer)} onClose={() => setViewingCustomer(null)} title="Customer Account Details 🏢">
+        {viewingCustomer && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>
+                  {viewingCustomer.companyName}
+                </h3>
+                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  Registered Customer Account • Industry: {viewingCustomer.industry || 'Technology & IT'}
+                </span>
+              </div>
+              <span style={{
+                padding: '4px 10px',
+                borderRadius: '9999px',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                background: viewingCustomer.status === 'ACTIVE' ? '#ecfdf5' : '#fef3c7',
+                color: viewingCustomer.status === 'ACTIVE' ? '#065f46' : '#92400e',
+                border: viewingCustomer.status === 'ACTIVE' ? '1px solid #a7f3d0' : '1px solid #fde68a',
+              }}>
+                {viewingCustomer.status}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>
+                  Primary Contact Person
+                </span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
+                  {viewingCustomer.contactPerson || '—'}
+                </span>
+              </div>
+
+              <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>
+                  GSTIN / Tax ID
+                </span>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>
+                  {viewingCustomer.gstin || '—'}
+                </span>
+              </div>
+
+              <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>
+                  Email Address
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#0f172a' }}>
+                  {viewingCustomer.email || '—'}
+                </span>
+              </div>
+
+              <div style={{ padding: '0.85rem 1rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>
+                  Mobile / Phone Number
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#0f172a' }}>
+                  {viewingCustomer.phone || '—'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ padding: '1rem', background: '#f5f0ff', borderRadius: '8px', border: '1px solid #ebdfff' }}>
+              <span style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#5b21b6', marginBottom: '0.35rem' }}>
+                ⚡ Quick Sales Execution Actions for {viewingCustomer.companyName}:
+              </span>
+              <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.78rem', color: '#6b21a8' }}>
+                Yahan se direct is customer ke naam par Quotation banayein ya Sales Order issue karein.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const custName = viewingCustomer.companyName;
+                    setViewingCustomer(null);
+                    router.push(`/sales/quotations?customer=${encodeURIComponent(custName)}`);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.55rem 1rem',
+                    borderRadius: '6px',
+                    background: '#ffffff',
+                    color: '#7f22fe',
+                    border: '1px solid #c4b5fd',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>📄</span> Issue Quotation Proposal ➡️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const custName = viewingCustomer.companyName;
+                    setViewingCustomer(null);
+                    router.push(`/sales/orders?customer=${encodeURIComponent(custName)}`);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.55rem 1rem',
+                    borderRadius: '6px',
+                    background: '#7f22fe',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(127, 34, 254, 0.25)',
+                  }}
+                >
+                  <span>🛒</span> Create Sales Order ➡️
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setViewingCustomer(null)}
+                style={{ padding: '0.55rem 1.25rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
       {/* MODAL 3: CREATE CONTACT */}
       {/* ------------------------------------------------------------- */}
       <Modal isOpen={showAddContactModal} onClose={() => setShowAddContactModal(false)} title="Register Business Contact">
@@ -1879,10 +2544,11 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 Mobile / Phone
               </label>
               <input
-                type="text"
-                placeholder="+91 98200 00000"
+                type="tel"
+                maxLength={10}
+                placeholder="e.g. 9820000000"
                 value={contactForm.phone}
-                onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                 style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
               />
             </div>
