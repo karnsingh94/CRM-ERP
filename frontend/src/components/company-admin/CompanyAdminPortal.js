@@ -110,11 +110,13 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState([]);
   const [isSuperAdminSwitched, setIsSuperAdminSwitched] = useState(false);
-  const preferencesScope = currentUser?.role === 'TEAM_LEADER'
-    ? 'team_leader'
-    : ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role)
-      ? 'department'
-      : 'company';
+  const preferencesScope = currentUser?.role === 'EMPLOYEE'
+    ? 'employee'
+    : currentUser?.role === 'TEAM_LEADER'
+      ? 'team_leader'
+      : ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role)
+        ? 'department'
+        : 'company';
   const preferencesKey = `azzuniqe_${preferencesScope}_preferences_${currentUser?.id || effectiveCompany?.id || 'default'}`;
   const resolvedTheme = adminPreferences.themeMode === 'system'
     ? (systemIsDark ? 'dark' : 'light')
@@ -192,6 +194,18 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       setActiveTab(resolveTabFromPathname(pathname));
     }
   }, [pathname, initialTab]);
+
+  // Team Leaders manage only their own team workspace. Department Head
+  // management belongs to the Company Admin / Department Head hierarchy.
+  useEffect(() => {
+    const requestedTab = initialTab || resolveTabFromPathname(pathname);
+    const isDepartmentManagementRoute = requestedTab.startsWith('services:')
+      && requestedTab.endsWith(':departments');
+
+    if (!isLoading && currentUser?.role === 'TEAM_LEADER' && isDepartmentManagementRoute) {
+      router.replace('/team-leader/workspace');
+    }
+  }, [currentUser?.role, initialTab, isLoading, pathname, router]);
 
   // Navigate reliably while keeping URL in lockstep
   const handleNavigate = (target) => {
@@ -388,7 +402,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     // 3. Service Head View (initiated from authorized service context)
     if (activeTab.startsWith('services:') && activeTab.endsWith(':departments')) {
       const canManageServiceTeam = currentUser?.role === 'COMPANY_ADMIN' ||
-        (['SERVICE_HEAD', 'TEAM_LEADER'].includes(currentUser?.role) && (
+        (currentUser?.role === 'SERVICE_HEAD' && (
           currentUser.permissions?.manageMembers ||
           currentUser.permissions?.assignWork ||
           currentUser.permissions?.updateWork
@@ -544,6 +558,33 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
           return <SalesModule key={`sales-${initialSubTab || 'orders'}`} activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
         }
         if (!hasModuleAccess('crm')) return renderModuleRestricted('CRM Management');
+
+        // Employees may open only the exact CRM screen delegated by their Team Leader.
+        // Higher roles continue through the existing authorization flow unchanged.
+        if (currentUser?.role === 'EMPLOYEE') {
+          const requestedCrmFeature = initialSubTab || (
+            pathname === '/crm/customers' ? 'customers' :
+              pathname === '/crm/contacts' ? 'contacts' :
+                pathname === '/crm/opportunities' ? 'opportunities' :
+                  pathname === '/crm/leads' ? 'leads' : null
+          );
+          const employeeCrmAliases = {
+            leads: ['leads', '/crm/leads', 'crm_leads'],
+            customers: ['customers', '/crm/customers', 'crm_customers'],
+            contacts: ['contacts', '/crm/contacts', 'crm_contacts'],
+            opportunities: ['opportunities', '/crm/opportunities', 'crm_followups'],
+          };
+          const requestedAliases = employeeCrmAliases[requestedCrmFeature] || [];
+          if (requestedAliases.length && !requestedAliases.some((alias) => hasSubModuleAccess(alias))) {
+            const featureLabels = {
+              leads: 'Leads Pipeline',
+              customers: 'Customers',
+              contacts: 'Contact Persons',
+              opportunities: 'Opportunities',
+            };
+            return renderFeatureRestricted(featureLabels[requestedCrmFeature] || 'CRM feature');
+          }
+        }
 
         // Check if the specific requested screen/submodule is permitted
         if (
@@ -725,8 +766,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         isCompanyAdmin={currentUser?.role === 'COMPANY_ADMIN' || isSuperAdminSwitched}
         canManageServiceTeams={
           currentUser?.role === 'COMPANY_ADMIN' ||
-          isSuperAdminSwitched ||
-          (currentUser?.role === 'TEAM_LEADER' && currentUser.permissions?.manageMembers === true)
+          isSuperAdminSwitched
         }
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}

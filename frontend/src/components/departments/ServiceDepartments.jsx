@@ -255,7 +255,17 @@ export default function ServiceDepartments({
   const canManageMembers = isAdmin || (isDeptHead && currentUser?.permissions?.manageMembers !== false) || (isTeamLeader && currentUser?.permissions?.manageMembers === true);
   const canUseWorkBoard = isAdmin || canManageMembers || currentUser?.permissions?.assignWork === true || currentUser?.permissions?.updateWork === true;
 
+  const currentEmployeeId = String(currentUser?.id || currentUser?.userId || '');
+  const getVisibleTeamMembers = (employees = []) => {
+    if (!isTeamLeader) return employees;
+    return employees.filter((employee) => (
+      employee.accessRole === 'EMPLOYEE' &&
+      String(employee.id) !== currentEmployeeId &&
+      String(employee.createdByEmployeeId || employee.created_by_employee_id || '') === currentEmployeeId
+    ));
+  };
   const selectedTeam = teamData?.teams?.find((team) => team.id === selectedTeamId) || null;
+  const selectedTeamMembers = getVisibleTeamMembers(selectedTeam?.employees || []);
 
   const loadTeams = useCallback(async () => {
     if (!activeCompany?.id) return;
@@ -447,6 +457,10 @@ export default function ServiceDepartments({
   const handleCreateTeam = async (event) => {
     event.preventDefault();
     setActionError('');
+    if (!canManageTeams) {
+      setActionError('Only the Company Admin or Department Head can create or edit teams.');
+      return;
+    }
     if (!teamFormData.name || !teamFormData.name.trim()) {
       setActionError('Team name is required.');
       return;
@@ -495,6 +509,10 @@ export default function ServiceDepartments({
   // ==================== TOGGLE TEAM STATUS ====================
   const handleToggleTeamStatus = async (team) => {
     setActionError('');
+    if (!canManageTeams) {
+      setActionError('Only the Company Admin or Department Head can activate or deactivate teams.');
+      return;
+    }
     setTogglingTeamId(team.id);
     const targetStatus = team.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
@@ -1534,7 +1552,7 @@ export default function ServiceDepartments({
             {teams.map((team) => {
               const isSelected = team.id === selectedTeamId;
               const isInactive = team.status === 'INACTIVE';
-              const memberCount = team.employees?.length || 0;
+              const memberCount = getVisibleTeamMembers(team.employees || []).length;
               return (
                 <div
                   key={team.id}
@@ -1563,32 +1581,54 @@ export default function ServiceDepartments({
                           {team.name}
                         </h4>
                       </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleTeamStatus(team);
-                        }}
-                        disabled={togglingTeamId === team.id}
-                        title="Click to toggle Active / Inactive"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          padding: '0.2rem 0.55rem',
-                          borderRadius: '9999px',
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          cursor: togglingTeamId === team.id ? 'wait' : 'pointer',
-                          background: team.status === 'ACTIVE' || !team.status ? '#f0fdf4' : '#fef2f2',
-                          color: team.status === 'ACTIVE' || !team.status ? '#15803d' : '#b91c1c',
-                          border: team.status === 'ACTIVE' || !team.status ? '1px solid #bbf7d0' : '1px solid #fecaca',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        <span>{team.status === 'ACTIVE' || !team.status ? '🟢' : '🔴'}</span>
-                        <span>{togglingTeamId === team.id ? '...' : team.status || 'ACTIVE'}</span>
-                      </button>
+                      {canManageTeams ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleTeamStatus(team);
+                          }}
+                          disabled={togglingTeamId === team.id}
+                          title="Click to toggle Active / Inactive"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: togglingTeamId === team.id ? 'wait' : 'pointer',
+                            background: team.status === 'ACTIVE' || !team.status ? '#f0fdf4' : '#fef2f2',
+                            color: team.status === 'ACTIVE' || !team.status ? '#15803d' : '#b91c1c',
+                            border: team.status === 'ACTIVE' || !team.status ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <span>{team.status === 'ACTIVE' || !team.status ? '🟢' : '🔴'}</span>
+                          <span>{togglingTeamId === team.id ? '...' : team.status || 'ACTIVE'}</span>
+                        </button>
+                      ) : (
+                        <span
+                          title="Team status"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            background: team.status === 'ACTIVE' || !team.status ? '#f0fdf4' : '#fef2f2',
+                            color: team.status === 'ACTIVE' || !team.status ? '#15803d' : '#b91c1c',
+                            border: team.status === 'ACTIVE' || !team.status ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <span>{team.status === 'ACTIVE' || !team.status ? '🟢' : '🔴'}</span>
+                          <span>{team.status || 'ACTIVE'}</span>
+                        </span>
+                      )}
                     </div>
 
                     {/* Description if present */}
@@ -1656,26 +1696,28 @@ export default function ServiceDepartments({
                           ✏️ Edit
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleTeamStatus(team);
-                        }}
-                        disabled={togglingTeamId === team.id}
-                        style={{
-                          padding: '0.25rem 0.55rem',
-                          border: team.status === 'ACTIVE' || !team.status ? '1px solid #fecaca' : '1px solid #bbf7d0',
-                          borderRadius: '6px',
-                          background: '#ffffff',
-                          color: team.status === 'ACTIVE' || !team.status ? '#b91c1c' : '#15803d',
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          cursor: togglingTeamId === team.id ? 'wait' : 'pointer',
-                        }}
-                      >
-                        {team.status === 'ACTIVE' || !team.status ? 'Deactivate' : 'Activate'}
-                      </button>
+                      {canManageTeams && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleTeamStatus(team);
+                          }}
+                          disabled={togglingTeamId === team.id}
+                          style={{
+                            padding: '0.25rem 0.55rem',
+                            border: team.status === 'ACTIVE' || !team.status ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                            borderRadius: '6px',
+                            background: '#ffffff',
+                            color: team.status === 'ACTIVE' || !team.status ? '#b91c1c' : '#15803d',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            cursor: togglingTeamId === team.id ? 'wait' : 'pointer',
+                          }}
+                        >
+                          {team.status === 'ACTIVE' || !team.status ? 'Deactivate' : 'Activate'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1767,7 +1809,7 @@ export default function ServiceDepartments({
                     )}
                   </span>
                   <span>•</span>
-                  <span>👥 <strong>{selectedTeam.employees?.length || 0}</strong> Team Members</span>
+                  <span>👥 <strong>{selectedTeamMembers.length}</strong> Team Members</span>
                 </div>
               </div>
 
@@ -1929,6 +1971,7 @@ export default function ServiceDepartments({
                   </div>
                 </div>
 
+                {!isTeamLeader && (
                 <label style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', gridColumn: '1 / -1', color: '#334155', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
@@ -1950,6 +1993,7 @@ export default function ServiceDepartments({
                     </span>
                   )}
                 </label>
+                )}
 
                 {/* Assigned Work & Feature Access Section (Shown for ALL employees) */}
                 <div style={{ gridColumn: '1 / -1', padding: '1rem', border: '1px solid #ddd6fe', borderRadius: '12px', background: '#fdfcfe' }}>
@@ -2102,7 +2146,7 @@ export default function ServiceDepartments({
                   background: activeTeamTab === 'members' ? '#f5f0ff' : '#f1f5f9',
                   color: activeTeamTab === 'members' ? '#7f22fe' : '#64748b',
                 }}>
-                  {selectedTeam.employees?.length || 0}
+                  {selectedTeamMembers.length}
                 </span>
               </button>
 
@@ -2145,7 +2189,7 @@ export default function ServiceDepartments({
                     </tr>
                   </thead>
                   <tbody>
-                    {(selectedTeam?.employees || []).map((employee) => (
+                    {selectedTeamMembers.map((employee) => (
                       <tr key={employee.id} style={{ borderTop: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '0.8rem 1rem', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2272,7 +2316,7 @@ export default function ServiceDepartments({
                         )}
                       </tr>
                     ))}
-                    {!selectedTeam?.employees?.length && (
+                    {selectedTeamMembers.length === 0 && (
                       <tr>
                         <td colSpan={canManageMembers ? 7 : 6} style={{ padding: '2rem', color: '#64748b', textAlign: 'center' }}>
                           No employees are assigned to {selectedTeam.name} yet. Click <strong>+ Add Employee</strong> above to add members.

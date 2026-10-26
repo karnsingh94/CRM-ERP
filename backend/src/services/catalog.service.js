@@ -528,7 +528,8 @@ export const CatalogStore = {
   createCompanyEmployee: (companyId, data, meta) => departmentService.createCompanyEmployee(companyId, data, meta),
   assignCompanyEmployee: (companyId, employeeId, data, meta) => departmentService.assignCompanyEmployee(companyId, employeeId, data, meta),
   getServiceTeam: (companyId, serviceCodeOrId) => departmentService.getServiceTeam(companyId, serviceCodeOrId),
-  setServiceTeamHead: (companyId, serviceCodeOrId, headId, meta) => departmentService.setServiceTeamHead(companyId, serviceCodeOrId, headId, meta),
+  setServiceTeamHead: (companyId, serviceCodeOrId, headId, meta, teamId, actor) =>
+    departmentService.setServiceTeamHead(companyId, serviceCodeOrId, headId, meta, teamId, actor),
 
   // Audit Logs
   getAuditLogs: (limit) => auditService.getAuditLogs(limit),

@@ -49,6 +49,39 @@ function serviceError(message, statusCode, code) {
   return error;
 }
 
+function assertTeamStructureManager(actor) {
+  if (actor?.role === 'COMPANY_ADMIN' || DEPARTMENT_HEAD_ROLES.includes(actor?.role)) return;
+  throw serviceError(
+    'Only the Company Admin or Department Head can create, edit, activate, deactivate, or configure teams.',
+    403,
+    'TEAM_STRUCTURE_MANAGER_REQUIRED'
+  );
+}
+
+function isTeamLeaderOwnedMember(actor, employee) {
+  if (!TEAM_LEADER_ROLES.includes(actor?.role)) return true;
+  const actorId = String(actor?.userId || '');
+  return Boolean(
+    actorId &&
+    employee &&
+    String(employee.id) !== actorId &&
+    employee.accessRole === 'EMPLOYEE' &&
+    String(employee.team?.headEmployeeId || '') === actorId &&
+    String(employee.permissions?.memberOwnerId || '') === actorId
+  );
+}
+
+function assertTeamLeaderOwnsMember(actor, employee) {
+  if (!TEAM_LEADER_ROLES.includes(actor?.role)) return;
+  if (!isTeamLeaderOwnedMember(actor, employee)) {
+    throw serviceError(
+      'A Team Leader can only manage employee accounts they created inside their own team.',
+      403,
+      'TEAM_MEMBER_OWNERSHIP_REQUIRED'
+    );
+  }
+}
+
 function parseEntityId(value, label) {
   if (!isUuid(String(value ?? ''))) {
     throw serviceError(`${label} must be a valid identifier.`, 400);
@@ -119,6 +152,64 @@ function validateFeatureAccess(permissions, availableModules) {
     featureAccess.subModuleIds.every((id) => subModuleIds.has(id));
 }
 
+function scopeModulesToPermissions(availableModules, permissions) {
+  const featureAccess = permissions?.featureAccess || {};
+  const permittedModuleIds = new Set((featureAccess.moduleIds || []).map(String));
+  const permittedSubModuleIds = new Set((featureAccess.subModuleIds || []).map(String));
+
+  return availableModules.flatMap((module) => {
+    const moduleId = String(module.id);
+    if (permittedModuleIds.has(moduleId)) {
+      return [{ ...module, fullAccess: true }];
+    }
+
+    const subModules = (module.subModules || []).filter((subModule) => (
+      permittedSubModuleIds.has(String(subModule.id))
+    ));
+    if (!subModules.length) return [];
+    return [{ ...module, fullAccess: false, subModules }];
+  });
+}
+
+function validateDelegatedFeatureAccess(permissions, parentPermissions, availableModules) {
+  const requested = permissions?.featureAccess || {};
+  const parent = parentPermissions?.featureAccess || {};
+  const parentModuleIds = new Set((parent.moduleIds || []).map(String));
+  const parentSubModuleIds = new Set((parent.subModuleIds || []).map(String));
+  const subModuleParents = new Map(
+    availableModules.flatMap((module) => (
+      (module.subModules || []).map((subModule) => [String(subModule.id), String(module.id)])
+    ))
+  );
+
+  return (requested.moduleIds || []).every((moduleId) => parentModuleIds.has(String(moduleId))) &&
+    (requested.subModuleIds || []).every((subModuleId) => {
+      const id = String(subModuleId);
+      const parentModuleId = subModuleParents.get(id);
+      return parentSubModuleIds.has(id) || (parentModuleId && parentModuleIds.has(parentModuleId));
+    });
+}
+
+async function assertTeamLeaderDelegationScope(companyId, actor, permissions, availableModules) {
+  if (!TEAM_LEADER_ROLES.includes(actor?.role)) return;
+  const leader = await prisma.companyEmployee.findFirst({
+    where: {
+      id: String(actor.userId || ''),
+      companyId: String(companyId),
+      status: 'ACTIVE',
+      accessRole: 'TEAM_LEADER',
+    },
+    select: { permissions: true },
+  });
+  if (!leader || !validateDelegatedFeatureAccess(permissions, leader.permissions, availableModules)) {
+    throw serviceError(
+      'A Team Leader can only assign modules and screens granted by the Department Head.',
+      403,
+      'DELEGATED_FEATURE_SCOPE_EXCEEDED'
+    );
+  }
+}
+
 /**
  * Service for managing company employees and named teams under assigned services.
  * Enforces company boundary and Super Admin assigned-service isolation.
@@ -172,6 +263,8 @@ export const departmentService = {
           throw serviceError('Only a company admin, Department Head, or Team Leader with member-management access can view employees.', 403);
         }
         where.teamId = team.id;
+        where.id = { not: employeeId };
+        where.accessRole = 'EMPLOYEE';
       }
     }
     const employees = await prisma.companyEmployee.findMany({
@@ -183,7 +276,13 @@ export const departmentService = {
       orderBy: { createdAt: 'asc' },
     });
 
-    return employees.map(formatEmployee);
+    const visibleEmployees = TEAM_LEADER_ROLES.includes(actor?.role)
+      ? employees.filter((employee) => (
+        String(employee.permissions?.memberOwnerId || '') === String(actor.userId)
+      ))
+      : employees;
+
+    return visibleEmployees.map(formatEmployee);
   },
 
   /**
@@ -273,15 +372,11 @@ export const departmentService = {
     if (accessRole !== 'EMPLOYEE' && (!requestedPermissions || !data.permissions?.featureAccess)) {
       throw serviceError('Permissions must include explicit management actions and feature access.', 400);
     }
-    if (
-      requestedPermissions &&
-      !validateFeatureAccess(
-        requestedPermissions,
-        await getAvailableServiceModules(cid, service, serviceAccess)
-      )
-    ) {
+    const availableServiceModules = await getAvailableServiceModules(cid, service, serviceAccess);
+    if (requestedPermissions && !validateFeatureAccess(requestedPermissions, availableServiceModules)) {
       throw serviceError('Feature permissions must be within the company-approved service access.', 400);
     }
+    await assertTeamLeaderDelegationScope(cid, actor, requestedPermissions, availableServiceModules);
 
     const passwordHash = hashPassword(password);
     let employee;
@@ -364,6 +459,13 @@ export const departmentService = {
           throw serviceError('This team already has a Team Leader.', 409, 'TEAM_LEADER_EXISTS');
         }
 
+        const permissionsToStore = TEAM_LEADER_ROLES.includes(actor?.role)
+          ? {
+            ...(requestedPermissions || normalizeTeamPermissions(null)),
+            memberOwnerId: String(actor.userId),
+          }
+          : requestedPermissions;
+
         const created = await tx.companyEmployee.create({
           data: {
             companyId: cid,
@@ -373,7 +475,7 @@ export const departmentService = {
             phone,
             role: designation || 'Team Member',
             accessRole: accessRole === 'SERVICE_HEAD' ? 'TEAM_LEADER' : accessRole,
-            permissions: requestedPermissions,
+            permissions: permissionsToStore,
             passwordHash,
             status: data.status || 'ACTIVE',
           },
@@ -428,13 +530,15 @@ export const departmentService = {
     return formatEmployee(employee);
   },
 
-  async toggleCompanyEmployeeStatus(companyId, employeeId, meta = {}) {
+  async toggleCompanyEmployeeStatus(companyId, employeeId, meta = {}, actor = null) {
     const cid = String(companyId);
     const eid = parseEntityId(employeeId, 'Employee');
     const employee = await prisma.companyEmployee.findFirst({
       where: { id: eid, companyId: cid },
+      include: { team: true },
     });
     if (!employee) throw serviceError('Employee not found.', 404);
+    assertTeamLeaderOwnsMember(actor, employee);
 
     const nextStatus = employee.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const updated = await prisma.companyEmployee.update({
@@ -492,7 +596,7 @@ export const departmentService = {
 
     const employee = await prisma.companyEmployee.findFirst({
       where: { id: parseEntityId(employeeId, 'Employee'), companyId: cid, teamId: team.id },
-      select: { id: true, name: true, email: true, accessRole: true },
+      select: { id: true, name: true, email: true, accessRole: true, permissions: true, team: true },
     });
     if (!employee) {
       const error = new Error('Employee was not found in a team under this service.');
@@ -500,9 +604,7 @@ export const departmentService = {
       throw error;
     }
 
-    if (TEAM_LEADER_ROLES.includes(actor?.role) && employee.id === String(actor.userId)) {
-      throw serviceError('A Team Leader cannot remove themselves from their own team.', 403);
-    }
+    assertTeamLeaderOwnsMember(actor, employee);
 
     await prisma.$transaction(async (tx) => {
       if (team.headEmployeeId === employee.id) {
@@ -572,12 +674,20 @@ export const departmentService = {
 
     const where = { companyId: cid, serviceId: service.id };
     if (TEAM_LEADER_ROLES.includes(actor?.role)) where.headEmployeeId = String(actor.userId);
-    const [teams, availableModules, department, departmentHeads] = await Promise.all([
+    const [teams, availableModules, department, departmentHeads, actorEmployee] = await Promise.all([
       prisma.companyServiceTeam.findMany({
         where,
         include: {
           head: true,
           employees: {
+            ...(TEAM_LEADER_ROLES.includes(actor?.role)
+              ? {
+                where: {
+                  id: { not: String(actor.userId) },
+                  accessRole: 'EMPLOYEE',
+                },
+              }
+              : {}),
             include: {
               department: { include: { service: true } },
               team: { include: { service: true } },
@@ -605,7 +715,21 @@ export const departmentService = {
         },
         orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
       }),
+      TEAM_LEADER_ROLES.includes(actor?.role)
+        ? prisma.companyEmployee.findFirst({
+          where: {
+            id: String(actor.userId),
+            companyId: cid,
+            status: 'ACTIVE',
+            accessRole: 'TEAM_LEADER',
+          },
+          select: { permissions: true },
+        })
+        : Promise.resolve(null),
     ]);
+    const scopedAvailableModules = TEAM_LEADER_ROLES.includes(actor?.role)
+      ? scopeModulesToPermissions(availableModules, actorEmployee?.permissions)
+      : availableModules;
     const visibleTeams = teams.filter(
       (team) => team.name.trim().toLocaleLowerCase() !== `${service.name} team`.toLocaleLowerCase() ||
         team.headEmployeeId ||
@@ -615,19 +739,25 @@ export const departmentService = {
       service: { id: service.id.toString(), code: service.code, name: service.name },
       department: { id: department.id.toString(), name: department.name, code: department.code },
       departmentHeads: departmentHeads.map(formatEmployee),
-      availableModules,
+      availableModules: scopedAvailableModules,
       teams: visibleTeams.map((team) => ({
         id: team.id.toString(),
         name: team.name,
         description: team.description || '',
         status: team.status || 'ACTIVE',
         head: team.head ? formatEmployee({ ...team.head, team: { service, headEmployeeId: team.headEmployeeId } }) : null,
-        employees: team.employees.map(formatEmployee),
+        employees: team.employees
+          .filter((employee) => (
+            !TEAM_LEADER_ROLES.includes(actor?.role) ||
+            String(employee.permissions?.memberOwnerId || '') === String(actor.userId)
+          ))
+          .map(formatEmployee),
       })),
     };
   },
 
-  async createServiceTeam(companyId, serviceCodeOrId, data, meta = {}) {
+  async createServiceTeam(companyId, serviceCodeOrId, data, meta = {}, actor = null) {
+    assertTeamStructureManager(actor);
     const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service || service.status !== 'ACTIVE') {
@@ -722,7 +852,8 @@ export const departmentService = {
     };
   },
 
-  async toggleServiceTeamStatus(companyId, serviceCodeOrId, teamId, meta = {}) {
+  async toggleServiceTeamStatus(companyId, serviceCodeOrId, teamId, meta = {}, actor = null) {
+    assertTeamStructureManager(actor);
     const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service) throw serviceError('Service not found in catalogue.', 404);
@@ -769,7 +900,8 @@ export const departmentService = {
     };
   },
 
-  async updateServiceTeam(companyId, serviceCodeOrId, teamId, data, meta = {}) {
+  async updateServiceTeam(companyId, serviceCodeOrId, teamId, data, meta = {}, actor = null) {
+    assertTeamStructureManager(actor);
     const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service) throw serviceError('Service not found in catalogue.', 404);
@@ -1108,6 +1240,10 @@ export const departmentService = {
         },
       },
     });
+    const visibleEmployees = TEAM_LEADER_ROLES.includes(actor?.role)
+      ? team.employees.filter((employee) => isTeamLeaderOwnedMember(actor, employee))
+      : team.employees;
+
     return {
       id: team.id.toString(),
       name: team.name,
@@ -1115,11 +1251,12 @@ export const departmentService = {
       head: team.head
         ? formatEmployee({ ...team.head, team: { service, headEmployeeId: team.headEmployeeId } })
         : null,
-      employees: team.employees.map(formatEmployee),
+      employees: visibleEmployees.map(formatEmployee),
     };
   },
 
-  async setServiceTeamHead(companyId, serviceCodeOrId, headId, meta = {}, teamId = null) {
+  async setServiceTeamHead(companyId, serviceCodeOrId, headId, meta = {}, teamId = null, actor = null) {
+    assertTeamStructureManager(actor);
     const cid = String(companyId);
     const service = await this._resolveService(String(serviceCodeOrId));
     if (!service || service.status !== 'ACTIVE') {
@@ -1189,7 +1326,8 @@ export const departmentService = {
     return this.getServiceTeam(companyId, serviceCodeOrId, { role: 'COMPANY_ADMIN' }, team.id.toString());
   },
 
-  async setServiceTeamPermissions(companyId, serviceCodeOrId, permissions, meta = {}, teamId = null) {
+  async setServiceTeamPermissions(companyId, serviceCodeOrId, permissions, meta = {}, teamId = null, actor = null) {
+    assertTeamStructureManager(actor);
     const normalizedPermissions = validateTeamPermissions(permissions);
     if (!normalizedPermissions) {
       const error = new Error('All Team Leader permissions must be explicitly true or false.');
@@ -1249,6 +1387,7 @@ export const departmentService = {
       error.statusCode = 404;
       throw error;
     }
+    assertTeamLeaderOwnsMember(actor, employee);
     if (accessRole !== 'EMPLOYEE' && employee.status !== 'ACTIVE') {
       throw serviceError('An inactive employee cannot be assigned as Team Leader.', 400);
     }
@@ -1290,12 +1429,11 @@ export const departmentService = {
     if (accessRole !== 'EMPLOYEE' && (!normalizedPermissions || !permissions?.featureAccess)) {
       throw serviceError('Team Leader permissions must include explicit team actions and feature access.', 400);
     }
-    if (normalizedPermissions && !validateFeatureAccess(
-      normalizedPermissions,
-      await getAvailableServiceModules(cid, service, serviceAccess)
-    )) {
+    const availableServiceModules = await getAvailableServiceModules(cid, service, serviceAccess);
+    if (normalizedPermissions && !validateFeatureAccess(normalizedPermissions, availableServiceModules)) {
       throw serviceError('Feature permissions must be within the company-approved service access.', 400);
     }
+    await assertTeamLeaderDelegationScope(cid, actor, normalizedPermissions, availableServiceModules);
 
     const updated = await prisma.$transaction(async (tx) => {
       const targetTeamId = requestedTeamId || employee.teamId?.toString();
@@ -1338,12 +1476,19 @@ export const departmentService = {
         });
       }
 
+      const permissionsToStore = employee.permissions?.memberOwnerId
+        ? {
+          ...(normalizedPermissions || normalizeTeamPermissions(null)),
+          memberOwnerId: String(employee.permissions.memberOwnerId),
+        }
+        : normalizedPermissions;
+
       return tx.companyEmployee.update({
         where: { id: eid },
         data: {
           teamId: targetTeam.id,
           accessRole: accessRole === 'SERVICE_HEAD' ? 'TEAM_LEADER' : accessRole,
-          permissions: normalizedPermissions,
+          permissions: permissionsToStore,
         },
         include: {
           department: { include: { service: true } },
@@ -1381,6 +1526,7 @@ export const departmentService = {
     if (!employee) {
       throw serviceError('Employee not found for this company.', 404);
     }
+    assertTeamLeaderOwnsMember(actor, employee);
 
     const service = employee.team?.service || employee.department?.service;
     if (!service) {
@@ -1402,11 +1548,19 @@ export const departmentService = {
     ) {
       throw serviceError('Feature permissions must be within the company-approved service access.', 400);
     }
+    await assertTeamLeaderDelegationScope(cid, actor, normalizedPermissions, availableModules);
+
+    const permissionsToStore = employee.permissions?.memberOwnerId
+      ? {
+        ...(normalizedPermissions || normalizeTeamPermissions(null)),
+        memberOwnerId: String(employee.permissions.memberOwnerId),
+      }
+      : normalizedPermissions;
 
     const updated = await prisma.companyEmployee.update({
       where: { id: eid },
       data: {
-        permissions: normalizedPermissions,
+        permissions: permissionsToStore,
       },
       include: {
         department: { include: { service: true } },

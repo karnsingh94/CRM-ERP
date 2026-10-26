@@ -51,8 +51,9 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard', por
   const { permittedServices } = useCompanyAccess(activeCompany);
   const [searchQuery, setSearchQuery] = useState('');
   const isTeamLeader = portalRole === 'team-leader' || currentUser?.role === 'TEAM_LEADER';
-  const portalRoot = isTeamLeader ? '/team-leader' : '/department';
-  const roleLabel = isTeamLeader ? 'Team Leader' : 'Department Head';
+  const isEmployee = portalRole === 'employee' || currentUser?.role === 'EMPLOYEE';
+  const portalRoot = isEmployee ? '/employee' : isTeamLeader ? '/team-leader' : '/department';
+  const roleLabel = isEmployee ? 'Employee' : isTeamLeader ? 'Team Leader' : 'Department Head';
 
   const currentView = VIEW_DETAILS[view] ? view : 'dashboard';
   const pageDetails = VIEW_DETAILS[currentView];
@@ -67,19 +68,23 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard', por
     0
   );
   const serviceName = currentUser?.serviceName || service?.name || 'Assigned Department';
-  const canManageTeam = isTeamLeader
+  const canManageTeam = isEmployee
+    ? false
+    : isTeamLeader
     ? currentUser?.permissions?.manageMembers === true
     : currentUser?.permissions?.manageMembers !== false
       || currentUser?.permissions?.manageTeams !== false;
-  const canManageWork = currentUser?.permissions?.assignWork === true
-    || currentUser?.permissions?.updateWork === true;
+  const canManageWork = !isEmployee && (
+    currentUser?.permissions?.assignWork === true
+    || currentUser?.permissions?.updateWork === true
+  );
   const canOpenWorkspace = canManageTeam || canManageWork;
   const companyAccent = activeCompany?.theme_color
     || activeCompany?.themeColor
     || currentUser?.themeColor
     || '#7f22fe';
   const userName = currentUser?.name || roleLabel;
-  const preferencesScope = isTeamLeader ? 'team_leader' : 'department';
+  const preferencesScope = isEmployee ? 'employee' : isTeamLeader ? 'team_leader' : 'department';
   const preferencesKey = `azzuniqe_${preferencesScope}_preferences_${currentUser?.id || activeCompany?.id || 'default'}`;
   const [preferences, setPreferences] = useState({
     themeMode: 'system',

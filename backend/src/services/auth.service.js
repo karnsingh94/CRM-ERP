@@ -453,7 +453,9 @@ export const authService = {
         const resolvedRole = getEmployeeAccessRole(employee);
         const service = employee.team?.service || employee.department?.service;
         const formattedCompany = formatClient(employee.clientAdmin);
-        const isPermScoped = resolvedRole === 'TEAM_LEADER' || resolvedRole === 'DEPARTMENT_HEAD';
+        const isPermScoped = resolvedRole === 'TEAM_LEADER' ||
+          resolvedRole === 'DEPARTMENT_HEAD' ||
+          resolvedRole === 'EMPLOYEE';
         const employeePermissions = normalizeTeamPermissions(employee.permissions);
         const scopedAccess = scopeAccessToEmployeeService(formattedCompany.access, service, employeePermissions, isPermScoped);
 
@@ -675,7 +677,7 @@ export const authService = {
               formattedCompany.access,
               service,
               normalizeTeamPermissions(employee.permissions),
-              role === 'TEAM_LEADER' || role === 'DEPARTMENT_HEAD'
+              role === 'TEAM_LEADER' || role === 'DEPARTMENT_HEAD' || role === 'EMPLOYEE'
             ),
           };
         }

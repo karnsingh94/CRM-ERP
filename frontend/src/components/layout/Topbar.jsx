@@ -68,12 +68,15 @@ export default function Topbar({
   const displayRole = currentUser?.roleTitle || roleLabels[currentUser?.role] || 'Company Admin';
   const isDepartmentHeadPortal = ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role);
   const isTeamLeaderPortal = currentUser?.role === 'TEAM_LEADER';
+  const isEmployeePortal = currentUser?.role === 'EMPLOYEE';
   const isStaffPortal = isDepartmentHeadPortal || isTeamLeaderPortal;
   const settingsHref = isTeamLeaderPortal
     ? '/team-leader/settings'
     : isDepartmentHeadPortal
       ? '/department/settings'
-      : '/settings';
+      : isEmployeePortal
+        ? '/employee/settings'
+        : '/settings';
   const userInitials = getInitials(displayName);
   const brandColor = accentColor || activeCompany?.theme_color || activeCompany?.themeColor || currentUser?.theme_color || currentUser?.themeColor || '#7f22fe';
   const brandGlow = `${brandColor}4d`;
@@ -411,7 +414,7 @@ export default function Topbar({
                 }}
               >
                 <IconSettings size={15} />
-                <span>{isStaffPortal ? 'Settings & Profile' : 'Company Settings & Profile'}</span>
+                <span>{isEmployeePortal || isStaffPortal ? 'Settings & Profile' : 'Company Settings & Profile'}</span>
               </Link>
 
               <button

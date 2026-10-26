@@ -143,6 +143,50 @@ export function requireServiceTeamPermission(permission) {
 }
 
 /**
+ * Guard for mutations to the team structure itself.
+ * Team Leaders may manage permitted members/work, but they cannot create,
+ * edit, activate/deactivate, or reconfigure teams.
+ */
+export function requireTeamStructureManager(req, res, next) {
+  requireAuth(req, res, async () => {
+    if (req.user?.role === 'COMPANY_ADMIN' && req.user.companyId) return next();
+
+    if (!['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(req.user?.role) || !req.user.userId || !req.user.companyId) {
+      return res.status(403).json({
+        success: false,
+        code: 'TEAM_STRUCTURE_MANAGER_REQUIRED',
+        message: 'Access denied: only the Company Admin or Department Head can manage team structure and status.',
+      });
+    }
+
+    try {
+      const { prisma } = await import('../config/prisma.js');
+      const employee = await prisma.companyEmployee.findFirst({
+        where: {
+          id: String(req.user.userId),
+          companyId: String(req.user.companyId),
+          status: 'ACTIVE',
+          accessRole: { in: ['DEPARTMENT_HEAD', 'SERVICE_HEAD'] },
+        },
+        select: { permissions: true },
+      });
+
+      if (!employee || employee.permissions?.manageTeams === false) {
+        return res.status(403).json({
+          success: false,
+          code: 'TEAM_STRUCTURE_MANAGER_REQUIRED',
+          message: 'Access denied: team-management permission is required.',
+        });
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  });
+}
+
+/**
  * Tenant Isolation & Company Ownership Guard
  * Verifies that the authenticated user belongs to the target companyId
  */
@@ -351,28 +395,24 @@ export function validateSubModuleAccess(subModuleCodeOrRoute) {
               });
             }
           } else {
-            // Regular EMPLOYEE:
-            // All team members can VIEW records (GET), but only assigned members can PERFORM WORK / MUTATIONS
-            if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-              const featureAccess = employee.permissions?.featureAccess || {};
-              const permittedModuleIds = Array.isArray(featureAccess.moduleIds)
-                ? featureAccess.moduleIds.map(String)
-                : [];
-              const permittedSubModuleIds = Array.isArray(featureAccess.subModuleIds)
-                ? featureAccess.subModuleIds.map(String)
-                : [];
-              if (permittedModuleIds.length > 0 || permittedSubModuleIds.length > 0) {
-                const hasFeatureAccess =
-                  permittedModuleIds.includes(subModule.moduleId.toString()) ||
-                  permittedSubModuleIds.includes(subModule.id.toString());
-                if (!hasFeatureAccess) {
-                  return res.status(403).json({
-                    success: false,
-                    code: 'EMPLOYEE_FEATURE_RESTRICTED',
-                    message: `Access denied: You have view-only access to "${subModule.name}". Modification rights are not assigned to your account.`,
-                  });
-                }
-              }
+            // Regular EMPLOYEE: both viewing and mutations are limited to the
+            // exact module/submodule scope delegated by the Team Leader.
+            const featureAccess = employee.permissions?.featureAccess || {};
+            const permittedModuleIds = Array.isArray(featureAccess.moduleIds)
+              ? featureAccess.moduleIds.map(String)
+              : [];
+            const permittedSubModuleIds = Array.isArray(featureAccess.subModuleIds)
+              ? featureAccess.subModuleIds.map(String)
+              : [];
+            const hasFeatureAccess =
+              permittedModuleIds.includes(subModule.moduleId.toString()) ||
+              permittedSubModuleIds.includes(subModule.id.toString());
+            if (!hasFeatureAccess) {
+              return res.status(403).json({
+                success: false,
+                code: 'EMPLOYEE_FEATURE_RESTRICTED',
+                message: `Access denied: "${subModule.name}" is not assigned to your employee account.`,
+              });
             }
           }
         }
