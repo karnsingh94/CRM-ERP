@@ -14,6 +14,34 @@ import {
 const CompanyAuthContext = createContext(null);
 const COMPANY_USER_ROLES = ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'];
 
+function formatRoleTitle(role, departmentName) {
+  switch (role) {
+    case 'COMPANY_ADMIN':
+      return 'Company Admin';
+    case 'DEPARTMENT_HEAD':
+    case 'SERVICE_HEAD':
+      return departmentName ? `Department Head (${departmentName})` : 'Department Head';
+    case 'TEAM_LEADER':
+      return departmentName ? `Team Leader (${departmentName})` : 'Team Leader';
+    case 'EMPLOYEE':
+      return departmentName ? `Employee (${departmentName})` : 'Employee';
+    default:
+      return role || 'Company User';
+  }
+}
+
+function createCompanyUserProfile(user) {
+  return {
+    ...user,
+    roleTitle: formatRoleTitle(user.role, user.departmentName),
+    isCompanyAdmin: user.role === 'COMPANY_ADMIN',
+    isDepartmentHead: user.role === 'DEPARTMENT_HEAD' || user.role === 'SERVICE_HEAD',
+    isServiceHead: user.role === 'SERVICE_HEAD' || user.role === 'DEPARTMENT_HEAD',
+    isTeamLeader: user.role === 'TEAM_LEADER',
+    isEmployee: user.role === 'EMPLOYEE',
+  };
+}
+
 function scopeCompanyAccessForUser(company, user) {
   if (!company || !user || !['DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(user.role)) {
     return company;
@@ -66,23 +94,6 @@ export function CompanyAuthProvider({ children }) {
   const pathname = usePathname();
   const lastSyncTimestampRef = useRef(0);
 
-  // Format role display label
-  const formatRoleTitle = (role, departmentName) => {
-    switch (role) {
-      case 'COMPANY_ADMIN':
-        return 'Company Admin';
-      case 'DEPARTMENT_HEAD':
-      case 'SERVICE_HEAD':
-        return departmentName ? `Department Head (${departmentName})` : 'Department Head';
-      case 'TEAM_LEADER':
-        return departmentName ? `Team Leader (${departmentName})` : 'Team Leader';
-      case 'EMPLOYEE':
-        return departmentName ? `Employee (${departmentName})` : 'Employee';
-      default:
-        return role || 'Company User';
-    }
-  };
-
   const [activeCompany, setActiveCompany] = useState(null);
   const [authorizedCompanies, setAuthorizedCompanies] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -93,6 +104,40 @@ export function CompanyAuthProvider({ children }) {
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  const hydrateSession = useCallback((user) => {
+    if (!COMPANY_USER_ROLES.includes(user?.role)) return false;
+
+    const profile = createCompanyUserProfile(user);
+    let cachedCompany = null;
+    try {
+      cachedCompany = JSON.parse(localStorage.getItem('cached_company_data') || 'null');
+    } catch {
+      cachedCompany = null;
+    }
+
+    const targetCompanyId = user.companyId || user.clientAdminId;
+    const fallbackCompany = {
+      id: String(targetCompanyId || user.id || 'default'),
+      name: user.organizationName || user.name || 'Company Workspace',
+      organizationName: user.organizationName || user.name || 'Company Workspace',
+      email: user.email,
+      status: user.status || 'ACTIVE',
+      themeColor: user.themeColor || user.theme_color || '#7f22fe',
+      theme_color: user.theme_color || user.themeColor || '#7f22fe',
+      access: user.access || { services: [] },
+    };
+    const company = scopeCompanyAccessForUser(cachedCompany || fallbackCompany, user);
+
+    globalCurrentUser = profile;
+    setCurrentUser(profile);
+    setActiveCompany(company);
+    setAuthorizedCompanies([company]);
+    setError(null);
+    setIsLoading(false);
+    lastSyncTimestampRef.current = Date.now();
+    return true;
+  }, []);
 
   // Verify the company session on entry and whenever the page regains focus.
   const loadCompanySession = useCallback(async () => {
@@ -117,42 +162,7 @@ export function CompanyAuthProvider({ children }) {
     const cachedUser = token ? getCachedStoredUser() : null;
 
     if (!globalCurrentUser && COMPANY_USER_ROLES.includes(cachedUser?.role)) {
-      const roleTitle = formatRoleTitle(cachedUser.role, cachedUser.departmentName);
-      const cachedProfile = {
-        ...cachedUser,
-        roleTitle,
-        isCompanyAdmin: cachedUser.role === 'COMPANY_ADMIN',
-        isDepartmentHead: cachedUser.role === 'DEPARTMENT_HEAD' || cachedUser.role === 'SERVICE_HEAD',
-        isServiceHead: cachedUser.role === 'SERVICE_HEAD' || cachedUser.role === 'DEPARTMENT_HEAD',
-        isTeamLeader: cachedUser.role === 'TEAM_LEADER',
-        isEmployee: cachedUser.role === 'EMPLOYEE',
-      };
-
-      let cachedCompany = null;
-      try {
-        cachedCompany = JSON.parse(localStorage.getItem('cached_company_data') || 'null');
-      } catch {
-        cachedCompany = null;
-      }
-
-      const targetCompanyId = cachedUser.companyId || cachedUser.clientAdminId;
-      const fallbackCompany = {
-        id: String(targetCompanyId || cachedUser.id || 'default'),
-        name: cachedUser.organizationName || cachedUser.name || 'Company Workspace',
-        organizationName: cachedUser.organizationName || cachedUser.name || 'Company Workspace',
-        email: cachedUser.email,
-        status: cachedUser.status || 'ACTIVE',
-        themeColor: cachedUser.themeColor || cachedUser.theme_color || '#7f22fe',
-        theme_color: cachedUser.theme_color || cachedUser.themeColor || '#7f22fe',
-        access: cachedUser.access || { services: [] },
-      };
-      const company = scopeCompanyAccessForUser(cachedCompany || fallbackCompany, cachedUser);
-
-      globalCurrentUser = cachedProfile;
-      setCurrentUser(cachedProfile);
-      setActiveCompany(company);
-      setAuthorizedCompanies([company]);
-      setIsLoading(false);
+      hydrateSession(cachedUser);
     }
 
     try {
@@ -199,16 +209,7 @@ export function CompanyAuthProvider({ children }) {
       }
 
       // Format authenticated user profile
-      const roleTitle = formatRoleTitle(verifiedUser.role, verifiedUser.departmentName);
-      const userProfile = {
-        ...verifiedUser,
-        roleTitle,
-        isCompanyAdmin: verifiedUser.role === 'COMPANY_ADMIN',
-        isDepartmentHead: verifiedUser.role === 'DEPARTMENT_HEAD' || verifiedUser.role === 'SERVICE_HEAD',
-        isServiceHead: verifiedUser.role === 'SERVICE_HEAD' || verifiedUser.role === 'DEPARTMENT_HEAD',
-        isTeamLeader: verifiedUser.role === 'TEAM_LEADER',
-        isEmployee: verifiedUser.role === 'EMPLOYEE',
-      };
+      const userProfile = createCompanyUserProfile(verifiedUser);
       setCurrentUser(userProfile);
 
       // 4. Resolve company context immediately from verifiedUser identity payload
@@ -243,8 +244,9 @@ export function CompanyAuthProvider({ children }) {
       setAuthorizedCompanies(finalAuthorizedList);
       lastSyncTimestampRef.current = Date.now();
 
-      // Non-blocking background sync for any updated metadata from /clients/:id
-      if (targetCompanyId) {
+      // The Employee profile already contains its complete, permission-scoped
+      // company data. Avoid downloading the much larger admin company payload.
+      if (targetCompanyId && verifiedUser.role !== 'EMPLOYEE') {
         api.get(`/clients/${targetCompanyId}`).then(compRes => {
           const companyData = compRes?.data || null;
           if (companyData) {
@@ -270,12 +272,14 @@ export function CompanyAuthProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [hydrateSession, router]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') loadCompanySession();
+  }, [loadCompanySession, pathname]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      loadCompanySession();
-
       // Revalidate on tab focus with a 30s minimum cooldown to prevent continuous query loops
       const handleRevalidate = () => {
         if (Date.now() - lastSyncTimestampRef.current < 30000) return;
@@ -392,6 +396,7 @@ export function CompanyAuthProvider({ children }) {
     updateCompanyAdminState,
     logout,
     refreshSession: () => loadCompanySession(),
+    hydrateSession,
   };
 
   return (

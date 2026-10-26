@@ -495,7 +495,7 @@ export const authService = {
           type: 'COMPANY_USER',
         });
 
-        await auditService.logAudit({
+        const loginAudit = auditService.logAudit({
           action: 'LOGIN',
           entityType: 'COMPANY_EMPLOYEE',
           entityId: employee.id,
@@ -503,9 +503,19 @@ export const authService = {
           ipAddress: meta.ip || '127.0.0.1',
           userAgent: meta.userAgent || null,
         });
+        if (resolvedRole === 'EMPLOYEE') {
+          // Authentication is complete; do not make the Employee wait for a
+          // second database write before opening the dashboard.
+          loginAudit.catch((auditError) => {
+            logger.warn('Employee login audit could not be persisted:', auditError.message);
+          });
+        } else {
+          await loginAudit;
+        }
 
-        // Determine destination based on role
-        const redirectUrl = '/dashboard';
+        // Employees use their dedicated portal route so the employee layout,
+        // navigation, and assigned-access context are always mounted.
+        const redirectUrl = resolvedRole === 'EMPLOYEE' ? '/employee/dashboard' : '/dashboard';
 
         return {
           token,
@@ -556,7 +566,7 @@ export const authService = {
       return {
         token,
         user: userObj,
-        redirectUrl: '/dashboard',
+        redirectUrl: userObj.role === 'EMPLOYEE' ? '/employee/dashboard' : '/dashboard',
         targetOrigin: process.env.CLIENT_URL || 'http://localhost:3000',
       };
     }

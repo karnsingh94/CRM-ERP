@@ -4,13 +4,30 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { clearStoredSession, getStoredToken, rememberVerifiedSession, verifyCurrentSession } from '@/lib/auth';
+import { useCompanyAuthContext } from '@/context/CompanyAuthContext';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const ALLOWED_ORIGINS = ['http://localhost:3000', 'http://localhost:3001'];
 
+function resolveCompanyDestination(user, redirectParam, fallback = '/dashboard') {
+  const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
+  const destination = isValidRedirect ? redirectParam : fallback;
+
+  if (
+    user?.role === 'EMPLOYEE' &&
+    (!destination || destination === '/' || destination === '/dashboard' || destination === '/employee')
+  ) {
+    return '/employee/dashboard';
+  }
+
+  return destination || '/dashboard';
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const companyAuth = useCompanyAuthContext();
+  const hydrateSession = companyAuth?.hydrateSession;
   const redirectParam = searchParams.get('redirect');
   const authTokenParam = searchParams.get('auth_token');
 
@@ -50,8 +67,9 @@ function LoginForm() {
               } else {
                 sessionStorage.setItem('azzuniqe_client_token', authTokenParam);
                 sessionStorage.setItem('company_user', JSON.stringify(user));
-                const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/dashboard';
+                const target = resolveCompanyDestination(user, redirectParam);
                 rememberVerifiedSession(authTokenParam, user);
+                hydrateSession?.(user);
                 router.replace(target);
                 return;
               }
@@ -81,8 +99,8 @@ function LoginForm() {
           user &&
           ['COMPANY_ADMIN', 'DEPARTMENT_HEAD', 'SERVICE_HEAD', 'TEAM_LEADER', 'EMPLOYEE'].includes(user.role)
         ) {
-          const isValid = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
-          router.replace(isValid ? redirectParam : '/dashboard');
+          hydrateSession?.(user);
+          router.replace(resolveCompanyDestination(user, redirectParam));
           return;
         }
       } catch {
@@ -93,7 +111,7 @@ function LoginForm() {
     }
 
     initSession();
-  }, [router, redirectParam, authTokenParam]);
+  }, [router, redirectParam, authTokenParam, hydrateSession]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -164,6 +182,7 @@ function LoginForm() {
         }
       }
       rememberVerifiedSession(token, user);
+      hydrateSession?.(user);
 
       setSuccessMessage(`Welcome back, ${user.name || user.email}! Routing to workspace...`);
 
@@ -173,8 +192,7 @@ function LoginForm() {
         const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login' && redirectParam !== '/dashboard';
         destination = isValidRedirect ? redirectParam : '/super-admin';
       } else {
-        const isValidRedirect = redirectParam && redirectParam.startsWith('/') && redirectParam !== '/login';
-        destination = isValidRedirect ? redirectParam : (redirectUrl || '/dashboard');
+        destination = resolveCompanyDestination(user, redirectParam, redirectUrl || '/dashboard');
       }
 
       router.replace(destination);

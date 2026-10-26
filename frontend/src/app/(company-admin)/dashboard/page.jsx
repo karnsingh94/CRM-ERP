@@ -6,7 +6,6 @@ import { getCachedStoredUser, getStoredToken, verifyCurrentSession } from '@/lib
 import SuperAdminPortal from '@/components/super-admin/SuperAdminPortal';
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
-import EmployeeDashboardFeature from '@/features/employee/dashboard';
 
 export default function UnifiedRoleDashboardPage() {
   const router = useRouter();
@@ -47,6 +46,12 @@ export default function UnifiedRoleDashboardPage() {
       mounted = false;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (currentUser?.role === 'EMPLOYEE') {
+      router.replace('/employee/dashboard');
+    }
+  }, [currentUser, router]);
 
   if (!isMounted || (isResolving && !currentUser)) {
     return (
@@ -101,7 +106,7 @@ export default function UnifiedRoleDashboardPage() {
   }
 
   if (currentUser?.role === 'EMPLOYEE') {
-    return <EmployeeDashboardFeature />;
+    return null;
   }
 
   return <CompanyAdminPortal initialTab="dashboard" />;

@@ -54,8 +54,7 @@ export default function ServiceWorkBoard({
     setError('');
     try {
       const response = await api.get(
-        `/companies/${companyId}/services/${normalizedCode}/work-items${teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''}`,
-        { noCache: true }
+        `/companies/${companyId}/services/${normalizedCode}/work-items${teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''}`
       );
       setItems(response.data || []);
     } catch (loadError) {

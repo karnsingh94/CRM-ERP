@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './CompanyAdminPortal.module.css';
 import { CompanyAuthProvider, useCompanyAuthContext } from '@/context/CompanyAuthContext';
@@ -16,23 +17,28 @@ import ToastContainer from '@/components/ui/Toast';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 
-// Module feature components
-import CompanyDashboard from '@/components/dashboard/CompanyDashboard';
-import CrmModule from '@/components/modules/CrmModule';
-import ProductsModule from '@/components/modules/ProductsModule';
-import SalesModule from '@/components/modules/SalesModule';
-import PurchaseModule from '@/components/modules/PurchaseModule';
-import GrnModule from '@/components/modules/GrnModule';
-import InventoryModule from '@/components/modules/InventoryModule';
-import GatePassModule from '@/components/modules/GatePassModule';
-import ProductionModule from '@/components/modules/ProductionModule';
-import DispatchModule from '@/components/modules/DispatchModule';
-import AccountsModule from '@/components/modules/AccountsModule';
-import TeamModule from '@/components/modules/TeamModule';
-import SettingsModule from '@/components/modules/SettingsModule';
-import ServiceDepartments from '@/components/departments/ServiceDepartments';
-
 import { resolveCanonicalUrl } from '@/config/routes.config';
+
+const lazyFeature = (loader) => dynamic(loader, {
+  loading: () => <LoadingSkeleton rows={5} height="48px" />,
+});
+
+// Keep the shared shell lightweight. Feature bundles are downloaded only when
+// their route is opened instead of delaying the Employee dashboard first paint.
+const CompanyDashboard = lazyFeature(() => import('@/components/dashboard/CompanyDashboard'));
+const CrmModule = lazyFeature(() => import('@/components/modules/CrmModule'));
+const ProductsModule = lazyFeature(() => import('@/components/modules/ProductsModule'));
+const SalesModule = lazyFeature(() => import('@/components/modules/SalesModule'));
+const PurchaseModule = lazyFeature(() => import('@/components/modules/PurchaseModule'));
+const GrnModule = lazyFeature(() => import('@/components/modules/GrnModule'));
+const InventoryModule = lazyFeature(() => import('@/components/modules/InventoryModule'));
+const GatePassModule = lazyFeature(() => import('@/components/modules/GatePassModule'));
+const ProductionModule = lazyFeature(() => import('@/components/modules/ProductionModule'));
+const DispatchModule = lazyFeature(() => import('@/components/modules/DispatchModule'));
+const AccountsModule = lazyFeature(() => import('@/components/modules/AccountsModule'));
+const TeamModule = lazyFeature(() => import('@/components/modules/TeamModule'));
+const SettingsModule = lazyFeature(() => import('@/components/modules/SettingsModule'));
+const ServiceDepartments = lazyFeature(() => import('@/components/departments/ServiceDepartments'));
 
 export function resolveTabFromPathname(pathname) {
   if (!pathname || pathname === '/' || pathname === '/dashboard') return 'dashboard';
@@ -643,7 +649,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
     }
   };
 
-  if (!currentUser && isLoading) {
+  if (!currentUser) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#64748b' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.95rem' }}>

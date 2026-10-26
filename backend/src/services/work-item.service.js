@@ -58,13 +58,20 @@ async function resolveService(companyId, serviceCodeOrId) {
         { code: normalizedCode },
       ],
     },
+    include: {
+      clientServiceAccess: {
+        where: { adminId: String(companyId), isAllowed: true },
+        select: { adminId: true },
+        take: 1,
+      },
+    },
   });
   if (!service) throw httpError('Service not found or inactive.', 404, 'SERVICE_NOT_FOUND');
-  const access = await prisma.clientServiceAccess.findFirst({
-    where: { adminId: String(companyId), serviceId: service.id, isAllowed: true },
-  });
-  if (!access) throw httpError('This service is not assigned to the company.', 403, 'SERVICE_NOT_ASSIGNED');
-  return service;
+  if (!service.clientServiceAccess.length) {
+    throw httpError('This service is not assigned to the company.', 403, 'SERVICE_NOT_ASSIGNED');
+  }
+  const { clientServiceAccess, ...serviceData } = service;
+  return serviceData;
 }
 
 async function resolveEmployee(actor, companyId) {
@@ -75,7 +82,13 @@ async function resolveEmployee(actor, companyId) {
       companyId: String(companyId),
       status: 'ACTIVE',
     },
-    include: { team: true, department: true },
+    select: {
+      id: true,
+      accessRole: true,
+      permissions: true,
+      team: { select: { id: true, serviceId: true, headEmployeeId: true } },
+      department: { select: { serviceId: true } },
+    },
   });
   if (!employee) throw httpError('Active service membership is required.', 403, 'TEAM_MEMBERSHIP_REQUIRED');
   return employee;
@@ -126,8 +139,10 @@ function validateProgress(progress) {
 
 const workItemService = {
   async list(companyId, serviceCode, actor, requestedTeamId = null) {
-    const service = await resolveService(companyId, serviceCode);
-    const employee = await resolveEmployee(actor, companyId);
+    const [service, employee] = await Promise.all([
+      resolveService(companyId, serviceCode),
+      resolveEmployee(actor, companyId),
+    ]);
     const where = { companyId: String(companyId), serviceId: service.id };
     let teamId = null;
     if (employee) {
@@ -174,9 +189,30 @@ const workItemService = {
     }
     const items = await prisma.serviceWorkItem.findMany({
       where,
-      include: {
-        assignee: true,
-        updates: { orderBy: { createdAt: 'desc' }, take: 10 },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        status: true,
+        progress: true,
+        dueDate: true,
+        serviceId: true,
+        createdByName: true,
+        createdAt: true,
+        updatedAt: true,
+        assignee: { select: { id: true, name: true, email: true } },
+        updates: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            authorName: true,
+            status: true,
+            progress: true,
+            note: true,
+            createdAt: true,
+          },
+        },
       },
       orderBy: [{ dueDate: 'asc' }, { updatedAt: 'desc' }],
     });
