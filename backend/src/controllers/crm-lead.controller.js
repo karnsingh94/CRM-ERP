@@ -50,6 +50,19 @@ export const crmLeadController = {
       respondError(error, res, next);
     }
   },
+
+  async convert(req, res, next) {
+    try {
+      const result = await crmLeadService.convert(
+        String(req.params.companyId),
+        req.params.leadId,
+        req.body || {}
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      respondError(error, res, next);
+    }
+  },
 };
 
 export default crmLeadController;

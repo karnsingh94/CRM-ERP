@@ -138,6 +138,83 @@ export const crmLeadService = {
     const result = await prisma.lead.deleteMany({ where: { id: leadId, companyId } });
     if (result.count === 0) throw leadError('Lead not found for this company.', 404);
   },
+
+  async convert(companyId, id, data) {
+    const leadId = parseLeadId(id);
+    const existing = await prisma.lead.findFirst({ where: { id: leadId, companyId } });
+    if (!existing) throw leadError('Lead not found for this company.', 404);
+
+    const companyName = String(data.companyName || existing.company || existing.name || '').trim();
+    if (!companyName) throw leadError('Company / Account name is required to convert lead to customer.', 400);
+
+    const contactPerson = data.contactPerson !== undefined ? String(data.contactPerson).trim() : existing.name;
+    const email = data.email !== undefined ? String(data.email).trim() : existing.email;
+    const phone = data.phone !== undefined ? String(data.phone).trim() : (existing.phone || null);
+    const gstin = data.gstin ? String(data.gstin).trim() : null;
+    const industry = data.industry ? String(data.industry).trim() : 'Technology & IT';
+    const requirements = data.requirements !== undefined ? String(data.requirements).trim() : (existing.requirements || null);
+    const assignedTo = data.assignedTo !== undefined ? String(data.assignedTo).trim() : (existing.assignedTo || null);
+
+    // 1. Create Customer
+    const customer = await prisma.crmCustomer.create({
+      data: {
+        companyId,
+        companyName,
+        contactPerson: contactPerson || null,
+        email: email || '',
+        phone: phone || null,
+        gstin: gstin || null,
+        industry: industry || 'Technology & IT',
+        requirements: requirements || null,
+        assignedTo: assignedTo || null,
+        status: 'ACTIVE',
+      },
+    });
+
+    // 2. Also auto-create contact person in contacts directory if provided
+    let createdContact = null;
+    if (customer.contactPerson) {
+      try {
+        createdContact = await prisma.crmContact.create({
+          data: {
+            companyId,
+            name: customer.contactPerson,
+            companyName: customer.companyName,
+            email: customer.email || null,
+            phone: customer.phone || null,
+            role: 'Primary Account Contact',
+            channel: 'Converted Lead',
+          },
+        });
+      } catch (e) {
+        // Best effort
+      }
+    }
+
+    // 3. Update lead status to WON
+    const updatedLead = await prisma.lead.update({
+      where: { id: leadId },
+      data: { status: 'WON' },
+    });
+
+    return {
+      lead: formatLead(updatedLead),
+      customer: {
+        id: customer.id,
+        companyName: customer.companyName,
+        contactPerson: customer.contactPerson || '',
+        email: customer.email || '',
+        phone: customer.phone || '',
+        gstin: customer.gstin || '',
+        industry: customer.industry || 'Technology & IT',
+        requirements: customer.requirements || '',
+        assignedTo: customer.assignedTo || '',
+        status: customer.status,
+        date: customer.createdAt.toISOString().slice(0, 10),
+        createdContact,
+      },
+    };
+  },
 };
 
 export default crmLeadService;

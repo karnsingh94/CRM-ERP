@@ -22,6 +22,7 @@ router.use('/companies/:companyId', requireCompanyUser, validateCompanyAccess);
 // ==================== CRM LEADS ====================
 router.get('/companies/:companyId/crm/leads', validateSubModuleAccess('crm_leads'), crmLeadController.list);
 router.post('/companies/:companyId/crm/leads', validateSubModuleAccess('crm_leads'), crmLeadController.create);
+router.post('/companies/:companyId/crm/leads/:leadId/convert', validateSubModuleAccess('crm_leads'), crmLeadController.convert);
 router.patch('/companies/:companyId/crm/leads/:leadId', validateSubModuleAccess('crm_leads'), crmLeadController.update);
 router.delete('/companies/:companyId/crm/leads/:leadId', validateSubModuleAccess('crm_leads'), crmLeadController.remove);
 

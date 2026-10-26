@@ -354,6 +354,8 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     }
   };
 
+  const [viewingLead, setViewingLead] = useState(null);
+
   const handleLeadStatusChange = async (id, newStatus) => {
     setUpdatingLeadId(id);
     try {
@@ -362,12 +364,30 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
         { status: newStatus }
       );
       setLeads((current) => current.map((lead) => lead.id === id ? response.data : lead));
-      showToast('Status Updated', `Lead status changed to ${newStatus}.`, 'success');
+      if (viewingLead && viewingLead.id === id) {
+        setViewingLead(response.data);
+      }
+      const labelMap = {
+        CONTACTED: 'In Discussion / Contacted',
+        QUALIFIED: 'Approved / Qualified',
+        LOST: 'Rejected / Lost',
+        WON: 'Converted to Customer',
+        NEW: 'New Lead',
+      };
+      showToast('Status Updated', `Lead status changed to "${labelMap[newStatus] || newStatus}".`, 'success');
+      return response.data;
     } catch (error) {
       showToast('Status Not Updated', error.message || 'Could not update this lead.', 'danger');
+      return null;
     } finally {
       setUpdatingLeadId(null);
     }
+  };
+
+  const handleApproveAndConvert = async (lead) => {
+    await handleLeadStatusChange(lead.id, 'QUALIFIED');
+    setViewingLead(null);
+    handleOpenConvertModal({ ...lead, status: 'QUALIFIED' });
   };
 
   // Convert Lead to Customer state & handlers
@@ -408,34 +428,43 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
     }
     setIsConvertingLead(true);
     try {
-      // 1. Create the customer in database
-      const customerRes = await api.post(`/companies/${activeCompany.id}/crm/customers`, {
-        ...convertForm,
-        status: 'ACTIVE',
-      });
+      // Use dedicated lead convert endpoint (requires crm_leads access, no cross-module 403!)
+      const res = await api.post(
+        `/companies/${activeCompany.id}/crm/leads/${leadToConvert.id}/convert`,
+        convertForm
+      );
 
-      // 2. Mark the lead as WON
-      const leadRes = await api.patch(`/companies/${activeCompany.id}/crm/leads/${leadToConvert.id}`, {
-        status: 'WON',
-      });
+      const convertedLead = res.data?.data?.lead || { ...leadToConvert, status: 'WON' };
+      const createdCustomer = res.data?.data?.customer;
 
-      // 3. Update state
-      setLeads((current) => current.map((l) => (l.id === leadToConvert.id ? leadRes.data : l)));
-      setCustomers((current) => [customerRes.data, ...current]);
-      if (customerRes.data?.createdContact) {
-        setContacts((current) => [customerRes.data.createdContact, ...current]);
-      } else {
-        loadContacts();
+      // 1. Update lead in local state so status immediately displays WON
+      setLeads((current) => current.map((l) => (l.id === leadToConvert.id ? convertedLead : l)));
+
+      // 2. Update customer state if returned
+      if (createdCustomer) {
+        setCustomers((current) => [createdCustomer, ...current]);
+        if (createdCustomer.createdContact) {
+          setContacts((current) => [createdCustomer.createdContact, ...current]);
+        }
       }
 
       setShowConvertModal(false);
-      const targetName = customerRes.data.companyName;
+      const targetName = convertForm.companyName;
       setLeadToConvert(null);
+      if (viewingLead?.id === leadToConvert.id) {
+        setViewingLead(null);
+      }
 
-      showToast('Lead Converted! 🏢', `"${targetName}" added to Customers and contact person saved to Contacts.`, 'success');
+      showToast(
+        'Lead Converted! 🏢',
+        `"${targetName}" successfully converted into a Customer account and marked as WON.`,
+        'success'
+      );
 
-      // 4. Switch to Customers tab so the user sees it in Customers list!
-      handleTabChange('customers');
+      // 3. Switch to Customers tab only if employee has customer viewing permission!
+      if (canPerformAction('customers')) {
+        handleTabChange('customers');
+      }
     } catch (err) {
       showToast('Conversion Failed', err.message || 'Could not convert lead to customer.', 'danger');
     } finally {
@@ -1225,9 +1254,25 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                 </thead>
                 <tbody>
                   {filteredLeads.map((lead) => (
-                    <tr key={lead.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <tr
+                      key={lead.id}
+                      onClick={() => setViewingLead(lead)}
+                      style={{
+                        borderBottom: '1px solid #f1f5f9',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff'; }}
+                      title="Click to view full lead details and discussion actions"
+                    >
                       <td style={{ padding: '0.85rem 1.25rem', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 700, color: '#0f172a' }}>{lead.name}</div>
+                        <div style={{ fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span>{lead.name}</span>
+                          <span style={{ fontSize: '0.68rem', color: '#7c3aed', background: '#f5f3ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #ddd6fe' }}>
+                            View 👁️
+                          </span>
+                        </div>
                         <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{lead.email} {lead.phone ? `• ${lead.phone}` : ''}</div>
                         {lead.assignedTo && (
                           <div style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
@@ -1256,23 +1301,54 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                         {lead.date}
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewingLead(lead);
+                            }}
+                            title="Click to view details and discussion history"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              padding: '0.38rem 0.65rem',
+                              borderRadius: '6px',
+                              background: '#f1f5f9',
+                              color: '#334155',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <span>👁️</span> Details
+                          </button>
+
                           {canPerformAction('leads') && (
                             lead.status === 'WON' ? (
                               <button
                                 type="button"
-                                onClick={() => handleTabChange('customers')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (canPerformAction('customers')) {
+                                    handleTabChange('customers');
+                                  } else {
+                                    setViewingLead(lead);
+                                  }
+                                }}
                                 title="Lead converted! Click to view in Customers tab"
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '0.35rem',
-                                  padding: '0.4rem 0.8rem',
+                                  padding: '0.38rem 0.75rem',
                                   borderRadius: '6px',
                                   background: '#ecfdf5',
                                   color: '#059669',
                                   border: '1px solid #a7f3d0',
-                                  fontSize: '0.76rem',
+                                  fontSize: '0.75rem',
                                   fontWeight: 700,
                                   cursor: 'pointer',
                                 }}
@@ -1282,24 +1358,27 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => handleOpenConvertModal(lead)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenConvertModal(lead);
+                                }}
                                 title="Click to promote this lead to an official Customer"
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '0.35rem',
-                                  padding: '0.4rem 0.85rem',
+                                  padding: '0.38rem 0.8rem',
                                   borderRadius: '6px',
                                   background: '#7f22fe',
                                   color: '#ffffff',
                                   border: 'none',
-                                  fontSize: '0.76rem',
+                                  fontSize: '0.75rem',
                                   fontWeight: 700,
                                   cursor: 'pointer',
                                   boxShadow: '0 2px 4px rgba(127, 34, 254, 0.25)',
                                 }}
                               >
-                                <span>🏢</span> Convert to Customer
+                                <span>🏢</span> Convert
                               </button>
                             )
                           )}
@@ -1307,7 +1386,10 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
                           {canPerformAction('leads') ? (
                             <button
                               type="button"
-                              onClick={() => setItemToDelete({ type: 'lead', item: lead, name: lead.name })}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setItemToDelete({ type: 'lead', item: lead, name: lead.name });
+                              }}
                               style={{
                                 padding: '4px 8px',
                                 borderRadius: '4px',
@@ -2241,6 +2323,276 @@ export default function CrmModule({ activeCompany, showToast, initialSubTab, has
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL 1C: LEAD DETAILS & STATUS WORKFLOW REVIEW */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        isOpen={Boolean(viewingLead)}
+        onClose={() => setViewingLead(null)}
+        title="📋 Lead Details & Discussion Review"
+        maxWidth="680px"
+      >
+        {viewingLead && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+            {/* Top Hero Card */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                flexWrap: 'wrap',
+                gap: '0.85rem',
+                padding: '1rem 1.25rem',
+                background: '#f8fafc',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
+                  {viewingLead.name}
+                </div>
+                {viewingLead.company && (
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', marginTop: '2px' }}>
+                    🏢 {viewingLead.company}
+                  </div>
+                )}
+                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {renderLeadStatusBadge(viewingLead.status)}
+                  {renderLeadSourceBadge(viewingLead.source)}
+                </div>
+              </div>
+
+              {viewingLead.value && (
+                <div
+                  style={{
+                    padding: '0.5rem 0.95rem',
+                    borderRadius: '8px',
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    textAlign: 'right',
+                  }}
+                >
+                  <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#047857', textTransform: 'uppercase' }}>
+                    Estimated Deal Value
+                  </div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>
+                    {formatLeadValue(viewingLead.value)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Information Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '0.85rem',
+              }}
+            >
+              <div style={{ padding: '0.75rem 0.95rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', display: 'block' }}>
+                  Email Address
+                </span>
+                <a
+                  href={`mailto:${viewingLead.email}`}
+                  style={{ fontSize: '0.86rem', fontWeight: 600, color: '#2563eb', textDecoration: 'none', wordBreak: 'break-all' }}
+                >
+                  ✉️ {viewingLead.email}
+                </a>
+              </div>
+
+              <div style={{ padding: '0.75rem 0.95rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', display: 'block' }}>
+                  Phone Number
+                </span>
+                {viewingLead.phone ? (
+                  <a
+                    href={`tel:${viewingLead.phone}`}
+                    style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0f172a', textDecoration: 'none' }}
+                  >
+                    📞 {viewingLead.phone}
+                  </a>
+                ) : (
+                  <span style={{ fontSize: '0.84rem', color: '#94a3b8' }}>Not provided</span>
+                )}
+              </div>
+
+              <div style={{ padding: '0.75rem 0.95rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', display: 'block' }}>
+                  Assigned Representative
+                </span>
+                <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0284c7' }}>
+                  👤 {viewingLead.assignedTo || 'Unassigned'}
+                </span>
+              </div>
+
+              <div style={{ padding: '0.75rem 0.95rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', display: 'block' }}>
+                  Capture Date
+                </span>
+                <span style={{ fontSize: '0.86rem', fontWeight: 600, color: '#334155' }}>
+                  📅 {viewingLead.date}
+                </span>
+              </div>
+            </div>
+
+            {/* Customer Requirement / Notes Section */}
+            <div
+              style={{
+                padding: '0.9rem 1rem',
+                borderRadius: '8px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span>📝</span> Customer Requirement &amp; Discussion Scope
+              </div>
+              <div
+                style={{
+                  fontSize: '0.85rem',
+                  color: viewingLead.requirements ? '#334155' : '#94a3b8',
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {viewingLead.requirements || 'No specific requirements or notes entered yet for this lead.'}
+              </div>
+            </div>
+
+            {/* Action Buttons Bar */}
+            <div
+              style={{
+                borderTop: '1px solid #e2e8f0',
+                paddingTop: '1rem',
+                marginTop: '0.25rem',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '0.75rem',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setViewingLead(null)}
+                style={{
+                  padding: '0.55rem 1.15rem',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+
+              {canPerformAction('leads') && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                  {viewingLead.status === 'WON' ? (
+                    <div
+                      style={{
+                        padding: '0.45rem 0.95rem',
+                        borderRadius: '6px',
+                        background: '#dcfce7',
+                        color: '#15803d',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      <span>🏆</span> Converted to Customer
+                    </div>
+                  ) : (
+                    <>
+                      {/* Button 1: Mark as Contacted / In Discussion */}
+                      {viewingLead.status !== 'CONTACTED' && (
+                        <button
+                          type="button"
+                          disabled={updatingLeadId === viewingLead.id}
+                          onClick={() => handleLeadStatusChange(viewingLead.id, 'CONTACTED')}
+                          style={{
+                            padding: '0.55rem 0.95rem',
+                            borderRadius: '6px',
+                            border: '1px solid #ddd6fe',
+                            background: '#f5f3ff',
+                            color: '#6d28d9',
+                            fontWeight: 700,
+                            fontSize: '0.82rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                          }}
+                          title="Mark lead as spoken with / contacted"
+                        >
+                          <span>📞</span> In Discussion
+                        </button>
+                      )}
+
+                      {/* Button 2: Reject Lead (Customer Refused) */}
+                      {viewingLead.status !== 'LOST' && (
+                        <button
+                          type="button"
+                          disabled={updatingLeadId === viewingLead.id}
+                          onClick={() => handleLeadStatusChange(viewingLead.id, 'LOST')}
+                          style={{
+                            padding: '0.55rem 0.95rem',
+                            borderRadius: '6px',
+                            border: '1px solid #fecaca',
+                            background: '#fef2f2',
+                            color: '#b91c1c',
+                            fontWeight: 700,
+                            fontSize: '0.82rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                          }}
+                          title="Customer refused or lead is unqualified"
+                        >
+                          <span>❌</span> Reject Lead
+                        </button>
+                      )}
+
+                      {/* Button 3: Approve & Open Convert Modal */}
+                      <button
+                        type="button"
+                        onClick={() => handleApproveAndConvert(viewingLead)}
+                        style={{
+                          padding: '0.55rem 1.15rem',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                          color: '#ffffff',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
+                        }}
+                        title="Approve this lead and convert to official Customer"
+                      >
+                        <span>✓</span> Approve &amp; Convert 🏢
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ------------------------------------------------------------- */}
