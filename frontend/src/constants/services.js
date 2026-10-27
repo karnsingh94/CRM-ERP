@@ -16,10 +16,10 @@ export const CORE_SERVICES = [
         name: 'CRM Management',
         icon: 'IconUsers',
         subModules: [
-          { code: 'leads', name: 'Leads Pipeline', route: '/crm/leads' },
-          { code: 'customers', name: 'Customer Directory', route: '/crm/customers' },
-          { code: 'contacts', name: 'Contact Persons', route: '/crm/contacts' },
-          { code: 'opportunities', name: 'Deal Opportunities', route: '/crm/opportunities' },
+          { code: 'crm_leads', name: 'Leads Pipeline', route: '/crm/leads', alias: 'leads' },
+          { code: 'crm_customers', name: 'Customer Directory', route: '/crm/customers', alias: 'customers' },
+          { code: 'crm_contacts', name: 'Contact Persons', route: '/crm/contacts', alias: 'contacts' },
+          { code: 'crm_followups', name: 'Deal Opportunities', route: '/crm/opportunities', alias: 'opportunities' },
         ],
       },
       {
@@ -27,9 +27,9 @@ export const CORE_SERVICES = [
         name: 'Products & Catalogue',
         icon: 'IconBox',
         subModules: [
-          { code: 'product_list', name: 'Product Directory', route: '/products' },
+          { code: 'product_master', name: 'Product Directory', route: '/products', alias: 'product_list' },
           { code: 'categories', name: 'Categories & Types', route: '/products/categories' },
-          { code: 'price_list', name: 'Price Management', route: '/products/pricing' },
+          { code: 'price_management', name: 'Price Management', route: '/products/pricing', alias: 'price_list' },
         ],
       },
       {
@@ -37,9 +37,10 @@ export const CORE_SERVICES = [
         name: 'Sales Operations',
         icon: 'IconShoppingBag',
         subModules: [
-          { code: 'quotations', name: 'Quotations', route: '/sales/quotations' },
-          { code: 'proforma_invoice', name: 'Proforma Invoices (PI)', route: '/sales/proforma' },
+          { code: 'sales_quotations', name: 'Quotations', route: '/sales/quotations', alias: 'quotations' },
+          { code: 'sales_proforma_invoices', name: 'Proforma Invoices (PI)', route: '/sales/proforma', alias: 'proforma_invoice' },
           { code: 'sales_orders', name: 'Sales Orders', route: '/sales/orders' },
+          { code: 'sales_reports', name: 'Sales Reports', route: '/sales/reports' },
         ],
       },
     ],
@@ -57,7 +58,7 @@ export const CORE_SERVICES = [
         icon: 'IconUsers',
         subModules: [
           { code: 'vendor_master', name: 'Vendor Directory', route: '/vendors' },
-          { code: 'vendor_eval', name: 'Supplier Ratings', route: '/vendors/evaluation' },
+          { code: 'vendor_documents', name: 'Supplier Documents', route: '/vendors/evaluation', alias: 'vendor_eval' },
         ],
       },
       {
@@ -65,8 +66,9 @@ export const CORE_SERVICES = [
         name: 'Procurement & Orders',
         icon: 'IconFileText',
         subModules: [
-          { code: 'purchase_requests', name: 'Purchase Requests', route: '/procurement/requests' },
-          { code: 'rfq', name: 'Request for Quotation (RFQ)', route: '/procurement/rfq' },
+          { code: 'procurement_requests', name: 'Purchase Requests', route: '/procurement/requests', alias: 'purchase_requests' },
+          { code: 'supplier_quotations', name: 'Supplier Quotations (RFQ)', route: '/procurement/rfq', alias: 'rfq' },
+          { code: 'quotation_comparison', name: 'Quotation Comparison', route: '/procurement/comparison' },
           { code: 'purchase_orders', name: 'Purchase Orders (PO)', route: '/procurement/orders' },
         ],
       },
@@ -75,8 +77,9 @@ export const CORE_SERVICES = [
         name: 'Goods Receipt Note (GRN)',
         icon: 'IconClipboardCheck',
         subModules: [
-          { code: 'grn_list', name: 'Inward Receipts', route: '/grn' },
-          { code: 'quality_inspection', name: 'Quality Inspection (QC)', route: '/grn/inspection' },
+          { code: 'grn_receipts', name: 'Goods Receipt Notes', route: '/grn', alias: 'grn_list' },
+          { code: 'grn_inspection', name: 'Quality Inspection (QC)', route: '/grn/inspection', alias: 'quality_inspection' },
+          { code: 'grn_deviation', name: 'Discrepancy / Deviations', route: '/grn/deviation' },
         ],
       },
     ],
@@ -89,14 +92,15 @@ export const CORE_SERVICES = [
     description: 'Stock Management, Warehouses, Stock Adjustments, Movements & Gate Passes',
     modules: [
       {
-        code: 'inventory_mgmt',
+        code: 'inventory_warehouse_mod',
+        alias: 'inventory_mgmt',
         name: 'Inventory & Stock',
         icon: 'IconLayers',
         subModules: [
-          { code: 'stock_summary', name: 'Stock Overview', route: '/inventory' },
-          { code: 'warehouse_locations', name: 'Warehouse Locations', route: '/inventory/warehouses' },
-          { code: 'stock_adjustments', name: 'Stock Adjustments', route: '/inventory/adjustments' },
-          { code: 'movements', name: 'Stock Movement Ledger', route: '/inventory/movements' },
+          { code: 'stock_current', name: 'Current Stock', route: '/inventory/stock', alias: 'stock_summary' },
+          { code: 'stock_transfers', name: 'Stock Transfers', route: '/inventory/transfers', alias: 'stock_adjustments' },
+          { code: 'bin_locations', name: 'Bin Locations', route: '/inventory/bins', alias: 'warehouse_locations' },
+          { code: 'stock_valuations', name: 'Stock Valuations', route: '/inventory/valuations', alias: 'movements' },
         ],
       },
       {
@@ -104,9 +108,9 @@ export const CORE_SERVICES = [
         name: 'Gate Pass Management',
         icon: 'IconShield',
         subModules: [
-          { code: 'inward_pass', name: 'Inward Gate Passes', route: '/gate-pass/inward' },
-          { code: 'outward_pass', name: 'Outward Gate Passes', route: '/gate-pass/outward' },
-          { code: 'returnable_tracking', name: 'Returnable Asset Tracking', route: '/gate-pass/returnable' },
+          { code: 'gate_pass_inward', name: 'Inward Gate Pass', route: '/gate-pass/inward', alias: 'inward_pass' },
+          { code: 'gate_pass_outward', name: 'Outward Gate Pass', route: '/gate-pass/outward', alias: 'outward_pass' },
+          { code: 'gate_pass_register', name: 'Gate Pass Register', route: '/gate-pass/register', alias: 'returnable_tracking' },
         ],
       },
     ],
@@ -119,12 +123,14 @@ export const CORE_SERVICES = [
     description: 'Bill of Materials (BOM), Production Orders, Batch Tracking & Work Orders',
     modules: [
       {
-        code: 'bom',
+        code: 'formula_bom',
+        alias: 'bom',
         name: 'Formula / BOM',
         icon: 'IconLayers',
         subModules: [
-          { code: 'bom_list', name: 'Bill of Materials', route: '/bom' },
-          { code: 'costing', name: 'Recipe Cost Estimator', route: '/bom/costing' },
+          { code: 'bom_master', name: 'Bill of Materials (BOM)', route: '/bom', alias: 'bom_list' },
+          { code: 'formulation_recipes', name: 'Formulation Recipes', route: '/bom/costing', alias: 'costing' },
+          { code: 'manufacturing_routing', name: 'Standard Routing', route: '/manufacturing/routing' },
         ],
       },
       {
@@ -132,9 +138,10 @@ export const CORE_SERVICES = [
         name: 'Production Operations',
         icon: 'IconActivity',
         subModules: [
-          { code: 'production_orders', name: 'Production Orders', route: '/production/orders' },
-          { code: 'work_orders', name: 'Shopfloor Work Orders', route: '/production/work-orders' },
-          { code: 'material_consumption', name: 'Material Consumption', route: '/production/consumption' },
+          { code: 'production_work_orders', name: 'Work Orders', route: '/production/work-orders', alias: 'work_orders' },
+          { code: 'production_batching', name: 'Production Batching', route: '/production/orders', alias: 'production_orders' },
+          { code: 'yield_tracking', name: 'Yield Tracking', route: '/production/consumption', alias: 'material_consumption' },
+          { code: 'machine_logs', name: 'Machine Logs', route: '/production/machines' },
         ],
       },
     ],
@@ -151,8 +158,9 @@ export const CORE_SERVICES = [
         name: 'Dispatch Orders',
         icon: 'IconTruck',
         subModules: [
-          { code: 'dispatch_orders', name: 'Dispatch Queue', route: '/dispatch' },
-          { code: 'packing_slips', name: 'Delivery Challans & Packing', route: '/dispatch/challans' },
+          { code: 'dispatch_planning', name: 'Dispatch Planning', route: '/dispatch', alias: 'dispatch_orders' },
+          { code: 'delivery_challans', name: 'Delivery Challans', route: '/dispatch/challans', alias: 'packing_slips' },
+          { code: 'shipment_tracking', name: 'Shipment Tracking', route: '/dispatch/tracking' },
         ],
       },
       {
@@ -160,8 +168,9 @@ export const CORE_SERVICES = [
         name: 'Customer Returns (RMA)',
         icon: 'IconCornerDownLeft',
         subModules: [
-          { code: 'sales_returns', name: 'Return Authorizations', route: '/returns' },
-          { code: 'credit_notes', name: 'Return Stock Restocking', route: '/returns/restock' },
+          { code: 'customer_returns', name: 'Customer Returns', route: '/returns', alias: 'sales_returns' },
+          { code: 'supplier_returns', name: 'Supplier Returns', route: '/returns/restock', alias: 'credit_notes' },
+          { code: 'rma_management', name: 'RMA Management', route: '/returns/rma' },
         ],
       },
     ],
@@ -174,14 +183,16 @@ export const CORE_SERVICES = [
     description: 'Sales Invoicing, Vendor Bills, Payment Vouchers, Bank Entries & Receivables',
     modules: [
       {
-        code: 'accounts_banking',
+        code: 'accounts_banking_mod',
+        alias: 'accounts_banking',
         name: 'Financial Ledger',
         icon: 'IconCreditCard',
         subModules: [
-          { code: 'invoices', name: 'Tax Invoices', route: '/accounts/invoices' },
-          { code: 'bills', name: 'Vendor Bills', route: '/accounts/bills' },
-          { code: 'payments', name: 'Payment Receipts', route: '/accounts/payments' },
-          { code: 'receivables_payables', name: 'Receivables & Payables', route: '/accounts/ledger' },
+          { code: 'accounts_invoicing', name: 'Invoicing', route: '/accounts/invoices', alias: 'invoices' },
+          { code: 'credit_debit_notes', name: 'Credit & Debit Notes', route: '/accounts/bills', alias: 'bills' },
+          { code: 'general_ledger', name: 'General Ledger', route: '/accounts/ledger', alias: 'receivables_payables' },
+          { code: 'chart_of_accounts', name: 'Chart of Accounts', route: '/accounts/coa' },
+          { code: 'bank_reconciliation', name: 'Bank Reconciliation', route: '/accounts/payments', alias: 'payments' },
         ],
       },
     ],
@@ -194,13 +205,14 @@ export const CORE_SERVICES = [
     description: 'Internal Company Staff Management, Department Roles & Access Scopes',
     modules: [
       {
-        code: 'permission_controls',
+        code: 'system_control',
+        alias: 'permission_controls',
         name: 'Company Team & Access',
         icon: 'IconUsers',
         subModules: [
-          { code: 'team_users', name: 'Company Employees', route: '/team' },
-          { code: 'role_assignment', name: 'Department Roles', route: '/team/roles' },
-          { code: 'audit_trail', name: 'Activity Audit Trail', route: '/team/audit' },
+          { code: 'rbac_configuration', name: 'RBAC Configuration', route: '/team', alias: 'team_users' },
+          { code: 'global_feature_toggles', name: 'Global Feature Toggles', route: '/team/roles', alias: 'role_assignment' },
+          { code: 'security_profiles', name: 'Security Profiles', route: '/team/audit', alias: 'audit_trail' },
         ],
       },
     ],

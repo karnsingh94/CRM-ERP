@@ -1,4 +1,5 @@
 import prisma from '../../src/config/prisma.js';
+import { signToken } from '../../src/utils/token.js';
 
 const API_BASE = process.env.API_BASE || 'http://127.0.0.1:5000/api';
 
@@ -43,6 +44,24 @@ async function runActivationTests() {
   const crmModuleId = crmModule.id.toString();
   const leadsId = leadsSubModule.id.toString();
 
+  const superAdmin = await prisma.superAdmin.findFirst();
+  const superAdminToken = signToken({ id: superAdmin?.id || '75a4858f-cea5-11f1-9511-b05cda618678', role: 'SUPER_ADMIN' });
+  const superAdminHeaders = {
+    Authorization: `Bearer ${superAdminToken}`,
+    'Content-Type': 'application/json',
+  };
+
+  const companyToken = signToken({
+    userId: companyId,
+    companyId,
+    role: 'COMPANY_ADMIN',
+    type: 'COMPANY_USER',
+  });
+  const companyHeaders = {
+    Authorization: `Bearer ${companyToken}`,
+    'Content-Type': 'application/json',
+  };
+
   try {
     // -------------------------------------------------------------------------
     // SCENARIO 1: Keep CRM & Sales ACTIVE
@@ -65,7 +84,7 @@ async function runActivationTests() {
     // SCENARIO 3: Deactivate ONLY Leads via Super Admin API
     // -------------------------------------------------------------------------
     console.log('--- SCENARIO 3: Deactivate Leads via API ---');
-    const toggleRes = await fetch(`${API_BASE}/sub-modules/${leadsId}/status`, { method: 'PATCH' });
+    const toggleRes = await fetch(`${API_BASE}/sub-modules/${leadsId}/status`, { method: 'PATCH', headers: superAdminHeaders });
     const toggleJson = await toggleRes.json();
     if (toggleJson.success && toggleJson.data.status === 'INACTIVE') {
       console.log('✅ SCENARIO 3 PASSED: Submodule status toggle API returned 200 with status INACTIVE.');
@@ -90,7 +109,7 @@ async function runActivationTests() {
     // SCENARIO 5: Client-facing module/navigation API excludes Leads
     // -------------------------------------------------------------------------
     console.log('--- SCENARIO 5: Verify Company Admin navigation API excludes Leads ---');
-    const clientRes = await fetch(`${API_BASE}/clients/${companyId}`);
+    const clientRes = await fetch(`${API_BASE}/clients/${companyId}`, { headers: superAdminHeaders });
     const clientJson = await clientRes.json();
     const srvAccess = (clientJson.data?.access?.services || []).find(s => s.serviceId === crmServiceId);
     const modAccess = (srvAccess?.modules || []).find(m => m.moduleId === crmModuleId);
@@ -108,7 +127,7 @@ async function runActivationTests() {
     // SCENARIO 6: Assigned-services API also omits Leads
     // -------------------------------------------------------------------------
     console.log('--- SCENARIO 6: Verify assigned-services API omits inactive Leads ---');
-    const assignedRes = await fetch(`${API_BASE}/companies/${companyId}/assigned-services`);
+    const assignedRes = await fetch(`${API_BASE}/companies/${companyId}/assigned-services`, { headers: companyHeaders });
     const assignedJson = await assignedRes.json();
     const assignedCrm = (assignedJson.data || []).find(s => s.id === crmServiceId);
     const assignedMod = (assignedCrm?.modules || []).find(m => m.id === crmModuleId);
@@ -139,10 +158,10 @@ async function runActivationTests() {
     // SCENARIO 8: Direct API requests to /crm/leads are rejected with 403
     // -------------------------------------------------------------------------
     console.log('--- SCENARIO 8: Direct API requests to /crm/leads are rejected with 403 ---');
-    const leadsApiRes = await fetch(`${API_BASE}/companies/${companyId}/crm/leads`);
+    const leadsApiRes = await fetch(`${API_BASE}/companies/${companyId}/crm/leads`, { headers: companyHeaders });
     const leadsApiJson = await leadsApiRes.json();
 
-    const customersApiRes = await fetch(`${API_BASE}/companies/${companyId}/crm/customers`);
+    const customersApiRes = await fetch(`${API_BASE}/companies/${companyId}/crm/customers`, { headers: companyHeaders });
     const customersApiJson = await customersApiRes.json();
 
     if (leadsApiRes.status === 403 && leadsApiJson.code === 'SUBMODULE_INACTIVE' && customersApiRes.status === 200) {
@@ -156,10 +175,10 @@ async function runActivationTests() {
     // SCENARIO 9: Reactivate Leads and verify availability returns
     // -------------------------------------------------------------------------
     console.log('--- SCENARIO 9: Reactivate Leads and verify availability returns ---');
-    const reactivateRes = await fetch(`${API_BASE}/sub-modules/${leadsId}/status`, { method: 'PATCH' });
+    const reactivateRes = await fetch(`${API_BASE}/sub-modules/${leadsId}/status`, { method: 'PATCH', headers: superAdminHeaders });
     const reactivateJson = await reactivateRes.json();
 
-    const clientRes9 = await fetch(`${API_BASE}/clients/${companyId}`);
+    const clientRes9 = await fetch(`${API_BASE}/clients/${companyId}`, { headers: superAdminHeaders });
     const clientJson9 = await clientRes9.json();
     const srvAccess9 = (clientJson9.data?.access?.services || []).find(s => s.serviceId === crmServiceId);
     const modAccess9 = (srvAccess9?.modules || []).find(m => m.moduleId === crmModuleId);
@@ -178,14 +197,14 @@ async function runActivationTests() {
     console.log('--- SCENARIO 10: Service and module level deactivations remain intact ---');
     // Toggle module to inactive
     await prisma.module.update({ where: { id: crmModule.id }, data: { status: 'INACTIVE' } });
-    const clientRes10a = await fetch(`${API_BASE}/clients/${companyId}`);
+    const clientRes10a = await fetch(`${API_BASE}/clients/${companyId}`, { headers: superAdminHeaders });
     const clientJson10a = await clientRes10a.json();
     const srv10a = (clientJson10a.data?.access?.services || []).find(s => s.serviceId === crmServiceId);
     const mod10a = (srv10a?.modules || []).some(m => m.moduleId === crmModuleId);
 
     // Toggle service to inactive
     await prisma.service.update({ where: { id: crmService.id }, data: { status: 'INACTIVE' } });
-    const deptRes = await fetch(`${API_BASE}/companies/${companyId}/services/crm_sales/departments`);
+    const deptRes = await fetch(`${API_BASE}/companies/${companyId}/crm/customers`, { headers: companyHeaders });
     const deptJson = await deptRes.json();
 
     if (!mod10a && deptRes.status === 403 && deptJson.code === 'SERVICE_INACTIVE') {

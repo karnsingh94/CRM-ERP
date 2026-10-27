@@ -144,32 +144,40 @@ export const crmLeadService = {
     const existing = await prisma.lead.findFirst({ where: { id: leadId, companyId } });
     if (!existing) throw leadError('Lead not found for this company.', 404);
 
-    const companyName = String(data.companyName || existing.company || existing.name || '').trim();
-    if (!companyName) throw leadError('Company / Account name is required to convert lead to customer.', 400);
+    let customer;
+    if (data?.existingCustomerId) {
+      customer = await prisma.crmCustomer.findFirst({
+        where: { id: String(data.existingCustomerId), companyId },
+      });
+      if (!customer) throw leadError('Selected customer not found.', 404);
+    } else {
+      const companyName = String(data.companyName || existing.company || existing.name || '').trim();
+      if (!companyName) throw leadError('Company / Account name is required to convert lead to customer.', 400);
 
-    const contactPerson = data.contactPerson !== undefined ? String(data.contactPerson).trim() : existing.name;
-    const email = data.email !== undefined ? String(data.email).trim() : existing.email;
-    const phone = data.phone !== undefined ? String(data.phone).trim() : (existing.phone || null);
-    const gstin = data.gstin ? String(data.gstin).trim() : null;
-    const industry = data.industry ? String(data.industry).trim() : 'Technology & IT';
-    const requirements = data.requirements !== undefined ? String(data.requirements).trim() : (existing.requirements || null);
-    const assignedTo = data.assignedTo !== undefined ? String(data.assignedTo).trim() : (existing.assignedTo || null);
+      const contactPerson = data.contactPerson !== undefined ? String(data.contactPerson).trim() : existing.name;
+      const email = data.email !== undefined ? String(data.email).trim() : existing.email;
+      const phone = data.phone !== undefined ? String(data.phone).trim() : (existing.phone || null);
+      const gstin = data.gstin ? String(data.gstin).trim() : null;
+      const industry = data.industry ? String(data.industry).trim() : 'Technology & IT';
+      const requirements = data.requirements !== undefined ? String(data.requirements).trim() : (existing.requirements || null);
+      const assignedTo = data.assignedTo !== undefined ? String(data.assignedTo).trim() : (existing.assignedTo || null);
 
-    // 1. Create Customer
-    const customer = await prisma.crmCustomer.create({
-      data: {
-        companyId,
-        companyName,
-        contactPerson: contactPerson || null,
-        email: email || '',
-        phone: phone || null,
-        gstin: gstin || null,
-        industry: industry || 'Technology & IT',
-        requirements: requirements || null,
-        assignedTo: assignedTo || null,
-        status: 'ACTIVE',
-      },
-    });
+      // 1. Create Customer
+      customer = await prisma.crmCustomer.create({
+        data: {
+          companyId,
+          companyName,
+          contactPerson: contactPerson || null,
+          email: email || '',
+          phone: phone || null,
+          gstin: gstin || null,
+          industry: industry || 'Technology & IT',
+          requirements: requirements || null,
+          assignedTo: assignedTo || null,
+          status: 'ACTIVE',
+        },
+      });
+    }
 
     // 2. Update lead status to WON
     const updatedLead = await prisma.lead.update({

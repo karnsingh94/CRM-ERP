@@ -2,7 +2,9 @@ import prisma from '../../src/config/prisma.js';
 import { signToken } from '../../src/utils/token.js';
 
 const BASE_URL = process.env.API_BASE || 'http://localhost:5000/api';
-const TEST_AUTHORIZATION = `Bearer ${signToken({ id: 'integration-test', role: 'SUPER_ADMIN' })}`;
+let superAdmin = await prisma.superAdmin.findFirst();
+const adminId = superAdmin?.id || '75a4858f-cea5-11f1-9511-b05cda618678';
+const TEST_AUTHORIZATION = `Bearer ${signToken({ id: adminId, role: 'SUPER_ADMIN' })}`;
 
 function authenticatedFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
