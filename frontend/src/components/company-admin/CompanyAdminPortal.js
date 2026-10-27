@@ -614,10 +614,59 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       case 'inventory_warehouse':
         if (subModuleCode === 'gate_pass') {
           if (!hasModuleAccess('gate_pass')) return renderModuleRestricted('Gate Pass Operations');
-          return <GatePassModule key="module-gate-pass" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+          if (
+            (pathname === '/gate-pass/inward' || initialSubTab === 'inward') &&
+            !hasSubModuleAccess('gate_pass_inward') &&
+            !hasSubModuleAccess('/gate-pass/inward')
+          ) {
+            return renderFeatureRestricted('Inward Gate Pass');
+          }
+          if (
+            (pathname === '/gate-pass/outward' || initialSubTab === 'outward') &&
+            !hasSubModuleAccess('gate_pass_outward') &&
+            !hasSubModuleAccess('/gate-pass/outward')
+          ) {
+            return renderFeatureRestricted('Outward Gate Pass');
+          }
+          if (
+            (pathname === '/gate-pass/register' || initialSubTab === 'register') &&
+            !hasSubModuleAccess('gate_pass_register') &&
+            !hasSubModuleAccess('/gate-pass/register')
+          ) {
+            return renderFeatureRestricted('Gate Pass Register');
+          }
+          return <GatePassModule key="module-gate-pass" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} />;
         }
         if (!hasModuleAccess('inventory')) return renderModuleRestricted('Inventory & Warehouse');
-        return <InventoryModule key="module-inventory" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        if (
+          (pathname === '/inventory/stock' || initialSubTab === 'stock') &&
+          !hasSubModuleAccess('stock_current') &&
+          !hasSubModuleAccess('/inventory/stock')
+        ) {
+          return renderFeatureRestricted('Current Stock');
+        }
+        if (
+          (pathname === '/inventory/transfers' || initialSubTab === 'transfers') &&
+          !hasSubModuleAccess('stock_transfers') &&
+          !hasSubModuleAccess('/inventory/transfers')
+        ) {
+          return renderFeatureRestricted('Stock Transfers');
+        }
+        if (
+          (pathname === '/inventory/bins' || initialSubTab === 'bins') &&
+          !hasSubModuleAccess('bin_locations') &&
+          !hasSubModuleAccess('/inventory/bins')
+        ) {
+          return renderFeatureRestricted('Bin Locations');
+        }
+        if (
+          (pathname === '/inventory/valuations' || initialSubTab === 'valuations') &&
+          !hasSubModuleAccess('stock_valuations') &&
+          !hasSubModuleAccess('/inventory/valuations')
+        ) {
+          return renderFeatureRestricted('Stock Valuations');
+        }
+        return <InventoryModule key="module-inventory" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} />;
 
       case 'manufacturing_production':
         if (!hasModuleAccess('production') && !hasModuleAccess('manufacturing')) return renderModuleRestricted('Manufacturing & Production');

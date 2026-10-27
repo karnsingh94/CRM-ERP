@@ -1,4 +1,11 @@
 import crmCoreService from '../services/crm-core.service.js';
+import customerController from './crm/customer.controller.js';
+import contactController from './crm/contact.controller.js';
+import opportunityController from './crm/opportunity.controller.js';
+import productController from './crm/product.controller.js';
+import quotationController from './sales/quotation.controller.js';
+import salesOrderController from './sales/sales-order.controller.js';
+import proformaController from './sales/proforma.controller.js';
 
 function respondError(error, res, next) {
   if (error.statusCode) {
@@ -11,213 +18,49 @@ function respondError(error, res, next) {
 }
 
 export const crmCoreController = {
-  // Customers
-  async listCustomers(req, res, next) {
-    try {
-      const data = await crmCoreService.listCustomers(String(req.params.companyId));
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async createCustomer(req, res, next) {
-    try {
-      const data = await crmCoreService.createCustomer(String(req.params.companyId), req.body || {});
-      res.status(201).json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async updateCustomer(req, res, next) {
-    try {
-      const data = await crmCoreService.updateCustomer(
-        String(req.params.companyId),
-        String(req.params.customerId),
-        req.body || {}
-      );
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async removeCustomer(req, res, next) {
-    try {
-      await crmCoreService.removeCustomer(String(req.params.companyId), req.params.customerId);
-      res.json({ success: true, message: 'Customer deleted.' });
-    } catch (err) { respondError(err, res, next); }
-  },
+  // CRM Customer delegation
+  listCustomers: customerController.list,
+  createCustomer: customerController.create,
+  updateCustomer: customerController.update,
+  removeCustomer: customerController.remove,
 
-  // Contacts
-  async listContacts(req, res, next) {
-    try {
-      const data = await crmCoreService.listContacts(String(req.params.companyId));
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async createContact(req, res, next) {
-    try {
-      const data = await crmCoreService.createContact(String(req.params.companyId), req.body || {});
-      res.status(201).json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async updateContact(req, res, next) {
-    try {
-      const data = await crmCoreService.updateContact(
-        String(req.params.companyId),
-        String(req.params.contactId),
-        req.body || {}
-      );
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async removeContact(req, res, next) {
-    try {
-      await crmCoreService.removeContact(String(req.params.companyId), req.params.contactId);
-      res.json({ success: true, message: 'Contact deleted.' });
-    } catch (err) { respondError(err, res, next); }
-  },
+  // CRM Contact delegation
+  listContacts: contactController.list,
+  createContact: contactController.create,
+  updateContact: contactController.update,
+  removeContact: contactController.remove,
 
-  // Opportunities
-  async listOpportunities(req, res, next) {
-    try {
-      const data = await crmCoreService.listOpportunities(String(req.params.companyId));
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async createOpportunity(req, res, next) {
-    try {
-      const data = await crmCoreService.createOpportunity(String(req.params.companyId), req.body || {});
-      res.status(201).json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async updateOpportunity(req, res, next) {
-    try {
-      const data = await crmCoreService.updateOpportunity(String(req.params.companyId), req.params.opportunityId, req.body || {});
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async removeOpportunity(req, res, next) {
-    try {
-      await crmCoreService.removeOpportunity(String(req.params.companyId), req.params.opportunityId);
-      res.json({ success: true, message: 'Opportunity deleted.' });
-    } catch (err) { respondError(err, res, next); }
-  },
+  // CRM Opportunity delegation
+  listOpportunities: opportunityController.list,
+  createOpportunity: opportunityController.create,
+  updateOpportunity: opportunityController.update,
+  removeOpportunity: opportunityController.remove,
 
-  // Products
-  async listProducts(req, res, next) {
-    try {
-      const data = await crmCoreService.listProducts(String(req.params.companyId));
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async createProduct(req, res, next) {
-    try {
-      const data = await crmCoreService.createProduct(String(req.params.companyId), req.body || {});
-      res.status(201).json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async removeProduct(req, res, next) {
-    try {
-      await crmCoreService.removeProduct(String(req.params.companyId), req.params.productId);
-      res.json({ success: true, message: 'Product deleted.' });
-    } catch (err) { respondError(err, res, next); }
-  },
+  // Product delegation
+  listProducts: productController.list,
+  createProduct: productController.create,
+  removeProduct: productController.remove,
 
-  // Sales Orders
-  async listSalesOrders(req, res, next) {
-    try {
-      const data = await crmCoreService.listSalesOrders(String(req.params.companyId));
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async createSalesOrder(req, res, next) {
-    try {
-      const data = await crmCoreService.createSalesOrder(String(req.params.companyId), req.body || {});
-      res.status(201).json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async updateSalesOrderStatus(req, res, next) {
-    try {
-      const data = await crmCoreService.updateSalesOrderStatus(
-        String(req.params.companyId),
-        req.params.orderId,
-        req.body?.status,
-        req.body?.paymentStatus
-      );
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async removeSalesOrder(req, res, next) {
-    try {
-      await crmCoreService.removeSalesOrder(String(req.params.companyId), req.params.orderId);
-      res.json({ success: true, message: 'Sales order deleted.' });
-    } catch (err) { respondError(err, res, next); }
-  },
+  // Sales Order delegation
+  listSalesOrders: salesOrderController.list,
+  createSalesOrder: salesOrderController.create,
+  updateSalesOrderStatus: salesOrderController.updateStatus,
+  removeSalesOrder: salesOrderController.remove,
 
-  // Quotations
-  async listQuotations(req, res, next) {
-    try {
-      const data = await crmCoreService.listQuotations(String(req.params.companyId));
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async createQuotation(req, res, next) {
-    try {
-      const data = await crmCoreService.createQuotation(String(req.params.companyId), req.body || {});
-      res.status(201).json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async updateQuotationStatus(req, res, next) {
-    try {
-      const data = await crmCoreService.updateQuotationStatus(
-        String(req.params.companyId),
-        req.params.quoteId,
-        req.body?.status
-      );
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async convertQuotationToOrder(req, res, next) {
-    try {
-      const data = await crmCoreService.convertQuotationToOrder(
-        String(req.params.companyId),
-        req.params.quoteId
-      );
-      res.status(201).json({ success: true, data, message: 'Quotation successfully converted to Sales Order!' });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async removeQuotation(req, res, next) {
-    try {
-      await crmCoreService.removeQuotation(String(req.params.companyId), req.params.quoteId);
-      res.json({ success: true, message: 'Quotation deleted.' });
-    } catch (err) { respondError(err, res, next); }
-  },
+  // Sales Quotation delegation
+  listQuotations: quotationController.list,
+  createQuotation: quotationController.create,
+  updateQuotationStatus: quotationController.updateStatus,
+  convertQuotationToOrder: quotationController.convertToOrder,
+  removeQuotation: quotationController.remove,
 
-  // Proforma
-  async listProformas(req, res, next) {
-    try {
-      const data = await crmCoreService.listProformas(String(req.params.companyId));
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async createProforma(req, res, next) {
-    try {
-      const data = await crmCoreService.createProforma(String(req.params.companyId), req.body || {});
-      res.status(201).json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async updateProformaStatus(req, res, next) {
-    try {
-      const data = await crmCoreService.updateProformaStatus(
-        String(req.params.companyId),
-        req.params.proformaId,
-        req.body?.status
-      );
-      res.json({ success: true, data });
-    } catch (err) { respondError(err, res, next); }
-  },
-  async removeProforma(req, res, next) {
-    try {
-      await crmCoreService.removeProforma(String(req.params.companyId), req.params.proformaId);
-      res.json({ success: true, message: 'Proforma deleted.' });
-    } catch (err) { respondError(err, res, next); }
-  },
+  // Sales Proforma delegation
+  listProformas: proformaController.list,
+  createProforma: proformaController.create,
+  updateProformaStatus: proformaController.updateStatus,
+  removeProforma: proformaController.remove,
 
-  // Vendors
+  // Non-CRM ERP modules (Preserved intact for future activation)
   async listVendors(req, res, next) {
     try {
       const data = await crmCoreService.listVendors(String(req.params.companyId));
@@ -236,8 +79,6 @@ export const crmCoreController = {
       res.json({ success: true, message: 'Vendor deleted.' });
     } catch (err) { respondError(err, res, next); }
   },
-
-  // Inventory Stocks
   async listInventoryStocks(req, res, next) {
     try {
       const data = await crmCoreService.listInventoryStocks(String(req.params.companyId));
@@ -252,7 +93,11 @@ export const crmCoreController = {
   },
   async adjustInventoryStock(req, res, next) {
     try {
-      const data = await crmCoreService.adjustInventoryStock(String(req.params.companyId), req.params.stockId, req.body?.qtyDiff);
+      const data = await crmCoreService.adjustInventoryStock(
+        String(req.params.companyId),
+        String(req.params.stockId),
+        req.body?.qtyDiff
+      );
       res.json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },

@@ -19,89 +19,121 @@ import {
   IconUsers,
 } from '../ui/Icons';
 import { getHierarchyFromPathname } from '@/config/routes.config';
+import { MODULE_ALIASES, SUBMODULE_ALIASES } from '../../hooks/useCompanyAccess';
 
 // Canonical sub-page definitions mapped strictly to each submodule
 const SUBMODULE_PAGES = {
   // 1. CRM & Sales
   crm: [
-    { label: 'Leads Pipeline', href: '/crm/leads' },
-    { label: 'Customers', href: '/crm/customers' },
-    { label: 'Contacts', href: '/crm/contacts' },
-    { label: 'Opportunities', href: '/crm/opportunities' },
+    { label: 'Leads Pipeline', href: '/crm/leads', code: 'crm_leads' },
+    { label: 'Customers', href: '/crm/customers', code: 'crm_customers' },
+    { label: 'Contacts', href: '/crm/contacts', code: 'crm_contacts' },
+    { label: 'Opportunities', href: '/crm/opportunities', code: 'crm_followups' },
   ],
   product: [
-    { label: 'Product Directory', href: '/products' },
-    { label: 'Categories', href: '/products/categories' },
-    { label: 'Pricing & Plans', href: '/products/pricing' },
+    { label: 'Product Directory', href: '/products', code: 'product_master' },
+    { label: 'Categories', href: '/products/categories', code: 'categories' },
+    { label: 'Pricing & Plans', href: '/products/pricing', code: 'price_management' },
   ],
   sales: [
-    { label: 'Sales Orders', href: '/sales/orders' },
-    { label: 'Quotations', href: '/sales/quotations' },
-    { label: 'Proforma Invoices', href: '/sales/proforma' },
+    { label: 'Sales Orders', href: '/sales/orders', code: 'sales_orders' },
+    { label: 'Quotations', href: '/sales/quotations', code: 'sales_quotations' },
+    { label: 'Proforma Invoices', href: '/sales/proforma', code: 'sales_proforma_invoices' },
+    { label: 'Sales Reports', href: '/sales/reports', code: 'sales_reports' },
   ],
 
   // 2. Purchase & Vendor
   vendor: [
-    { label: 'Vendor Directory', href: '/vendors' },
-    { label: 'Supplier Ratings', href: '/vendors/evaluation' },
+    { label: 'Vendor Directory', href: '/vendors', code: 'vendor_master' },
+    { label: 'Supplier Documents', href: '/vendors/evaluation', code: 'vendor_documents' },
   ],
   procurement: [
-    { label: 'Purchase Orders', href: '/procurement/orders' },
-    { label: 'Purchase Requests', href: '/procurement/requests' },
-    { label: 'RFQ & Quotes', href: '/procurement/rfq' },
+    { label: 'Purchase Orders', href: '/procurement/orders', code: 'purchase_orders' },
+    { label: 'Purchase Requests', href: '/procurement/requests', code: 'procurement_requests' },
+    { label: 'RFQ & Quotes', href: '/procurement/rfq', code: 'supplier_quotations' },
+    { label: 'Quotation Comparison', href: '/procurement/comparison', code: 'quotation_comparison' },
   ],
   grn: [
-    { label: 'Goods Receipts', href: '/grn' },
-    { label: 'Quality Inspection', href: '/grn/inspection' },
+    { label: 'Goods Receipts', href: '/grn', code: 'grn_receipts' },
+    { label: 'Quality Inspection', href: '/grn/inspection', code: 'grn_inspection' },
+    { label: 'Discrepancy / Deviations', href: '/grn/deviation', code: 'grn_deviation' },
   ],
 
   // 3. Inventory & Warehouse
+  inventory_warehouse_mod: [
+    { label: 'Current Stock', href: '/inventory/stock', code: 'stock_current' },
+    { label: 'Stock Transfers', href: '/inventory/transfers', code: 'stock_transfers' },
+    { label: 'Bin Locations', href: '/inventory/bins', code: 'bin_locations' },
+    { label: 'Stock Valuations', href: '/inventory/valuations', code: 'stock_valuations' },
+  ],
   inventory_mgmt: [
-    { label: 'Stock Ledger', href: '/inventory' },
-    { label: 'Warehouses & Bins', href: '/inventory/warehouses' },
-    { label: 'Stock Adjustments', href: '/inventory/adjustments' },
-    { label: 'Stock Movements', href: '/inventory/movements' },
+    { label: 'Current Stock', href: '/inventory/stock', code: 'stock_current' },
+    { label: 'Stock Transfers', href: '/inventory/transfers', code: 'stock_transfers' },
+    { label: 'Bin Locations', href: '/inventory/bins', code: 'bin_locations' },
+    { label: 'Stock Valuations', href: '/inventory/valuations', code: 'stock_valuations' },
   ],
   gate_pass: [
-    { label: 'Inward Gate Pass', href: '/gate-pass/inward' },
-    { label: 'Outward Gate Pass', href: '/gate-pass/outward' },
-    { label: 'Returnable Register', href: '/gate-pass/returnable' },
+    { label: 'Inward Gate Pass', href: '/gate-pass/inward', code: 'gate_pass_inward' },
+    { label: 'Outward Gate Pass', href: '/gate-pass/outward', code: 'gate_pass_outward' },
+    { label: 'Gate Pass Register', href: '/gate-pass/register', code: 'gate_pass_register' },
   ],
 
   // 4. Manufacturing & Production
+  formula_bom: [
+    { label: 'BOM Master', href: '/bom', code: 'bom_master' },
+    { label: 'Formulas & Recipes', href: '/bom/costing', code: 'formulation_recipes' },
+    { label: 'Standard Routing', href: '/manufacturing/routing', code: 'manufacturing_routing' },
+  ],
   bom: [
-    { label: 'BOM Master', href: '/bom' },
-    { label: 'Formulas & Costing', href: '/bom/costing' },
+    { label: 'BOM Master', href: '/bom', code: 'bom_master' },
+    { label: 'Formulas & Recipes', href: '/bom/costing', code: 'formulation_recipes' },
+    { label: 'Standard Routing', href: '/manufacturing/routing', code: 'manufacturing_routing' },
   ],
   production: [
-    { label: 'Production Orders', href: '/production/orders' },
-    { label: 'Work Orders', href: '/production/work-orders' },
-    { label: 'Material Consumption', href: '/production/consumption' },
+    { label: 'Work Orders', href: '/production/work-orders', code: 'production_work_orders' },
+    { label: 'Production Batching', href: '/production/orders', code: 'production_batching' },
+    { label: 'Yield Tracking', href: '/production/consumption', code: 'yield_tracking' },
+    { label: 'Machine Logs', href: '/production/machines', code: 'machine_logs' },
   ],
 
   // 5. Dispatch & Returns
   dispatch: [
-    { label: 'Outbound Dispatch', href: '/dispatch' },
-    { label: 'Delivery Challans', href: '/dispatch/challans' },
+    { label: 'Dispatch Planning', href: '/dispatch', code: 'dispatch_planning' },
+    { label: 'Delivery Challans', href: '/dispatch/challans', code: 'delivery_challans' },
+    { label: 'Shipment Tracking', href: '/dispatch/tracking', code: 'shipment_tracking' },
   ],
   returns: [
-    { label: 'Customer Returns', href: '/returns' },
-    { label: 'Supplier Restock', href: '/returns/restock' },
+    { label: 'Customer Returns', href: '/returns', code: 'customer_returns' },
+    { label: 'Supplier Returns', href: '/returns/restock', code: 'supplier_returns' },
+    { label: 'RMA Management', href: '/returns/rma', code: 'rma_management' },
   ],
 
   // 6. Accounts & Banking
+  accounts_banking_mod: [
+    { label: 'Invoicing', href: '/accounts/invoices', code: 'accounts_invoicing' },
+    { label: 'Credit & Debit Notes', href: '/accounts/bills', code: 'credit_debit_notes' },
+    { label: 'General Ledger', href: '/accounts/ledger', code: 'general_ledger' },
+    { label: 'Chart of Accounts', href: '/accounts/coa', code: 'chart_of_accounts' },
+    { label: 'Bank Reconciliation', href: '/accounts/payments', code: 'bank_reconciliation' },
+  ],
   accounts_banking: [
-    { label: 'Sales Invoices', href: '/accounts/invoices' },
-    { label: 'Vendor Bills', href: '/accounts/bills' },
-    { label: 'Payments & Receipts', href: '/accounts/payments' },
-    { label: 'General Ledger', href: '/accounts/ledger' },
+    { label: 'Invoicing', href: '/accounts/invoices', code: 'accounts_invoicing' },
+    { label: 'Credit & Debit Notes', href: '/accounts/bills', code: 'credit_debit_notes' },
+    { label: 'General Ledger', href: '/accounts/ledger', code: 'general_ledger' },
+    { label: 'Chart of Accounts', href: '/accounts/coa', code: 'chart_of_accounts' },
+    { label: 'Bank Reconciliation', href: '/accounts/payments', code: 'bank_reconciliation' },
   ],
 
   // 7. Permission Controls
+  system_control: [
+    { label: 'RBAC Configuration', href: '/team', code: 'rbac_configuration' },
+    { label: 'Global Feature Toggles', href: '/team/roles', code: 'global_feature_toggles' },
+    { label: 'Security Profiles', href: '/team/audit', code: 'security_profiles' },
+  ],
   permission_controls: [
-    { label: 'Team Members', href: '/team' },
-    { label: 'Roles & Permissions', href: '/team/roles' },
-    { label: 'Security Audit', href: '/team/audit' },
+    { label: 'RBAC Configuration', href: '/team', code: 'rbac_configuration' },
+    { label: 'Global Feature Toggles', href: '/team/roles', code: 'global_feature_toggles' },
+    { label: 'Security Profiles', href: '/team/audit', code: 'security_profiles' },
   ],
 };
 
@@ -110,68 +142,58 @@ const normalize = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g,
 function getPagesForModule(mod, hasSubModuleAccess) {
   const allowedSubs = Array.isArray(mod?.subModules) ? mod.subModules : [];
 
+  const modKey = mod?.code;
+  const modAlias = MODULE_ALIASES[modKey] || mod?.alias;
+  const candidatePages = SUBMODULE_PAGES[modKey] || (modAlias && SUBMODULE_PAGES[modAlias]) || [];
+
   const isPagePermitted = (page) => {
     if (typeof hasSubModuleAccess === 'function') {
-      if (hasSubModuleAccess(page.href)) return true;
+      if (page.href && hasSubModuleAccess(page.href)) return true;
       if (page.code && hasSubModuleAccess(page.code)) return true;
     }
     return allowedSubs.some((sub) => {
+      if (sub.isAllowed === false || sub.status === 'INACTIVE') return false;
       if (sub.route && page.href && sub.route.toLowerCase() === page.href.toLowerCase()) return true;
-      if (page.code && sub.code && page.code === sub.code) return true;
+      if (
+        page.code &&
+        sub.code &&
+        (page.code === sub.code ||
+          SUBMODULE_ALIASES[sub.code] === page.code ||
+          SUBMODULE_ALIASES[page.code] === sub.code)
+      ) {
+        return true;
+      }
       if (page.label && sub.name && normalize(page.label) === normalize(sub.name)) return true;
-      if (page.href === '/crm/leads' && (sub.code === 'leads' || sub.code === 'crm_leads')) return true;
-      if (page.href === '/crm/customers' && (sub.code === 'customers' || sub.code === 'crm_customers')) return true;
-      if (page.href === '/crm/contacts' && (sub.code === 'contacts' || sub.code === 'crm_contacts')) return true;
-      if (
-        (page.href === '/crm/opportunities' || page.href === '/crm/followups') &&
-        (sub.code === 'opportunities' || sub.code === 'crm_followups' || sub.code === 'followups')
-      ) return true;
-      // Product & Catalogue matching
-      if (
-        page.href === '/products' &&
-        (sub.code === 'product_master' || sub.code === 'product_list' || sub.code === 'products' || normalize(sub.name) === 'productdirectory' || normalize(sub.name) === 'productmaster')
-      ) return true;
-      if (
-        page.href === '/products/categories' &&
-        (sub.code === 'categories' || sub.code === 'product_categories' || normalize(sub.name).includes('categor'))
-      ) return true;
-      if (
-        page.href === '/products/pricing' &&
-        (sub.code === 'price_management' || sub.code === 'price_list' || sub.code === 'pricing' || normalize(sub.name).includes('pric'))
-      ) return true;
-      // Sales Operations matching
-      if (
-        page.href === '/sales/orders' &&
-        (sub.code === 'sales_orders' || sub.code === 'orders' || normalize(sub.name).includes('order'))
-      ) return true;
-      if (
-        page.href === '/sales/quotations' &&
-        (sub.code === 'sales_quotations' || sub.code === 'quotations' || sub.code === 'quotes' || normalize(sub.name).includes('quot'))
-      ) return true;
-      if (
-        page.href === '/sales/proforma' &&
-        (sub.code === 'sales_proforma_invoices' || sub.code === 'proforma_invoice' || sub.code === 'proforma' || normalize(sub.name).includes('proforma'))
-      ) return true;
       return false;
     });
   };
 
-  if (SUBMODULE_PAGES[mod.code]) {
-    // If active submodules list or permission checker is provided, strictly filter
-    if (allowedSubs.length > 0 || typeof hasSubModuleAccess === 'function') {
-      return SUBMODULE_PAGES[mod.code].filter(isPagePermitted);
+  const permitted = [];
+  const seenHrefs = new Set();
+
+  if (candidatePages.length > 0) {
+    candidatePages.filter(isPagePermitted).forEach((page) => {
+      permitted.push(page);
+      seenHrefs.add(page.href.toLowerCase());
+    });
+  }
+
+  // Also include any allowedSubs that are authorized but not in candidatePages
+  allowedSubs.forEach((sub) => {
+    if (sub.isAllowed === false || sub.status === 'INACTIVE') return;
+    if (sub.route && !seenHrefs.has(sub.route.toLowerCase())) {
+      if (typeof hasSubModuleAccess !== 'function' || hasSubModuleAccess(sub.route) || hasSubModuleAccess(sub.code)) {
+        permitted.push({
+          label: sub.name,
+          href: sub.route,
+          code: sub.code,
+        });
+        seenHrefs.add(sub.route.toLowerCase());
+      }
     }
-    return SUBMODULE_PAGES[mod.code];
-  }
+  });
 
-  if (allowedSubs.length > 0) {
-    return allowedSubs.map((sub) => ({
-      label: sub.name,
-      href: sub.route,
-    }));
-  }
-
-  return [];
+  return permitted;
 }
 
 export default function Sidebar({
@@ -716,6 +738,7 @@ export default function Sidebar({
                   {/* Level 3: Submodules */}
                   {service.modules?.map((mod) => {
                     const pages = getPagesForModule(mod, hasSubModuleAccess);
+                    if (pages.length === 0) return null;
                     const isSubExpanded = expandedSubmodule === mod.code;
                     const isModActive = pages.some((p) => pathname === p.href) || pathname.startsWith(`/${mod.code}`);
 
