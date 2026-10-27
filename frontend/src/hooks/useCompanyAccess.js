@@ -32,6 +32,14 @@ const SUBMODULE_ALIASES = {
   price_management: 'price_list',
   price_list: 'price_management',
   categories: 'categories',
+  sales_quotations: 'quotations',
+  quotations: 'sales_quotations',
+  sales_orders: 'sales_orders',
+  orders: 'sales_orders',
+  sales_proforma_invoices: 'proforma_invoice',
+  proforma_invoice: 'sales_proforma_invoices',
+  proforma: 'sales_proforma_invoices',
+  sales_reports: 'sales_reports',
 };
 
 function isModuleMatch(coreMod, assignedMod) {

@@ -29,11 +29,13 @@ router.delete('/companies/:companyId/crm/leads/:leadId', validateSubModuleAccess
 // ==================== CRM CUSTOMERS ====================
 router.get('/companies/:companyId/crm/customers', validateSubModuleAccess('crm_customers'), crmCoreController.listCustomers);
 router.post('/companies/:companyId/crm/customers', validateSubModuleAccess('crm_customers'), crmCoreController.createCustomer);
+router.patch('/companies/:companyId/crm/customers/:customerId', validateSubModuleAccess('crm_customers'), crmCoreController.updateCustomer);
 router.delete('/companies/:companyId/crm/customers/:customerId', validateSubModuleAccess('crm_customers'), crmCoreController.removeCustomer);
 
 // ==================== CRM CONTACTS ====================
 router.get('/companies/:companyId/crm/contacts', validateSubModuleAccess('crm_contacts'), crmCoreController.listContacts);
 router.post('/companies/:companyId/crm/contacts', validateSubModuleAccess('crm_contacts'), crmCoreController.createContact);
+router.patch('/companies/:companyId/crm/contacts/:contactId', validateSubModuleAccess('crm_contacts'), crmCoreController.updateContact);
 router.delete('/companies/:companyId/crm/contacts/:contactId', validateSubModuleAccess('crm_contacts'), crmCoreController.removeContact);
 
 // ==================== CRM OPPORTUNITIES ====================

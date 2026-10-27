@@ -171,27 +171,7 @@ export const crmLeadService = {
       },
     });
 
-    // 2. Also auto-create contact person in contacts directory if provided
-    let createdContact = null;
-    if (customer.contactPerson) {
-      try {
-        createdContact = await prisma.crmContact.create({
-          data: {
-            companyId,
-            name: customer.contactPerson,
-            companyName: customer.companyName,
-            email: customer.email || null,
-            phone: customer.phone || null,
-            role: 'Primary Account Contact',
-            channel: 'Converted Lead',
-          },
-        });
-      } catch (e) {
-        // Best effort
-      }
-    }
-
-    // 3. Update lead status to WON
+    // 2. Update lead status to WON
     const updatedLead = await prisma.lead.update({
       where: { id: leadId },
       data: { status: 'WON' },
@@ -211,7 +191,6 @@ export const crmLeadService = {
         assignedTo: customer.assignedTo || '',
         status: customer.status,
         date: customer.createdAt.toISOString().slice(0, 10),
-        createdContact,
       },
     };
   },
