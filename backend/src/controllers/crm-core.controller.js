@@ -54,6 +54,16 @@ export const crmCoreController = {
       res.status(201).json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
+  async updateContact(req, res, next) {
+    try {
+      const data = await crmCoreService.updateContact(
+        String(req.params.companyId),
+        String(req.params.contactId),
+        req.body || {}
+      );
+      res.json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
   async removeContact(req, res, next) {
     try {
       await crmCoreService.removeContact(String(req.params.companyId), req.params.contactId);

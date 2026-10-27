@@ -34,27 +34,7 @@ export const crmCoreService = {
       },
     });
 
-    // Auto-register Contact person under Contacts if contactPerson is provided
-    let createdContact = null;
-    if (data.contactPerson?.trim()) {
-      try {
-        createdContact = await prisma.crmContact.create({
-          data: {
-            companyId,
-            name: data.contactPerson.trim(),
-            companyName: data.companyName.trim(),
-            role: data.role?.trim() || 'Primary Contact',
-            email: data.email?.trim() || null,
-            phone: data.phone?.trim() || null,
-            channel: data.channel?.trim() || 'Direct',
-          },
-        });
-      } catch (err) {
-        // Silently continue if contact already exists
-      }
-    }
-
-    return { ...customer, createdContact };
+    return customer;
   },
 
   async updateCustomer(companyId, customerId, data) {
@@ -114,6 +94,25 @@ export const crmCoreService = {
     });
   },
 
+  async updateContact(companyId, contactId, data) {
+    const existing = await prisma.crmContact.findFirst({
+      where: { id: contactId, companyId },
+    });
+    if (!existing) throw coreError('Contact not found.', 404);
+
+    return prisma.crmContact.update({
+      where: { id: contactId },
+      data: {
+        name: data.name !== undefined ? data.name.trim() : existing.name,
+        companyName: data.companyName !== undefined ? data.companyName.trim() : existing.companyName,
+        role: data.role !== undefined ? data.role.trim() : existing.role,
+        email: data.email !== undefined ? data.email.trim() : existing.email,
+        phone: data.phone !== undefined ? data.phone.trim() : existing.phone,
+        channel: data.channel !== undefined ? data.channel.trim() : existing.channel,
+      },
+    });
+  },
+
   async removeContact(companyId, contactId) {
     const existing = await prisma.crmContact.findFirst({
       where: { id: contactId, companyId },
@@ -162,6 +161,9 @@ export const crmCoreService = {
     if (data.stage) updateData.stage = data.stage.trim();
     if (data.title) updateData.title = data.title.trim();
     if (data.probability) updateData.probability = data.probability.trim();
+    if (data.expectedCloseDate) {
+      updateData.expectedCloseDate = new Date(data.expectedCloseDate);
+    }
     if (data.value !== undefined) {
       const val = parseFloat(String(data.value).replace(/[^0-9.]/g, ''));
       updateData.value = !isNaN(val) ? val : null;
