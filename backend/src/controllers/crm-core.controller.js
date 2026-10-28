@@ -3,6 +3,8 @@ import customerController from './crm/customer.controller.js';
 import contactController from './crm/contact.controller.js';
 import opportunityController from './crm/opportunity.controller.js';
 import productController from './crm/product.controller.js';
+import categoryController from './crm/category.controller.js';
+import pricingController from './crm/pricing.controller.js';
 import quotationController from './sales/quotation.controller.js';
 import salesOrderController from './sales/sales-order.controller.js';
 import proformaController from './sales/proforma.controller.js';
@@ -38,8 +40,22 @@ export const crmCoreController = {
 
   // Product delegation
   listProducts: productController.list,
+  getProduct: productController.get,
   createProduct: productController.create,
+  updateProduct: productController.update,
   removeProduct: productController.remove,
+
+  // Category delegation
+  listProductCategories: categoryController.list,
+  createProductCategory: categoryController.create,
+  updateProductCategory: categoryController.update,
+  removeProductCategory: categoryController.remove,
+
+  // Pricing delegation
+  listProductPricings: pricingController.list,
+  createProductPricing: pricingController.create,
+  updateProductPricing: pricingController.update,
+  removeProductPricing: pricingController.remove,
 
   // Sales Order delegation
   listSalesOrders: salesOrderController.list,
@@ -60,42 +76,48 @@ export const crmCoreController = {
   updateProformaStatus: proformaController.updateStatus,
   removeProforma: proformaController.remove,
 
-  // Non-CRM ERP modules (Preserved intact for future activation)
+  // Vendor delegation
   async listVendors(req, res, next) {
     try {
-      const data = await crmCoreService.listVendors(String(req.params.companyId));
+      const data = await crmCoreService.listVendors(String(req.params.companyId), req.query);
       res.json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
+
   async createVendor(req, res, next) {
     try {
       const data = await crmCoreService.createVendor(String(req.params.companyId), req.body || {});
       res.status(201).json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
+
   async removeVendor(req, res, next) {
     try {
       await crmCoreService.removeVendor(String(req.params.companyId), req.params.vendorId);
-      res.json({ success: true, message: 'Vendor deleted.' });
+      res.json({ success: true, message: 'Vendor removed.' });
     } catch (err) { respondError(err, res, next); }
   },
+
+  // Inventory Stocks delegation
   async listInventoryStocks(req, res, next) {
     try {
       const data = await crmCoreService.listInventoryStocks(String(req.params.companyId));
       res.json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
+
   async createInventoryStock(req, res, next) {
     try {
       const data = await crmCoreService.createInventoryStock(String(req.params.companyId), req.body || {});
       res.status(201).json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
+
   async adjustInventoryStock(req, res, next) {
     try {
       const data = await crmCoreService.adjustInventoryStock(
         String(req.params.companyId),
-        String(req.params.stockId),
+        req.params.stockId,
         req.body?.qtyDiff
       );
       res.json({ success: true, data });

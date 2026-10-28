@@ -44,9 +44,23 @@ router.post('/companies/:companyId/crm/opportunities', validateSubModuleAccess('
 router.patch('/companies/:companyId/crm/opportunities/:opportunityId', validateSubModuleAccess('crm_followups'), crmCoreController.updateOpportunity);
 router.delete('/companies/:companyId/crm/opportunities/:opportunityId', validateSubModuleAccess('crm_followups'), crmCoreController.removeOpportunity);
 
+// ==================== PRODUCT CATEGORIES ====================
+router.get('/companies/:companyId/products/categories', validateSubModuleAccess('product_master'), crmCoreController.listProductCategories);
+router.post('/companies/:companyId/products/categories', validateSubModuleAccess('product_master'), crmCoreController.createProductCategory);
+router.patch('/companies/:companyId/products/categories/:categoryId', validateSubModuleAccess('product_master'), crmCoreController.updateProductCategory);
+router.delete('/companies/:companyId/products/categories/:categoryId', validateSubModuleAccess('product_master'), crmCoreController.removeProductCategory);
+
+// ==================== PRODUCT PRICING ====================
+router.get('/companies/:companyId/products/pricing', validateSubModuleAccess('price_management'), crmCoreController.listProductPricings);
+router.post('/companies/:companyId/products/pricing', validateSubModuleAccess('price_management'), crmCoreController.createProductPricing);
+router.patch('/companies/:companyId/products/pricing/:pricingId', validateSubModuleAccess('price_management'), crmCoreController.updateProductPricing);
+router.delete('/companies/:companyId/products/pricing/:pricingId', validateSubModuleAccess('price_management'), crmCoreController.removeProductPricing);
+
 // ==================== PRODUCTS ====================
 router.get('/companies/:companyId/products', validateSubModuleAccess('product_master'), crmCoreController.listProducts);
 router.post('/companies/:companyId/products', validateSubModuleAccess('product_master'), crmCoreController.createProduct);
+router.get('/companies/:companyId/products/:productId', validateSubModuleAccess('product_master'), crmCoreController.getProduct);
+router.patch('/companies/:companyId/products/:productId', validateSubModuleAccess('product_master'), crmCoreController.updateProduct);
 router.delete('/companies/:companyId/products/:productId', validateSubModuleAccess('product_master'), crmCoreController.removeProduct);
 
 // ==================== SALES ORDERS ====================
