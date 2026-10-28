@@ -7,6 +7,8 @@ import catalogRoutes from './catalog.routes.js';
 import companyRoutes from './company.routes.js';
 import departmentRoutes from './department.routes.js';
 import auditRoutes from './audit.routes.js';
+import inventoryRoutes from './inventory.routes.js';
+import purchaseRoutes from './purchase.routes.js';
 
 import { publicWebhookRouter, protectedIntegrationRouter } from './lead-integration.routes.js';
 
@@ -24,6 +26,8 @@ router.use(publicWebhookRouter);
 router.use(requireAuth);
 router.use(catalogRoutes);
 router.use(companyRoutes);
+router.use(inventoryRoutes);
+router.use(purchaseRoutes);
 router.use(departmentRoutes);
 router.use(auditRoutes);
 router.use(protectedIntegrationRouter);

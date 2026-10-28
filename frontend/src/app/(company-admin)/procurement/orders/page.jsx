@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function ProcurementOrdersPage() {
-  return <CompanyAdminPortal initialTab="purchase_vendor:procurement" />;
+  return <CompanyAdminPortal initialTab="purchase_vendor:procurement" initialSubTab="orders" />;
 }

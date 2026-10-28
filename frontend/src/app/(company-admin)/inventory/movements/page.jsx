@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function StockMovementsPage() {
-  return <CompanyAdminPortal initialTab="inventory_warehouse:inventory_mgmt" />;
+  return <CompanyAdminPortal initialTab="inventory_warehouse:inventory_mgmt" initialSubTab="movements" />;
 }

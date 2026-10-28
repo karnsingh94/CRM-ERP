@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function InventoryPage() {
-  return <CompanyAdminPortal initialTab="inventory_warehouse:inventory_mgmt" />;
+  return <CompanyAdminPortal initialTab="inventory_warehouse:inventory_mgmt" initialSubTab="dashboard" />;
 }
