@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function GrnInspectionPage() {
-  return <CompanyAdminPortal initialTab="purchase_vendor:grn" />;
+  return <CompanyAdminPortal initialTab="purchase_vendor:grn" initialSubTab="receipts" />;
 }
