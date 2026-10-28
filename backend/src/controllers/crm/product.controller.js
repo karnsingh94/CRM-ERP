@@ -18,10 +18,24 @@ export const productController = {
     } catch (err) { respondError(err, res, next); }
   },
 
+  async get(req, res, next) {
+    try {
+      const data = await productService.getProduct(String(req.params.companyId), req.params.productId);
+      res.json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
+
   async create(req, res, next) {
     try {
       const data = await productService.createProduct(String(req.params.companyId), req.body || {});
       res.status(201).json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
+
+  async update(req, res, next) {
+    try {
+      const data = await productService.updateProduct(String(req.params.companyId), req.params.productId, req.body || {});
+      res.json({ success: true, data });
     } catch (err) { respondError(err, res, next); }
   },
 

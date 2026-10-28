@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node node_modules/nodemon/bin/nodemon.js src/server.js",
     "start": "node src/server.js",
-    "test": "node tests/integration/suite.test.js",
+    "test": "node tests/run_all.js",
+    "test:products": "node -e 'import(\"./tests/integration/product_catalogue_flow.test.js\").then(m => m.runProductCatalogueFlowTests())'",
     "test:departments": "node tests/integration/departments.test.js",
     "test:activation": "node tests/integration/activation_deactivation.test.js",
     "test:crm-flow": "node tests/integration/crm_sales_flow.test.js",

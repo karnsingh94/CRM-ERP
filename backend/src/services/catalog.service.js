@@ -33,7 +33,9 @@ const moduleRouteRoots = {
 
 const subModuleRouteSuffixes = {
   'product:product_list': '',
+  'product:product_master': '',
   'product:price_list': '/pricing',
+  'product:price_management': '/pricing',
   'sales:proforma_invoice': '/proforma',
   'sales:sales_orders': '/orders',
   'vendor:vendor_master': '',

@@ -160,6 +160,8 @@ model ClientAdmin {
   contacts        CrmContact[]
   opportunities   CrmOpportunity[]
   products        Product[]
+  productCategories ProductCategory[]
+  productPricings ProductPricing[]
   salesOrders     SalesOrder[]
   quotations      SalesQuotation[]
   proformas       SalesProforma[]
@@ -464,24 +466,65 @@ model CrmOpportunity {
 }
 
 model Product {
+  id            String           @id @default(uuid()) @db.Char(36)
+  companyId     String           @map("company_id") @db.Char(36)
+  sku           String           @db.VarChar(60)
+  name          String           @db.VarChar(180)
+  description   String?          @db.Text
+  category      String           @default("Finished Goods") @db.VarChar(100)
+  uom           String           @default("PCS") @db.VarChar(30)
+  sellingPrice  Decimal          @default(0) @map("selling_price") @db.Decimal(15, 2)
+  purchasePrice Decimal          @default(0) @map("purchase_price") @db.Decimal(15, 2)
+  taxRate       Decimal          @default(18) @map("tax_rate") @db.Decimal(5, 2)
+  stock         Int              @default(0)
+  status        String           @default("ACTIVE") @db.VarChar(30)
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  clientAdmin   ClientAdmin      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  pricings      ProductPricing[]
+
+  @@unique([companyId, sku])
+  @@index([companyId, category, status])
+  @@map("products")
+}
+
+model ProductCategory {
+  id          String      @id @default(uuid()) @db.Char(36)
+  companyId   String      @map("company_id") @db.Char(36)
+  name        String      @db.VarChar(100)
+  description String?     @db.VarChar(255)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("product_categories")
+}
+
+model ProductPricing {
   id            String      @id @default(uuid()) @db.Char(36)
   companyId     String      @map("company_id") @db.Char(36)
-  sku           String      @db.VarChar(60)
-  name          String      @db.VarChar(180)
-  category      String      @default("Finished Goods") @db.VarChar(100)
-  uom           String      @default("PCS") @db.VarChar(30)
+  productId     String      @map("product_id") @db.Char(36)
+  planName      String      @default("Standard Rate") @map("plan_name") @db.VarChar(100)
   sellingPrice  Decimal     @default(0) @map("selling_price") @db.Decimal(15, 2)
   purchasePrice Decimal     @default(0) @map("purchase_price") @db.Decimal(15, 2)
-  stock         Int         @default(0)
+  taxRate       Decimal     @default(18) @map("tax_rate") @db.Decimal(5, 2)
+  discountRate  Decimal     @default(0) @map("discount_rate") @db.Decimal(5, 2)
+  validFrom     DateTime?   @map("valid_from")
+  validUntil    DateTime?   @map("valid_until")
+  isDefault     Boolean     @default(false) @map("is_default")
   status        String      @default("ACTIVE") @db.VarChar(30)
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
   clientAdmin   ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([companyId, sku])
-  @@index([companyId, category, status])
-  @@map("products")
+  @@index([companyId, productId])
+  @@map("product_pricings")
 }
 
 model SalesOrder {
