@@ -1,4 +1,7 @@
+import path from 'path';
+import fs from 'fs';
 import prisma from '../../config/prisma.js';
+import { deleteStoredImageFile } from '../../utils/product-image.js';
 
 function coreError(message, statusCode = 400) {
   const error = new Error(message);
@@ -83,31 +86,70 @@ export const productService = {
     };
   },
 
-  async createProduct(companyId, data) {
+  async getProductImageStream(companyId, productId) {
+    const product = await prisma.product.findFirst({
+      where: { id: productId, companyId },
+      select: { id: true, imageUrl: true },
+    });
+    if (!product || !product.imageUrl) {
+      throw coreError('Product image not found.', 404);
+    }
+
+    const normalized = product.imageUrl.startsWith('/') ? product.imageUrl.slice(1) : product.imageUrl;
+    const fullPath = path.resolve(process.cwd(), normalized);
+    const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+
+    // Prevent directory traversal attacks
+    if (!fullPath.startsWith(uploadsRoot) || !fs.existsSync(fullPath)) {
+      throw coreError('Product image file not found on server.', 404);
+    }
+
+    const ext = path.extname(fullPath).toLowerCase();
+    let mimeType = 'image/jpeg';
+    if (ext === '.png') mimeType = 'image/png';
+    if (ext === '.webp') mimeType = 'image/webp';
+
+    return { filePath: fullPath, mimeType };
+  },
+
+  async createProduct(companyId, data, file = null) {
     if (!data.sku?.trim() || !data.name?.trim()) {
+      if (file?.path) deleteStoredImageFile(file.path);
       throw coreError('SKU code and product name are required.');
     }
     const sku = data.sku.trim().toUpperCase();
     const existing = await prisma.product.findFirst({
       where: { companyId, sku },
     });
-    if (existing) throw coreError(`Product with SKU "${sku}" already exists in your company catalogue.`);
+    if (existing) {
+      if (file?.path) deleteStoredImageFile(file.path);
+      throw coreError(`Product with SKU "${sku}" already exists in your company catalogue.`);
+    }
 
     const sellingPrice = data.sellingPrice !== undefined && data.sellingPrice !== '' ? parseFloat(data.sellingPrice) : 0;
     const purchasePrice = data.purchasePrice !== undefined && data.purchasePrice !== '' ? parseFloat(data.purchasePrice) : 0;
     const taxRate = data.taxRate !== undefined && data.taxRate !== '' ? parseFloat(data.taxRate) : 18.0;
+    const initialStock = data.stock !== undefined && data.stock !== '' ? parseInt(data.stock, 10) : 0;
 
     if (isNaN(sellingPrice) || sellingPrice < 0) {
+      if (file?.path) deleteStoredImageFile(file.path);
       throw coreError('Selling rate cannot be negative.');
     }
     if (isNaN(purchasePrice) || purchasePrice < 0) {
+      if (file?.path) deleteStoredImageFile(file.path);
       throw coreError('Purchase rate cannot be negative.');
     }
     if (isNaN(taxRate) || taxRate < 0 || taxRate > 100) {
+      if (file?.path) deleteStoredImageFile(file.path);
       throw coreError('GST / Tax rate must be between 0% and 100%.');
+    }
+    if (isNaN(initialStock) || initialStock < 0) {
+      if (file?.path) deleteStoredImageFile(file.path);
+      throw coreError('Initial stock cannot be negative.');
     }
 
     if (!data.category?.trim()) {
+      if (file?.path) deleteStoredImageFile(file.path);
       throw coreError('Category is required. Please create and select a category in the Categories tab first.', 400);
     }
     const category = data.category.trim();
@@ -117,68 +159,110 @@ export const productService = {
       where: { companyId, name: category },
     });
     if (!existingCat) {
+      if (file?.path) deleteStoredImageFile(file.path);
       throw coreError(`Category "${category}" does not exist. Please create it first in the Categories tab.`, 400);
     }
 
-    return prisma.$transaction(async (tx) => {
-      // 1. Create product master record (stock defaults to 0 as stock is managed in InventoryStock)
-      const product = await tx.product.create({
-        data: {
-          companyId,
-          sku,
-          name: data.name.trim(),
-          description: data.description?.trim() || null,
-          category,
-          uom: data.uom?.trim() || 'PCS',
-          sellingPrice,
-          purchasePrice,
-          taxRate,
-          stock: 0,
-          status: data.status?.trim() || 'ACTIVE',
-        },
-      });
+    let imageUrl = null;
+    if (file) {
+      imageUrl = `/uploads/tenants/${companyId}/products/${file.filename}`;
+    } else if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim()) {
+      imageUrl = data.imageUrl.trim();
+    }
 
-      // 2. Initialize default standard pricing record
-      await tx.productPricing.create({
-        data: {
-          companyId,
-          productId: product.id,
-          planName: 'Standard Rate',
-          sellingPrice,
-          purchasePrice,
-          taxRate,
-          discountRate: 0.0,
-          isDefault: true,
-          status: 'ACTIVE',
-        },
-      });
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // 1. Create product master record (stock defaults to 0 as stock is managed in InventoryStock)
+        const product = await tx.product.create({
+          data: {
+            companyId,
+            sku,
+            name: data.name.trim(),
+            description: data.description?.trim() || null,
+            imageUrl,
+            category,
+            uom: data.uom?.trim() || 'PCS',
+            sellingPrice,
+            purchasePrice,
+            taxRate,
+            stock: initialStock,
+            status: data.status?.trim() || 'ACTIVE',
+          },
+        });
 
-      return product;
-    });
+        // 2. Initialize default standard pricing record
+        await tx.productPricing.create({
+          data: {
+            companyId,
+            productId: product.id,
+            planName: 'Standard Rate',
+            sellingPrice,
+            purchasePrice,
+            taxRate,
+            discountRate: 0.0,
+            isDefault: true,
+            status: 'ACTIVE',
+          },
+        });
+
+        // 3. If initial stock is specified, record it in inventory system
+        if (initialStock > 0) {
+          await tx.inventoryStock.create({
+            data: {
+              companyId,
+              productId: product.id,
+              sku,
+              name: data.name.trim(),
+              warehouse: 'Main Warehouse',
+              stock: initialStock,
+              uom: data.uom?.trim() || 'PCS',
+              averageCost: purchasePrice || sellingPrice,
+            },
+          });
+        }
+
+        return product;
+      });
+    } catch (err) {
+      if (file?.path) deleteStoredImageFile(file.path);
+      throw err;
+    }
   },
 
-  async updateProduct(companyId, productId, data) {
+  async updateProduct(companyId, productId, data, file = null) {
     const existing = await prisma.product.findFirst({
       where: { id: productId, companyId },
     });
-    if (!existing) throw coreError('Product not found.', 404);
+    if (!existing) {
+      if (file?.path) deleteStoredImageFile(file.path);
+      throw coreError('Product not found.', 404);
+    }
 
     const updateData = {};
 
     if (data.sku !== undefined) {
       const newSku = data.sku.trim().toUpperCase();
-      if (!newSku) throw coreError('SKU code cannot be empty.');
+      if (!newSku) {
+        if (file?.path) deleteStoredImageFile(file.path);
+        throw coreError('SKU code cannot be empty.');
+      }
       if (newSku !== existing.sku) {
         const skuConflict = await prisma.product.findFirst({
           where: { companyId, sku: newSku },
         });
-        if (skuConflict) throw coreError(`Product with SKU "${newSku}" already exists.`);
+        if (skuConflict) {
+          if (file?.path) deleteStoredImageFile(file.path);
+          throw coreError(`Product with SKU "${newSku}" already exists.`);
+        }
         updateData.sku = newSku;
       }
     }
 
     if (data.name !== undefined) {
-      if (!data.name.trim()) throw coreError('Product name cannot be empty.');
+      if (!data.name.trim()) {
+        if (file?.path) deleteStoredImageFile(file.path);
+        throw coreError('Product name cannot be empty.');
+      }
       updateData.name = data.name.trim();
     }
 
@@ -186,13 +270,32 @@ export const productService = {
       updateData.description = data.description?.trim() || null;
     }
 
+    // Image handling: new file upload OR explicit removal OR URL update
+    let shouldDeleteOldImage = false;
+    if (file) {
+      updateData.imageUrl = `/uploads/tenants/${companyId}/products/${file.filename}`;
+      shouldDeleteOldImage = Boolean(existing.imageUrl);
+    } else if (data.removeImage === true || data.removeImage === 'true') {
+      updateData.imageUrl = null;
+      shouldDeleteOldImage = Boolean(existing.imageUrl);
+    } else if (data.imageUrl !== undefined) {
+      updateData.imageUrl = data.imageUrl?.trim() || null;
+      if (existing.imageUrl && existing.imageUrl !== updateData.imageUrl) {
+        shouldDeleteOldImage = true;
+      }
+    }
+
     if (data.category !== undefined) {
       const category = data.category?.trim();
-      if (!category) throw coreError('Category cannot be empty.', 400);
+      if (!category) {
+        if (file?.path) deleteStoredImageFile(file.path);
+        throw coreError('Category cannot be empty.', 400);
+      }
       const existingCat = await prisma.productCategory.findFirst({
         where: { companyId, name: category },
       });
       if (!existingCat) {
+        if (file?.path) deleteStoredImageFile(file.path);
         throw coreError(`Category "${category}" does not exist. Please create it first in the Categories tab.`, 400);
       }
       updateData.category = category;
@@ -210,6 +313,7 @@ export const productService = {
     if (data.sellingPrice !== undefined && data.sellingPrice !== '') {
       sellingPrice = parseFloat(data.sellingPrice);
       if (isNaN(sellingPrice) || sellingPrice < 0) {
+        if (file?.path) deleteStoredImageFile(file.path);
         throw coreError('Selling rate cannot be negative.');
       }
       updateData.sellingPrice = sellingPrice;
@@ -219,6 +323,7 @@ export const productService = {
     if (data.purchasePrice !== undefined && data.purchasePrice !== '') {
       purchasePrice = parseFloat(data.purchasePrice);
       if (isNaN(purchasePrice) || purchasePrice < 0) {
+        if (file?.path) deleteStoredImageFile(file.path);
         throw coreError('Purchase rate cannot be negative.');
       }
       updateData.purchasePrice = purchasePrice;
@@ -227,36 +332,85 @@ export const productService = {
     if (data.taxRate !== undefined && data.taxRate !== '') {
       const parsedTax = parseFloat(data.taxRate);
       if (isNaN(parsedTax) || parsedTax < 0 || parsedTax > 100) {
+        if (file?.path) deleteStoredImageFile(file.path);
         throw coreError('GST / Tax rate must be between 0% and 100%.');
       }
       updateData.taxRate = parsedTax;
     }
 
-    return prisma.$transaction(async (tx) => {
-      const updated = await tx.product.update({
-        where: { id: productId },
-        data: updateData,
-      });
+    let stockUpdate = undefined;
+    if (data.stock !== undefined && data.stock !== '') {
+      stockUpdate = parseInt(data.stock, 10);
+      if (isNaN(stockUpdate) || stockUpdate < 0) {
+        if (file?.path) deleteStoredImageFile(file.path);
+        throw coreError('Stock cannot be negative.');
+      }
+      updateData.stock = stockUpdate;
+    }
 
-      // Synchronize default standard pricing record if price changed
-      if (sellingPrice !== undefined || purchasePrice !== undefined) {
-        const defaultPricing = await tx.productPricing.findFirst({
-          where: { companyId, productId, isDefault: true },
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const updated = await tx.product.update({
+          where: { id: productId },
+          data: updateData,
         });
 
-        if (defaultPricing) {
-          const pricingUpdate = {};
-          if (sellingPrice !== undefined) pricingUpdate.sellingPrice = sellingPrice;
-          if (purchasePrice !== undefined) pricingUpdate.purchasePrice = purchasePrice;
-          await tx.productPricing.update({
-            where: { id: defaultPricing.id },
-            data: pricingUpdate,
+        if (stockUpdate !== undefined) {
+          const sku = updated.sku;
+          const existingStock = await tx.inventoryStock.findFirst({
+            where: { companyId, sku },
           });
+          if (existingStock) {
+            await tx.inventoryStock.update({
+              where: { id: existingStock.id },
+              data: { stock: stockUpdate, productId },
+            });
+          } else if (stockUpdate > 0) {
+            await tx.inventoryStock.create({
+              data: {
+                companyId,
+                productId,
+                sku,
+                name: updated.name,
+                warehouse: 'Main Warehouse',
+                stock: stockUpdate,
+                uom: updated.uom,
+                averageCost: updated.purchasePrice || updated.sellingPrice,
+              },
+            });
+          }
         }
+
+        // Synchronize default standard pricing record if price changed
+        if (sellingPrice !== undefined || purchasePrice !== undefined) {
+          const defaultPricing = await tx.productPricing.findFirst({
+            where: { companyId, productId, isDefault: true },
+          });
+
+          if (defaultPricing) {
+            const pricingUpdate = {};
+            if (sellingPrice !== undefined) pricingUpdate.sellingPrice = sellingPrice;
+            if (purchasePrice !== undefined) pricingUpdate.purchasePrice = purchasePrice;
+            await tx.productPricing.update({
+              where: { id: defaultPricing.id },
+              data: pricingUpdate,
+            });
+          }
+        }
+
+        return updated;
+      });
+
+      // Cleanup old image file after successful transaction
+      if (shouldDeleteOldImage && existing.imageUrl) {
+        deleteStoredImageFile(existing.imageUrl);
       }
 
-      return updated;
-    });
+      return result;
+    } catch (err) {
+      if (file?.path) deleteStoredImageFile(file.path);
+      throw err;
+    }
   },
 
   async removeProduct(companyId, productId) {
@@ -265,6 +419,12 @@ export const productService = {
     });
     if (!existing) throw coreError('Product not found.', 404);
     await prisma.product.delete({ where: { id: productId } });
+
+    // Safe deletion of stored image file
+    if (existing.imageUrl) {
+      deleteStoredImageFile(existing.imageUrl);
+    }
+
     return true;
   },
 };

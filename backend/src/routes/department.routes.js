@@ -15,6 +15,7 @@ import {
 const router = Router();
 
 import crmCoreController from '../controllers/crm-core.controller.js';
+import { handleProductImageUpload } from '../utils/product-image.js';
 
 // Apply tenant validation to all company-scoped routes
 router.use('/companies/:companyId', requireCompanyUser, validateCompanyAccess);
@@ -58,9 +59,10 @@ router.delete('/companies/:companyId/products/pricing/:pricingId', validateSubMo
 
 // ==================== PRODUCTS ====================
 router.get('/companies/:companyId/products', validateSubModuleAccess('product_master'), crmCoreController.listProducts);
-router.post('/companies/:companyId/products', validateSubModuleAccess('product_master'), crmCoreController.createProduct);
+router.post('/companies/:companyId/products', validateSubModuleAccess('product_master'), handleProductImageUpload, crmCoreController.createProduct);
 router.get('/companies/:companyId/products/:productId', validateSubModuleAccess('product_master'), crmCoreController.getProduct);
-router.patch('/companies/:companyId/products/:productId', validateSubModuleAccess('product_master'), crmCoreController.updateProduct);
+router.get('/companies/:companyId/products/:productId/image', crmCoreController.getProductImage);
+router.patch('/companies/:companyId/products/:productId', validateSubModuleAccess('product_master'), handleProductImageUpload, crmCoreController.updateProduct);
 router.delete('/companies/:companyId/products/:productId', validateSubModuleAccess('product_master'), crmCoreController.removeProduct);
 
 // ==================== SALES ORDERS ====================

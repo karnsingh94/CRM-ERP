@@ -114,6 +114,10 @@ export async function apiRequest(endpoint, options = {}) {
     ...(options.headers || {}),
   };
 
+  if (typeof FormData !== 'undefined' && options.body instanceof FormData) {
+    delete defaultHeaders['Content-Type'];
+  }
+
   // Coordinated timeout and external signal handling
   const controller = new AbortController();
   const timeoutMs = options.timeout || 6000;

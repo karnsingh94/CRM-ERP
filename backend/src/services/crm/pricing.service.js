@@ -32,6 +32,7 @@ export const pricingService = {
             name: true,
             category: true,
             uom: true,
+            imageUrl: true,
             status: true,
           },
         },

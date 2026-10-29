@@ -1,9 +1,12 @@
+import path from 'path';
+import fs from 'fs';
 import prisma from '../../src/config/prisma.js';
 import { signToken } from '../../src/utils/token.js';
 
 const API_BASE = process.env.API_BASE || 'http://127.0.0.1:5000/api';
 
 export async function runProductCatalogueFlowTests() {
+  const uploadsBase = fs.existsSync(path.resolve(process.cwd(), 'backend', 'uploads')) ? path.resolve(process.cwd(), 'backend') : process.cwd();
   console.log('\n========================================================================');
   console.log('AZZUNIQE CRM & ERP — Product Catalogue, Categories & Pricing Test Suite');
   console.log('Target API:', API_BASE);
@@ -498,6 +501,269 @@ export async function runProductCatalogueFlowTests() {
   });
 
   // ===========================================================================
+  // PRODUCT IMAGE & TENANT ISOLATION TESTS
+  // ===========================================================================
+  const imageCatName = `Image Category ${timestamp}`;
+  let imageCatId = null;
+  let imageTestProdId = null;
+
+  await test('Product Image: Create dedicated category for image tests', async () => {
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products/categories`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: imageCatName,
+        description: 'Category for product image validation',
+      }),
+    });
+    const json = await res.json();
+    if (!json.success || !json.data?.id) throw new Error('Failed to create image test category');
+    imageCatId = json.data.id;
+  });
+  let firstUploadedImagePath = null;
+  let secondUploadedImagePath = null;
+
+  // Minimal valid 1x1 PNG bytes
+  const validPngBuffer = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+    0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+    0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+    0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+    0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+    0x42, 0x60, 0x82
+  ]);
+
+  // Minimal valid JPEG bytes
+  const validJpegBuffer = Buffer.from([
+    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46,
+    0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
+    0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43,
+    0x00, 0x03, 0x02, 0x02, 0x03, 0x02, 0x02, 0x03,
+    0xff, 0xd9
+  ]);
+
+  await test('Product Image: Reject file with invalid content or spoofed extension', async () => {
+    const fd = new FormData();
+    fd.append('sku', `SKU-BAD-${timestamp}`);
+    fd.append('name', 'Bad Image Product');
+    fd.append('category', imageCatName);
+    fd.append('sellingPrice', '100');
+    fd.append('purchasePrice', '50');
+    // text disguised as jpg
+    const fakeBlob = new Blob(['Not a real image file content text'], { type: 'image/jpeg' });
+    fd.append('image', fakeBlob, 'fake.jpg');
+
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${companyToken}` },
+      body: fd,
+    });
+    const json = await res.json();
+    if (res.status !== 400 || json.success) {
+      throw new Error(`Expected 400 for invalid image magic bytes, got status ${res.status}: ${JSON.stringify(json)}`);
+    }
+  });
+
+  await test('Product Image: Reject file exceeding 5MB limit', async () => {
+    const fd = new FormData();
+    fd.append('sku', `SKU-BIG-${timestamp}`);
+    fd.append('name', 'Oversized Product');
+    fd.append('category', imageCatName);
+    // 5.5 MB buffer
+    const bigBuf = Buffer.alloc(5.5 * 1024 * 1024);
+    bigBuf[0] = 0xff; bigBuf[1] = 0xd8; bigBuf[2] = 0xff;
+    const bigBlob = new Blob([bigBuf], { type: 'image/jpeg' });
+    fd.append('image', bigBlob, 'big.jpg');
+
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${companyToken}` },
+      body: fd,
+    });
+    const json = await res.json();
+    if (res.status !== 400 || json.success) {
+      throw new Error(`Expected 400 for file > 5MB, got status ${res.status}: ${JSON.stringify(json)}`);
+    }
+  });
+
+  await test('Product Image: Upload valid PNG on product creation', async () => {
+    const fd = new FormData();
+    fd.append('sku', `SKU-IMG-${timestamp}`);
+    fd.append('name', 'Industrial CNC Flange with Image');
+    fd.append('description', 'High precision flange with catalogue photo attached');
+    fd.append('category', imageCatName);
+    fd.append('sellingPrice', '2500.00');
+    fd.append('purchasePrice', '1800.00');
+    fd.append('taxRate', '18.0');
+    fd.append('stock', '50');
+    fd.append('image', new Blob([validPngBuffer], { type: 'image/png' }), 'flange.png');
+
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${companyToken}` },
+      body: fd,
+    });
+    const json = await res.json();
+    if (!json.success || !json.data?.id || !json.data?.imageUrl) {
+      throw new Error(`Failed to create product with image: ${JSON.stringify(json)}`);
+    }
+
+    imageTestProdId = json.data.id;
+    firstUploadedImagePath = json.data.imageUrl;
+
+    if (!firstUploadedImagePath.includes('/uploads/tenants/') || !firstUploadedImagePath.includes(companyId)) {
+      throw new Error(`Image URL does not contain tenant scoped path: ${firstUploadedImagePath}`);
+    }
+
+    // Verify file exists on server disk
+    const normalized = firstUploadedImagePath.startsWith('/') ? firstUploadedImagePath.slice(1) : firstUploadedImagePath;
+        const fullPath = path.resolve(uploadsBase, normalized);
+    if (!fs.existsSync(fullPath)) {
+      throw new Error(`Uploaded image file does not exist on disk: ${fullPath}`);
+    }
+  });
+
+  await test('Product Image: Serve image via GET with Bearer token', async () => {
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products/${imageTestProdId}/image`, {
+      headers: { Authorization: `Bearer ${companyToken}` },
+    });
+    if (res.status !== 200) {
+      throw new Error(`Expected 200 for authenticated image fetch, got ${res.status}`);
+    }
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('image/png')) {
+      throw new Error(`Expected image/png content type, got ${contentType}`);
+    }
+  });
+
+  await test('Product Image: Serve image via query token ?token=...', async () => {
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products/${imageTestProdId}/image?token=${companyToken}`);
+    if (res.status !== 200) {
+      throw new Error(`Expected 200 for query-token image fetch, got ${res.status}`);
+    }
+  });
+
+  await test('Product Image: Tenant isolation rejects other company access to image', async () => {
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products/${imageTestProdId}/image`, {
+      headers: otherHeaders,
+    });
+    if (res.status !== 403 && res.status !== 404) {
+      throw new Error(`Expected 403 or 404 for cross-tenant image access, got ${res.status}`);
+    }
+  });
+
+  await test('Product Image: Replace image on update and verify previous file cleanup', async () => {
+    const fd = new FormData();
+    fd.append('name', 'Industrial CNC Flange Updated Image');
+    fd.append('image', new Blob([validJpegBuffer], { type: 'image/jpeg' }), 'flange_updated.jpg');
+
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products/${imageTestProdId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${companyToken}` },
+      body: fd,
+    });
+    const json = await res.json();
+    if (!json.success || !json.data?.imageUrl) {
+      throw new Error(`Failed to update product with new image: ${JSON.stringify(json)}`);
+    }
+
+    secondUploadedImagePath = json.data.imageUrl;
+    if (secondUploadedImagePath === firstUploadedImagePath) {
+      throw new Error('Image URL was not updated to new file path');
+    }
+
+    // Verify old file was deleted from disk
+    const oldNorm = firstUploadedImagePath.startsWith('/') ? firstUploadedImagePath.slice(1) : firstUploadedImagePath;
+        const oldFullPath = path.resolve(uploadsBase, oldNorm);
+    if (fs.existsSync(oldFullPath)) {
+      throw new Error(`Old image file was NOT deleted after replacement: ${oldFullPath}`);
+    }
+
+    // Verify new file exists on disk
+    const newNorm = secondUploadedImagePath.startsWith('/') ? secondUploadedImagePath.slice(1) : secondUploadedImagePath;
+        const newFullPath = path.resolve(uploadsBase, newNorm);
+    if (!fs.existsSync(newFullPath)) {
+      throw new Error(`New replacement image file does not exist on disk: ${newFullPath}`);
+    }
+  });
+
+  await test('Product Image: Updating product without image preserves existing imageUrl', async () => {
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products/${imageTestProdId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ description: 'Preserved image description change' }),
+    });
+    const json = await res.json();
+    if (!json.success || json.data?.imageUrl !== secondUploadedImagePath) {
+      throw new Error(`Image URL was lost or mutated during non-image update: ${json.data?.imageUrl}`);
+    }
+
+    // Verify file still exists on disk
+    const norm = secondUploadedImagePath.startsWith('/') ? secondUploadedImagePath.slice(1) : secondUploadedImagePath;
+        if (!fs.existsSync(path.resolve(uploadsBase, norm))) {
+      throw new Error('Image file on disk was unexpectedly deleted during non-image update');
+    }
+  });
+
+  await test('Product Image: Remove image explicitly via removeImage: true', async () => {
+    const res = await fetch(`${API_BASE}/companies/${companyId}/products/${imageTestProdId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ removeImage: true }),
+    });
+    const json = await res.json();
+    if (!json.success || json.data?.imageUrl !== null) {
+      throw new Error(`Expected imageUrl to be null after removal, got ${json.data?.imageUrl}`);
+    }
+
+    // Verify file was deleted from disk
+    const norm = secondUploadedImagePath.startsWith('/') ? secondUploadedImagePath.slice(1) : secondUploadedImagePath;
+        if (fs.existsSync(path.resolve(uploadsBase, norm))) {
+      throw new Error('Image file on disk was NOT deleted after removeImage: true');
+    }
+  });
+
+  await test('Product Image: Deleting product cleans up associated image file', async () => {
+    // 1. Create temporary product with image
+    const fd = new FormData();
+    fd.append('sku', `SKU-DEL-${timestamp}`);
+    fd.append('name', 'Delete Me Product');
+    fd.append('category', imageCatName);
+    fd.append('image', new Blob([validPngBuffer], { type: 'image/png' }), 'to_delete.png');
+
+    const createRes = await fetch(`${API_BASE}/companies/${companyId}/products`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${companyToken}` },
+      body: fd,
+    });
+    const createJson = await createRes.json();
+    const tempProdId = createJson.data?.id;
+    const tempImgPath = createJson.data?.imageUrl;
+
+    if (!tempProdId || !tempImgPath) throw new Error('Failed to create temp product for delete test');
+
+    const tempNorm = tempImgPath.startsWith('/') ? tempImgPath.slice(1) : tempImgPath;
+        const tempFullPath = path.resolve(uploadsBase, tempNorm);
+    if (!fs.existsSync(tempFullPath)) throw new Error('Temp image was not created on disk');
+
+    // 2. Delete product
+    const delRes = await fetch(`${API_BASE}/companies/${companyId}/products/${tempProdId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    const delJson = await delRes.json();
+    if (!delJson.success) throw new Error('Failed to delete temp product');
+
+    // 3. Verify file deleted from disk
+    if (fs.existsSync(tempFullPath)) {
+      throw new Error('Associated image file was NOT deleted after product deletion');
+    }
+  });
+
+  // ===========================================================================
   // CLEANUP TEST ARTIFACTS
   // ===========================================================================
   await test('Cleanup: Remove test pricing, product, inventory stock, and category', async () => {
@@ -508,8 +774,14 @@ export async function runProductCatalogueFlowTests() {
     if (createdProductId) {
       await prisma.product.deleteMany({ where: { id: createdProductId } });
     }
+    if (imageTestProdId) {
+      await prisma.product.deleteMany({ where: { id: imageTestProdId } });
+    }
     if (createdCatId) {
       await prisma.productCategory.deleteMany({ where: { id: createdCatId } });
+    }
+    if (imageCatId) {
+      await prisma.productCategory.deleteMany({ where: { id: imageCatId } });
     }
   });
 

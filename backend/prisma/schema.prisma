@@ -167,24 +167,6 @@ model ClientAdmin {
   proformas       SalesProforma[]
   vendors         Vendor[]
   inventoryStocks InventoryStock[]
-  serviceAccess                ClientServiceAccess[]
-  moduleAccess                 ClientModuleAccess[]
-  subModuleAccess              ClientSubModuleAccess[]
-  departments                  Department[]
-  employees                    CompanyEmployee[]
-  serviceTeams                 CompanyServiceTeam[]
-  workItems                    ServiceWorkItem[]
-  leads                        Lead[]
-  leadIntegrations             CompanyLeadIntegration[]
-  customers                    CrmCustomer[]
-  contacts                     CrmContact[]
-  opportunities                CrmOpportunity[]
-  products                     Product[]
-  salesOrders                  SalesOrder[]
-  quotations                   SalesQuotation[]
-  proformas                    SalesProforma[]
-  vendors                      Vendor[]
-  inventoryStocks              InventoryStock[]
   inventoryWarehouses          InventoryWarehouse[]
   inventoryMovements           InventoryMovement[]
   inventoryFulfillments        InventoryFulfillment[]
@@ -503,6 +485,7 @@ model Product {
   sku           String           @db.VarChar(60)
   name          String           @db.VarChar(180)
   description   String?          @db.Text
+  imageUrl      String?          @map("image_url") @db.VarChar(500)
   category      String           @default("Finished Goods") @db.VarChar(100)
   uom           String           @default("PCS") @db.VarChar(30)
   sellingPrice  Decimal          @default(0) @map("selling_price") @db.Decimal(15, 2)
@@ -515,6 +498,7 @@ model Product {
 
   clientAdmin   ClientAdmin      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   pricings      ProductPricing[]
+  inventoryStocks InventoryStock[]
 
   @@unique([companyId, sku])
   @@index([companyId, category, status])
@@ -554,22 +538,6 @@ model ProductPricing {
 
   clientAdmin   ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  id            String   @id @default(uuid()) @db.Char(36)
-  companyId     String   @map("company_id") @db.Char(36)
-  sku           String   @db.VarChar(60)
-  name          String   @db.VarChar(180)
-  category      String   @default("Finished Goods") @db.VarChar(100)
-  uom           String   @default("PCS") @db.VarChar(30)
-  sellingPrice  Decimal  @default(0) @map("selling_price") @db.Decimal(15, 2)
-  purchasePrice Decimal  @default(0) @map("purchase_price") @db.Decimal(15, 2)
-  stock         Int      @default(0)
-  status        String   @default("ACTIVE") @db.VarChar(30)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  clientAdmin     ClientAdmin      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  inventoryStocks InventoryStock[]
-
   @@index([companyId, productId])
   @@map("product_pricings")
 }
