@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { api } from '../../lib/api';
+import { useRef } from 'react';
+import { api, API_BASE } from '../../lib/api';
+import { getStoredToken } from '../../lib/auth';
 import {
   IconPlus,
   IconSearch,
@@ -15,10 +17,253 @@ import {
   IconRefreshCw,
   IconPackage,
   IconCreditCard,
+  IconImage,
+  IconUpload,
 } from '../ui/Icons';
 import Modal from '../ui/Modal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import EmptyState from '../ui/EmptyState';
+
+
+function getProductImageUrl(imageUrl, companyId, productId) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('data:')) {
+    return imageUrl;
+  }
+  const token = getStoredToken();
+  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `${API_BASE}/companies/${companyId}/products/${productId}/image${tokenQuery}`;
+}
+
+function ProductThumbnail({ product, companyId, size = 42, onEnlarge }) {
+  const [imgError, setImgError] = useState(false);
+  const imageUrl = getProductImageUrl(product?.imageUrl, companyId, product?.id);
+
+  if (imageUrl && !imgError) {
+    return (
+      <div
+        onClick={() => onEnlarge && onEnlarge(imageUrl, product)}
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          borderRadius: '8px',
+          overflow: 'hidden',
+          border: '1px solid #e2e8f0',
+          cursor: onEnlarge ? 'pointer' : 'default',
+          flexShrink: 0,
+          background: '#f8fafc',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        title={onEnlarge ? 'Click to enlarge preview' : (product?.name || 'Product')}
+      >
+        <img
+          src={imageUrl}
+          alt={product?.name || 'Product'}
+          onError={() => setImgError(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        borderRadius: '8px',
+        border: '1px solid #e2e8f0',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#94a3b8',
+        flexShrink: 0,
+      }}
+      title="No image uploaded"
+    >
+      <IconPackage size={Math.round(size * 0.48)} />
+    </div>
+  );
+}
+
+function ProductImageUploader({
+  imageFile,
+  imagePreview,
+  currentImageUrl,
+  onSelectImage,
+  onRemoveImage,
+  errorMessage,
+  isRemoved = false,
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      onSelectImage(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      onSelectImage(e.target.files[0]);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const activePreview = imagePreview || (!isRemoved ? currentImageUrl : null);
+
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem', color: '#0f172a' }}>
+        Product Image / Photo (JPEG, PNG, WebP — Max 5MB)
+      </label>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
+      {activePreview ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            border: '1px solid #cbd5e1',
+            background: '#f8fafc',
+          }}
+        >
+          <div
+            style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0',
+              background: '#ffffff',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <img
+              src={activePreview}
+              alt="Preview"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {imageFile ? imageFile.name : 'Current Product Image'}
+              </span>
+              <span style={{ fontSize: '0.72rem', padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#15803d', fontWeight: 700 }}>
+                {imageFile ? `${(imageFile.size / (1024 * 1024)).toFixed(2)} MB` : 'Attached'}
+              </span>
+            </div>
+            <p style={{ margin: '0 0 0.45rem 0', fontSize: '0.75rem', color: '#64748b' }}>
+              {imageFile ? 'Ready to upload on save.' : 'Currently active catalogue image.'}
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  padding: '0.3rem 0.65rem',
+                  borderRadius: '5px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  color: '#334155',
+                  cursor: 'pointer',
+                }}
+              >
+                Replace Image
+              </button>
+              <button
+                type="button"
+                onClick={onRemoveImage}
+                style={{
+                  padding: '0.3rem 0.65rem',
+                  borderRadius: '5px',
+                  border: '1px solid #fecaca',
+                  background: '#fff1f2',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  color: '#e11d48',
+                  cursor: 'pointer',
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            border: isDragging ? '2px dashed #7f22fe' : '2px dashed #cbd5e1',
+            background: isDragging ? '#faf5ff' : '#f8fafc',
+            borderRadius: '8px',
+            padding: '1.25rem 1rem',
+            textAlign: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <div style={{ color: isDragging ? '#7f22fe' : '#94a3b8', marginBottom: '0.35rem', display: 'flex', justifyContent: 'center' }}>
+            <IconUpload size={26} />
+          </div>
+          <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.84rem', fontWeight: 700, color: '#334155' }}>
+            Click to upload or drag &amp; drop
+          </p>
+          <p style={{ margin: 0, fontSize: '0.74rem', color: '#64748b' }}>
+            Supported formats: JPEG, PNG, WebP (up to 5MB)
+          </p>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: '#dc2626', fontWeight: 600 }}>
+          ⚠️ {errorMessage}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProductsModule({ activeCompany, showToast, initialSubTab }) {
   const router = useRouter();
@@ -142,6 +387,76 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
 
+  // Product Image States
+  const [productImageFile, setProductImageFile] = useState(null);
+  const [productImagePreview, setProductImagePreview] = useState('');
+  const [productImageError, setProductImageError] = useState('');
+
+  const [editImageFile, setEditImageFile] = useState(null);
+  const [editImagePreview, setEditImagePreview] = useState('');
+  const [editImageRemoved, setEditImageRemoved] = useState(false);
+  const [editImageError, setEditImageError] = useState('');
+
+  const [imageToEnlarge, setImageToEnlarge] = useState(null);
+
+  const handleSelectCreateImage = (file) => {
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setProductImageError('Invalid format. Only JPEG, PNG, and WebP images are allowed.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setProductImageError('File is too large. Maximum size is 5MB.');
+      return;
+    }
+    setProductImageError('');
+    setProductImageFile(file);
+    if (productImagePreview) URL.revokeObjectURL(productImagePreview);
+    setProductImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveCreateImage = () => {
+    if (productImagePreview) URL.revokeObjectURL(productImagePreview);
+    setProductImageFile(null);
+    setProductImagePreview('');
+    setProductImageError('');
+  };
+
+  const handleSelectEditImage = (file) => {
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setEditImageError('Invalid format. Only JPEG, PNG, and WebP images are allowed.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setEditImageError('File is too large. Maximum size is 5MB.');
+      return;
+    }
+    setEditImageError('');
+    setEditImageFile(file);
+    setEditImageRemoved(false);
+    if (editImagePreview) URL.revokeObjectURL(editImagePreview);
+    setEditImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveEditImage = () => {
+    if (editImagePreview) URL.revokeObjectURL(editImagePreview);
+    setEditImageFile(null);
+    setEditImagePreview('');
+    setEditImageRemoved(true);
+    setEditImageError('');
+  };
+
+  const handleOpenEditModal = (p) => {
+    setProductToEdit({ ...p, taxRate: p.taxRate ?? 18, stock: p.stock ?? 0 });
+    setEditImageFile(null);
+    setEditImagePreview('');
+    setEditImageRemoved(false);
+    setEditImageError('');
+  };
+
   const handleCreateProduct = async (e) => {
     e.preventDefault();
     if (!productForm.sku?.trim() || !productForm.name?.trim()) {
@@ -163,16 +478,36 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
 
     setIsSavingProduct(true);
     try {
-      const payload = {
-        ...productForm,
-        sku: productForm.sku.trim().toUpperCase(),
-        name: productForm.name.trim(),
-        sellingPrice: sPrice,
-        purchasePrice: pPrice,
-      };
+      let payload;
+      if (productImageFile) {
+        const fd = new FormData();
+        fd.append('sku', productForm.sku.trim().toUpperCase());
+        fd.append('name', productForm.name.trim());
+        fd.append('description', productForm.description?.trim() || '');
+        fd.append('category', productForm.category.trim());
+        fd.append('uom', productForm.uom || 'PCS');
+        fd.append('sellingPrice', sPrice);
+        fd.append('purchasePrice', pPrice);
+        fd.append('taxRate', productForm.taxRate !== undefined && productForm.taxRate !== '' ? productForm.taxRate : 18);
+        fd.append('stock', productForm.stock !== undefined && productForm.stock !== '' ? productForm.stock : 0);
+        fd.append('status', productForm.status || 'ACTIVE');
+        fd.append('image', productImageFile);
+        payload = fd;
+      } else {
+        payload = {
+          ...productForm,
+          sku: productForm.sku.trim().toUpperCase(),
+          name: productForm.name.trim(),
+          sellingPrice: sPrice,
+          purchasePrice: pPrice,
+          taxRate: productForm.taxRate !== undefined && productForm.taxRate !== '' ? parseFloat(productForm.taxRate) : 18,
+          stock: productForm.stock !== undefined && productForm.stock !== '' ? parseInt(productForm.stock, 10) : 0,
+        };
+      }
       const res = await api.post(`/companies/${activeCompany.id}/products`, payload);
       setProducts([res.data, ...products]);
       setShowAddProductModal(false);
+      handleRemoveCreateImage();
       setProductForm({
         sku: '',
         name: '',
@@ -181,6 +516,8 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
         uom: 'PCS',
         sellingPrice: '',
         purchasePrice: '',
+        taxRate: '18',
+        stock: '',
         status: 'ACTIVE',
       });
       showToast('Product Registered! 📦', `"${res.data.name}" added to company catalogue.`, 'success');
@@ -211,18 +548,40 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
 
     setIsUpdatingProduct(true);
     try {
-      const payload = {
-        name: productToEdit.name.trim(),
-        description: productToEdit.description || '',
-        category: productToEdit.category,
-        uom: productToEdit.uom,
-        sellingPrice: sPrice,
-        purchasePrice: pPrice,
-        status: productToEdit.status,
-      };
+      let payload;
+      if (editImageFile) {
+        const fd = new FormData();
+        fd.append('name', productToEdit.name.trim());
+        fd.append('description', productToEdit.description || '');
+        fd.append('category', productToEdit.category);
+        fd.append('uom', productToEdit.uom);
+        fd.append('sellingPrice', sPrice);
+        fd.append('purchasePrice', pPrice);
+        fd.append('taxRate', productToEdit.taxRate !== undefined && productToEdit.taxRate !== '' ? productToEdit.taxRate : 18);
+        fd.append('stock', productToEdit.stock !== undefined && productToEdit.stock !== '' ? productToEdit.stock : 0);
+        fd.append('status', productToEdit.status);
+        fd.append('image', editImageFile);
+        payload = fd;
+      } else {
+        payload = {
+          name: productToEdit.name.trim(),
+          description: productToEdit.description || '',
+          category: productToEdit.category,
+          uom: productToEdit.uom,
+          sellingPrice: sPrice,
+          purchasePrice: pPrice,
+          taxRate: productToEdit.taxRate !== undefined && productToEdit.taxRate !== '' ? parseFloat(productToEdit.taxRate) : 18,
+          stock: productToEdit.stock !== undefined && productToEdit.stock !== '' ? parseInt(productToEdit.stock, 10) : 0,
+          status: productToEdit.status,
+        };
+        if (editImageRemoved) {
+          payload.removeImage = true;
+        }
+      }
       const res = await api.patch(`/companies/${activeCompany.id}/products/${productToEdit.id}`, payload);
       setProducts(products.map((p) => (p.id === productToEdit.id ? res.data : p)));
       setProductToEdit(null);
+      handleRemoveEditImage();
       showToast('Product Updated! 📦', `"${res.data.name}" updated successfully.`, 'success');
       loadCategories();
       loadPricings();
@@ -806,12 +1165,14 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
               <table style={{ width: '100%', minWidth: '1040px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '0.85rem 0.75rem', width: '56px', whiteSpace: 'nowrap' }}>Photo</th>
                     <th style={{ padding: '0.85rem 1.25rem', whiteSpace: 'nowrap' }}>SKU Code</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Product Name</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Category</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>UOM</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Selling Rate</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Purchase Rate</th>
+                    <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>GST (%)</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Available Stock</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Status</th>
                     <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
@@ -820,6 +1181,14 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 <tbody>
                   {filteredProducts.map((p) => (
                     <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '0.65rem 0.75rem', width: '56px' }}>
+                        <ProductThumbnail
+                          product={p}
+                          companyId={activeCompany?.id}
+                          size={42}
+                          onEnlarge={(url) => setImageToEnlarge({ url, title: p.name, sku: p.sku })}
+                        />
+                      </td>
                       <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800, color: '#7f22fe', whiteSpace: 'nowrap' }}>
                         {p.sku}
                       </td>
@@ -844,6 +1213,11 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#64748b', whiteSpace: 'nowrap' }}>
                         ₹ {Number(p.purchasePrice || 0).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '0.74rem', fontWeight: 700, background: '#e0e7ff', color: '#3730a3', whiteSpace: 'nowrap' }}>
+                          {Number(p.taxRate ?? 18).toFixed(1)}%
+                        </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
                         <span
@@ -897,7 +1271,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                           </button>
                           <button
                             type="button"
-                            onClick={() => setProductToEdit({ ...p, taxRate: p.taxRate ?? 18 })}
+                            onClick={() => handleOpenEditModal(p)}
                             style={{
                               padding: '4px 8px',
                               borderRadius: '4px',
@@ -1239,11 +1613,21 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                   {filteredPricings.map((pr) => (
                     <tr key={pr.id} style={{ borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
                       <td style={{ padding: '0.85rem 1.25rem', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 800, color: '#7f22fe', whiteSpace: 'nowrap' }}>
-                          {pr.product?.sku || 'SKU'}
-                        </div>
-                        <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                          {pr.product?.name || 'Catalogue Item'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                          <ProductThumbnail
+                            product={pr.product}
+                            companyId={activeCompany?.id}
+                            size={36}
+                            onEnlarge={(url) => setImageToEnlarge({ url, title: pr.product?.name, sku: pr.product?.sku })}
+                          />
+                          <div>
+                            <div style={{ fontWeight: 800, color: '#7f22fe', whiteSpace: 'nowrap' }}>
+                              {pr.product?.sku || 'SKU'}
+                            </div>
+                            <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                              {pr.product?.name || 'Catalogue Item'}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#334155', whiteSpace: 'nowrap' }}>
@@ -1442,13 +1826,23 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.85rem' }}>
+          {/* Product Image Uploader */}
+          <ProductImageUploader
+            imageFile={productImageFile}
+            imagePreview={productImagePreview}
+            currentImageUrl={null}
+            onSelectImage={handleSelectCreateImage}
+            onRemoveImage={handleRemoveCreateImage}
+            errorMessage={productImageError}
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.85rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
                 Unit of Measure (UOM)
               </label>
               <select
-                value={productForm.uom}
+                value={productForm.uom || 'PCS'}
                 onChange={(e) => setProductForm({ ...productForm, uom: e.target.value })}
                 style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff' }}
               >
@@ -1471,7 +1865,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 step="0.01"
                 min="0"
                 placeholder="0.00"
-                value={productForm.sellingPrice}
+                value={productForm.sellingPrice ?? ''}
                 onChange={(e) => setProductForm({ ...productForm, sellingPrice: e.target.value })}
                 style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
               />
@@ -1486,7 +1880,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 step="0.01"
                 min="0"
                 placeholder="0.00"
-                value={productForm.purchasePrice}
+                value={productForm.purchasePrice ?? ''}
                 onChange={(e) => setProductForm({ ...productForm, purchasePrice: e.target.value })}
                 style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
               />
@@ -1502,8 +1896,22 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 min="0"
                 max="100"
                 placeholder="18"
-                value={productForm.taxRate}
+                value={productForm.taxRate ?? '18'}
                 onChange={(e) => setProductForm({ ...productForm, taxRate: e.target.value })}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                Opening Stock (Qty)
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={productForm.stock ?? ''}
+                onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
                 style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
               />
             </div>
@@ -1596,6 +2004,17 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
               />
             </div>
 
+            {/* Product Image Uploader */}
+            <ProductImageUploader
+              imageFile={editImageFile}
+              imagePreview={editImagePreview}
+              currentImageUrl={productToEdit ? getProductImageUrl(productToEdit.imageUrl, activeCompany?.id, productToEdit.id) : null}
+              onSelectImage={handleSelectEditImage}
+              onRemoveImage={handleRemoveEditImage}
+              errorMessage={editImageError}
+              isRemoved={editImageRemoved}
+            />
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
@@ -1643,6 +2062,34 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                   style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                 />
               </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  GST / Tax (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  value={productToEdit.taxRate ?? '18'}
+                  onChange={(e) => setProductToEdit({ ...productToEdit, taxRate: e.target.value })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  Stock Qty
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={productToEdit.stock ?? 0}
+                  onChange={(e) => setProductToEdit({ ...productToEdit, stock: e.target.value })}
+                  style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
@@ -1669,6 +2116,49 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
       {productToView && (
         <Modal isOpen={Boolean(productToView)} onClose={() => setProductToView(null)} title={`Product Details — ${productToView.sku}`}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Main Product Image Banner */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#f8fafc',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                padding: '1rem',
+                minHeight: '140px',
+                maxHeight: '220px',
+                overflow: 'hidden',
+              }}
+            >
+              {productToView.imageUrl ? (
+                <img
+                  src={getProductImageUrl(productToView.imageUrl, activeCompany?.id, productToView.id)}
+                  alt={productToView.name}
+                  style={{
+                    maxHeight: '200px',
+                    maxWidth: '100%',
+                    objectFit: 'contain',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() =>
+                    setImageToEnlarge({
+                      url: getProductImageUrl(productToView.imageUrl, activeCompany?.id, productToView.id),
+                      title: productToView.name,
+                      sku: productToView.sku,
+                    })
+                  }
+                  title="Click to view full size"
+                />
+              ) : (
+                <div style={{ textAlign: 'center', color: '#94a3b8' }}>
+                  <IconPackage size={40} />
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', fontWeight: 600 }}>No image uploaded for this SKU</p>
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
               <div>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>SKU Code</span>
@@ -1729,6 +2219,54 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 type="button"
                 onClick={() => setProductToView(null)}
                 style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal: Fullscreen / Enlarged Image Preview */}
+      {imageToEnlarge && (
+        <Modal
+          isOpen={Boolean(imageToEnlarge)}
+          onClose={() => setImageToEnlarge(null)}
+          title={`${imageToEnlarge.sku} — ${imageToEnlarge.title}`}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <div
+              style={{
+                width: '100%',
+                maxHeight: '65vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#0f172a',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                padding: '0.5rem',
+              }}
+            >
+              <img
+                src={imageToEnlarge.url}
+                alt={imageToEnlarge.title}
+                style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain' }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+              <button
+                type="button"
+                onClick={() => setImageToEnlarge(null)}
+                style={{
+                  padding: '0.55rem 1.25rem',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#334155',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
               >
                 Close
               </button>

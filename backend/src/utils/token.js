@@ -123,6 +123,14 @@ export function extractToken(req) {
     if (cookies['auth_token']) return cookies['auth_token'];
   }
 
+  // 3. Check query param (e.g. for secure media/image embeds)
+  if (req.query && typeof req.query.token === 'string' && req.query.token.trim()) {
+    return req.query.token.trim();
+  }
+  if (req.query && typeof req.query.auth_token === 'string' && req.query.auth_token.trim()) {
+    return req.query.auth_token.trim();
+  }
+
   return null;
 }
 

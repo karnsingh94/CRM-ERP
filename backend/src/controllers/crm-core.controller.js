@@ -41,6 +41,7 @@ export const crmCoreController = {
   // Product delegation
   listProducts: productController.list,
   getProduct: productController.get,
+  getProductImage: productController.getImage,
   createProduct: productController.create,
   updateProduct: productController.update,
   removeProduct: productController.remove,
