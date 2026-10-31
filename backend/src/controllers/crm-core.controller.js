@@ -8,6 +8,9 @@ import pricingController from './crm/pricing.controller.js';
 import quotationController from './sales/quotation.controller.js';
 import salesOrderController from './sales/sales-order.controller.js';
 import proformaController from './sales/proforma.controller.js';
+import communicationController from './crm/communication.controller.js';
+import advanceController from './sales/advance.controller.js';
+import reassignmentController from './crm/reassignment.controller.js';
 
 function respondError(error, res, next) {
   if (error.statusCode) {
@@ -25,6 +28,7 @@ export const crmCoreController = {
   createCustomer: customerController.create,
   updateCustomer: customerController.update,
   removeCustomer: customerController.remove,
+  getCustomerTimeline: customerController.getTimeline,
 
   // CRM Contact delegation
   listContacts: contactController.list,
@@ -62,6 +66,7 @@ export const crmCoreController = {
   listSalesOrders: salesOrderController.list,
   createSalesOrder: salesOrderController.create,
   updateSalesOrderStatus: salesOrderController.updateStatus,
+  releaseSalesOrder: salesOrderController.release,
   removeSalesOrder: salesOrderController.remove,
 
   // Sales Quotation delegation
@@ -69,13 +74,30 @@ export const crmCoreController = {
   createQuotation: quotationController.create,
   updateQuotationStatus: quotationController.updateStatus,
   convertQuotationToOrder: quotationController.convertToOrder,
+  submitQuotationApproval: quotationController.submitForApproval,
+  reviseQuotation: quotationController.revise,
   removeQuotation: quotationController.remove,
 
   // Sales Proforma delegation
   listProformas: proformaController.list,
   createProforma: proformaController.create,
   updateProformaStatus: proformaController.updateStatus,
+  submitProformaApproval: proformaController.submitForApproval,
+  reviseProforma: proformaController.revise,
   removeProforma: proformaController.remove,
+
+  // Customer Advance delegation
+  listCustomerAdvances: advanceController.list,
+  recordCustomerAdvance: advanceController.record,
+  verifyCustomerAdvance: advanceController.verify,
+
+  // Communications & Reorder Reminders
+  listCommunications: communicationController.list,
+  createCommunication: communicationController.create,
+  processReorderReminders: communicationController.processReorderReminders,
+
+  // Sales Representative Reassignment
+  reassignSalesRepresentative: reassignmentController.reassign,
 
   // Vendor delegation
   async listVendors(req, res, next) {

@@ -1,10 +1,12 @@
 import prisma from '../config/prisma.js';
 import { isUuid } from '../utils/uuid.js';
+import { notificationService } from './notification.service.js';
+import { auditService } from './audit.service.js';
 
 const LEAD_STATUSES = new Set(['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'WON', 'LOST']);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function leadError(message, statusCode) {
+function leadError(message, statusCode = 400) {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
@@ -23,7 +25,21 @@ function normalizeValue(value) {
 
 function normalizeLeadInput(data, { partial = false } = {}) {
   const result = {};
-  const fields = ['name', 'company', 'email', 'phone', 'source', 'status', 'value', 'requirements', 'assignedTo'];
+  const fields = [
+    'name',
+    'company',
+    'email',
+    'phone',
+    'source',
+    'status',
+    'value',
+    'requirements',
+    'assignedTo',
+    'priority',
+    'nextFollowUpDate',
+    'followUpRemarks',
+  ];
+
   for (const field of fields) {
     if (data[field] === undefined) continue;
     if (field === 'value') {
@@ -36,11 +52,25 @@ function normalizeLeadInput(data, { partial = false } = {}) {
       result.status = status;
       continue;
     }
+    if (field === 'priority') {
+      result.priority = String(data.priority || 'MEDIUM').trim().toUpperCase();
+      continue;
+    }
+    if (field === 'nextFollowUpDate') {
+      result.nextFollowUpDate = data.nextFollowUpDate ? new Date(data.nextFollowUpDate) : null;
+      continue;
+    }
     if (data[field] !== null && typeof data[field] !== 'string') {
       throw leadError(`${field} must be text.`, 400);
     }
     const value = typeof data[field] === 'string' ? data[field].trim() : '';
-    if (field === 'company' || field === 'phone' || field === 'requirements' || field === 'assignedTo') {
+    if (
+      field === 'company' ||
+      field === 'phone' ||
+      field === 'requirements' ||
+      field === 'assignedTo' ||
+      field === 'followUpRemarks'
+    ) {
       result[field] = value || null;
     } else if (field === 'source') {
       result.source = value || 'Manual';
@@ -91,6 +121,13 @@ function formatLead(lead) {
     value: lead.value?.toString() || '',
     requirements: lead.requirements || '',
     assignedTo: lead.assignedTo || '',
+    priority: lead.priority || 'MEDIUM',
+    nextFollowUpDate: lead.nextFollowUpDate ? lead.nextFollowUpDate.toISOString().slice(0, 10) : null,
+    followUpRemarks: lead.followUpRemarks || '',
+    convertedAt: lead.convertedAt ? lead.convertedAt.toISOString() : null,
+    convertedById: lead.convertedById || null,
+    convertedByName: lead.convertedByName || null,
+    convertedCustomerId: lead.convertedCustomerId || null,
     status: lead.status,
     date: lead.createdAt.toISOString().slice(0, 10),
     createdAt: lead.createdAt.toISOString(),
@@ -104,6 +141,62 @@ function parseLeadId(id) {
 }
 
 export const crmLeadService = {
+  /**
+   * Duplicate lead detection (Phone, Email, Company, GSTIN)
+   */
+  async checkDuplicates(companyId, { phone, email, companyName, gstin }) {
+    const conditions = [];
+
+    if (phone && String(phone).trim()) {
+      let cleanPhone = String(phone).replace(/[\s\-\(\)]/g, '');
+      if (cleanPhone.startsWith('+91')) cleanPhone = cleanPhone.slice(3);
+      else if (cleanPhone.startsWith('91') && cleanPhone.length === 12) cleanPhone = cleanPhone.slice(2);
+      else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
+      if (cleanPhone.length >= 7) {
+        conditions.push({ phone: { contains: cleanPhone } });
+      }
+    }
+
+    if (email && String(email).trim() && EMAIL_PATTERN.test(String(email).trim())) {
+      conditions.push({ email: { equals: String(email).trim().toLowerCase() } });
+    }
+
+    if (companyName && String(companyName).trim().length >= 3) {
+      conditions.push({ company: { contains: String(companyName).trim() } });
+    }
+
+    if (conditions.length === 0) {
+      return { hasDuplicate: false, matchingLeads: [], matchingCustomers: [] };
+    }
+
+    const [matchingLeads, matchingCustomers] = await Promise.all([
+      prisma.lead.findMany({
+        where: {
+          companyId,
+          OR: conditions,
+        },
+        take: 5,
+      }),
+      prisma.crmCustomer.findMany({
+        where: {
+          companyId,
+          OR: [
+            ...(email ? [{ email: { equals: String(email).trim().toLowerCase() } }] : []),
+            ...(companyName ? [{ companyName: { contains: String(companyName).trim() } }] : []),
+            ...(gstin ? [{ gstin: { equals: String(gstin).trim().toUpperCase() } }] : []),
+          ],
+        },
+        take: 5,
+      }),
+    ]);
+
+    return {
+      hasDuplicate: matchingLeads.length > 0 || matchingCustomers.length > 0,
+      matchingLeads: matchingLeads.map(formatLead),
+      matchingCustomers,
+    };
+  },
+
   async list(companyId) {
     const leads = await prisma.lead.findMany({
       where: { companyId },
@@ -112,24 +205,76 @@ export const crmLeadService = {
     return leads.map(formatLead);
   },
 
-  async create(companyId, data) {
+  async create(companyId, data, currentUser = {}) {
     const leadData = normalizeLeadInput(data);
     const lead = await prisma.lead.create({
       data: { ...leadData, companyId },
     });
+
+    // Notify assigned salesperson if assigned
+    if (lead.assignedTo) {
+      await notificationService.createNotification({
+        companyId,
+        recipientId: lead.assignedTo,
+        category: 'TASK',
+        title: `New Lead Assigned: ${lead.name}`,
+        message: `${lead.company || lead.name} from ${lead.source} was assigned to you.`,
+        entityType: 'LEAD',
+        entityId: lead.id,
+      });
+    }
+
+    // Phase 1 Audit Log
+    await auditService.logAction({
+      companyId,
+      actor: currentUser,
+      action: 'CREATE_LEAD',
+      entityType: 'LEAD',
+      entityId: lead.id,
+      afterState: { id: lead.id, name: lead.name, email: lead.email, source: lead.source },
+      reason: 'Captured new CRM lead',
+    });
+
     return formatLead(lead);
   },
 
-  async update(companyId, id, data) {
+  async update(companyId, id, data, currentUser = {}) {
     const leadId = parseLeadId(id);
     const leadData = normalizeLeadInput(data, { partial: true });
     if (Object.keys(leadData).length === 0) throw leadError('Provide at least one lead field to update.', 400);
+
     const existing = await prisma.lead.findFirst({ where: { id: leadId, companyId } });
     if (!existing) throw leadError('Lead not found for this company.', 404);
+
     const lead = await prisma.lead.update({
       where: { id: leadId },
       data: leadData,
     });
+
+    // If assignedTo changed, notify the new assignee
+    if (leadData.assignedTo && leadData.assignedTo !== existing.assignedTo) {
+      await notificationService.createNotification({
+        companyId,
+        recipientId: leadData.assignedTo,
+        category: 'TASK',
+        title: `Lead Reassigned: ${lead.name}`,
+        message: `Lead ${lead.name} (${lead.company || 'Direct'}) was reassigned to you from ${existing.assignedTo || 'Unassigned'}.`,
+        entityType: 'LEAD',
+        entityId: lead.id,
+      });
+
+      await auditService.logAction({
+        companyId,
+        actor: currentUser,
+        action: 'REASSIGN_LEAD',
+        entityType: 'LEAD',
+        entityId: lead.id,
+        beforeState: { assignedTo: existing.assignedTo },
+        afterState: { assignedTo: leadData.assignedTo },
+        reason: 'Lead ownership transferred',
+      });
+    }
+
     return formatLead(lead);
   },
 
@@ -139,10 +284,13 @@ export const crmLeadService = {
     if (result.count === 0) throw leadError('Lead not found for this company.', 404);
   },
 
-  async convert(companyId, id, data) {
+  async convert(companyId, id, data, currentUser = {}) {
     const leadId = parseLeadId(id);
     const existing = await prisma.lead.findFirst({ where: { id: leadId, companyId } });
     if (!existing) throw leadError('Lead not found for this company.', 404);
+
+    const convertingUserId = String(currentUser.userId || currentUser.id || 'system');
+    const convertingUserName = currentUser.name || currentUser.organizationName || 'Sales Representative';
 
     let customer;
     if (data?.existingCustomerId) {
@@ -157,16 +305,18 @@ export const crmLeadService = {
       const contactPerson = data.contactPerson !== undefined ? String(data.contactPerson).trim() : existing.name;
       const email = data.email !== undefined ? String(data.email).trim() : existing.email;
       const phone = data.phone !== undefined ? String(data.phone).trim() : (existing.phone || null);
-      const gstin = data.gstin ? String(data.gstin).trim() : null;
+      const gstin = data.gstin ? String(data.gstin).trim().toUpperCase() : null;
       const industry = data.industry ? String(data.industry).trim() : 'Technology & IT';
       const requirements = data.requirements !== undefined ? String(data.requirements).trim() : (existing.requirements || null);
       const assignedTo = data.assignedTo !== undefined ? String(data.assignedTo).trim() : (existing.assignedTo || null);
+      const customerCode = data.customerCode?.trim() || `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
 
       // 1. Create Customer
       customer = await prisma.crmCustomer.create({
         data: {
           companyId,
           companyName,
+          customerCode,
           contactPerson: contactPerson || null,
           email: email || '',
           phone: phone || null,
@@ -177,12 +327,71 @@ export const crmLeadService = {
           status: 'ACTIVE',
         },
       });
+
+      // 2. Automatically create primary contact for the new customer
+      if (contactPerson) {
+        await prisma.crmContact.create({
+          data: {
+            companyId,
+            customerId: customer.id,
+            name: contactPerson,
+            companyName,
+            role: 'Primary Contact',
+            designation: 'Key Stakeholder',
+            email: email || null,
+            phone: phone || null,
+            isPrimary: true,
+            isDecisionMaker: true,
+            communicationPreference: 'EMAIL',
+          },
+        });
+      }
     }
 
-    // 2. Update lead status to WON
+    // 3. Update lead status to WON and record conversion audit data
     const updatedLead = await prisma.lead.update({
       where: { id: leadId },
-      data: { status: 'WON' },
+      data: {
+        status: 'WON',
+        convertedAt: new Date(),
+        convertedById: convertingUserId,
+        convertedByName: convertingUserName,
+        convertedCustomerId: customer.id,
+      },
+    });
+
+    // 4. Log initial communication record preserving qualification and conversion note
+    await prisma.crmCommunication.create({
+      data: {
+        companyId,
+        customerId: customer.id,
+        leadId: updatedLead.id,
+        communicationType: 'OTHER',
+        subject: `Lead Converted: ${existing.name}`,
+        notes: `Converted from Lead #${existing.id} (Source: ${existing.source}) by ${convertingUserName}. ${existing.requirements ? `Requirements: ${existing.requirements}` : ''}`,
+        outcome: 'WON',
+        employeeId: convertingUserId,
+        employeeName: convertingUserName,
+      },
+    });
+
+    // 5. If an opportunity exists or was requested, link to customer
+    if (data.opportunityId) {
+      await prisma.crmOpportunity.update({
+        where: { id: String(data.opportunityId) },
+        data: { companyName: customer.companyName, stage: 'QUALIFIED' },
+      });
+    }
+
+    // 6. Phase 1 Audit Log
+    await auditService.logAction({
+      companyId,
+      actor: currentUser,
+      action: 'CONVERT_LEAD',
+      entityType: 'LEAD',
+      entityId: updatedLead.id,
+      afterState: { leadId: updatedLead.id, customerId: customer.id, status: 'WON' },
+      reason: `Converted lead into customer ${customer.companyName}`,
     });
 
     return {
@@ -190,6 +399,7 @@ export const crmLeadService = {
       customer: {
         id: customer.id,
         companyName: customer.companyName,
+        customerCode: customer.customerCode || '',
         contactPerson: customer.contactPerson || '',
         email: customer.email || '',
         phone: customer.phone || '',

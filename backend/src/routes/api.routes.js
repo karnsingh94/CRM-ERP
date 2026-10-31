@@ -9,6 +9,11 @@ import departmentRoutes from './department.routes.js';
 import auditRoutes from './audit.routes.js';
 import inventoryRoutes from './inventory.routes.js';
 import purchaseRoutes from './purchase.routes.js';
+import approvalRoutes from './approval.routes.js';
+import versionRoutes from './version.routes.js';
+import attachmentRoutes from './attachment.routes.js';
+import notificationRoutes from './notification.routes.js';
+import integrationRoutes from './integration.routes.js';
 
 import { publicWebhookRouter, protectedIntegrationRouter } from './lead-integration.routes.js';
 
@@ -30,6 +35,11 @@ router.use(inventoryRoutes);
 router.use(purchaseRoutes);
 router.use(departmentRoutes);
 router.use(auditRoutes);
+router.use(approvalRoutes);
+router.use(versionRoutes);
+router.use(attachmentRoutes);
+router.use(notificationRoutes);
+router.use(integrationRoutes);
 router.use(protectedIntegrationRouter);
 
 export default router;

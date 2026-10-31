@@ -167,6 +167,7 @@ model ClientAdmin {
   proformas       SalesProforma[]
   vendors         Vendor[]
   inventoryStocks InventoryStock[]
+  inventoryBatches InventoryBatch[]
   inventoryWarehouses          InventoryWarehouse[]
   inventoryMovements           InventoryMovement[]
   inventoryFulfillments        InventoryFulfillment[]
@@ -181,6 +182,21 @@ model ClientAdmin {
   purchaseReceipts             PurchaseReceipt[]
   purchaseReturns              PurchaseReturn[]
   purchaseBills                PurchaseBill[]
+  approvalRequests             ApprovalRequest[]
+  documentVersions             DocumentVersion[]
+  attachments                  Attachment[]
+  notifications                Notification[]
+  integrationJobs              IntegrationJob[]
+  auditLogs                    AuditLog[]
+  crmCommunications            CrmCommunication[]
+  customerAdvances             CustomerAdvance[]
+  artworkProofs                PurchaseArtworkProof[]
+  purchaseDeviations           PurchaseDeviation[]
+  inventoryReservations        InventoryReservation[]
+  inventorySamplings           InventorySampling[]
+  inventoryGatePasses          InventoryGatePass[]
+  inventoryPhysicalVerifications InventoryPhysicalVerification[]
+  inventoryAdjustments         InventoryAdjustment[]
 
   @@map("Admins")
 }
@@ -244,20 +260,30 @@ model ClientSubModuleAccess {
 
 // 7.10 Audit Logs
 model AuditLog {
-  id         String   @id @default(uuid()) @db.Char(36)
-  actorId    String?  @map("actor_id") @db.Char(36)
-  action     String   @db.VarChar(100) // CREATE, UPDATE, STATUS, ACCESS
-  entityType String   @map("entity_type") @db.VarChar(100) // SERVICE, MODULE, SUB_MODULE, CLIENT_ADMIN, ACCESS
-  entityId   String?  @map("entity_id") @db.Char(36)
-  oldValue   String?  @map("old_value") @db.Text
-  newValue   String?  @map("new_value") @db.Text
-  reason     String?  @db.Text
-  ipAddress  String?  @map("ip_address") @db.VarChar(64)
-  userAgent  String?  @map("user_agent") @db.VarChar(255)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid()) @db.Char(36)
+  companyId   String?  @map("company_id") @db.Char(36)
+  actorId     String?  @map("actor_id") @db.Char(36)
+  userId      String?  @map("user_id") @db.Char(36)
+  userName    String?  @map("user_name") @db.VarChar(180)
+  serviceCode String?  @map("service_code") @db.VarChar(60)
+  moduleCode  String?  @map("module_code") @db.VarChar(60)
+  action      String   @db.VarChar(100) // CREATE, UPDATE, STATUS, ACCESS, APPROVE, REJECT, POST, DELETE
+  entityType  String   @map("entity_type") @db.VarChar(100) // SERVICE, MODULE, SUB_MODULE, CLIENT_ADMIN, ACCESS, etc.
+  entityId    String?  @map("entity_id") @db.Char(36)
+  oldValue    String?  @map("old_value") @db.Text
+  newValue    String?  @map("new_value") @db.Text
+  beforeState String?  @map("before_state") @db.Text
+  afterState  String?  @map("after_state") @db.Text
+  reason      String?  @db.Text
+  ipAddress   String?  @map("ip_address") @db.VarChar(64)
+  userAgent   String?  @map("user_agent") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  superAdmin SuperAdmin? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  superAdmin SuperAdmin?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  company    ClientAdmin? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  @@index([companyId, createdAt])
+  @@index([entityType, entityId])
   @@map("audit_logs")
 }
 
@@ -346,6 +372,9 @@ model ServiceWorkItem {
   description   String?        @db.Text
   status        WorkItemStatus @default(TODO)
   progress      Int            @default(0)
+  priority      String         @default("MEDIUM") @db.VarChar(20)
+  entityType    String?        @map("entity_type") @db.VarChar(60)
+  entityId      String?        @map("entity_id") @db.Char(36)
   dueDate       DateTime?      @map("due_date") @db.DateTime(3)
   createdAt     DateTime       @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.DateTime(3)
@@ -379,25 +408,34 @@ model ServiceWorkUpdate {
 }
 
 model Lead {
-  id           String     @id @default(uuid()) @db.Char(36)
-  companyId    String     @map("company_id") @db.Char(36)
-  name         String     @db.VarChar(150)
-  company      String?    @db.VarChar(180)
-  email        String     @db.VarChar(180)
-  phone        String?    @db.VarChar(40)
-  source       String     @default("Website Inquiry") @db.VarChar(100)
-  externalId   String?    @map("external_id") @db.VarChar(191)
-  value        Decimal?   @db.Decimal(15, 2)
-  requirements String?    @db.Text
-  assignedTo   String?    @map("assigned_to") @db.VarChar(150)
-  status       LeadStatus @default(NEW)
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  id                  String     @id @default(uuid()) @db.Char(36)
+  companyId           String     @map("company_id") @db.Char(36)
+  name                String     @db.VarChar(150)
+  company             String?    @db.VarChar(180)
+  email               String     @db.VarChar(180)
+  phone               String?    @db.VarChar(40)
+  source              String     @default("Website Inquiry") @db.VarChar(100)
+  externalId          String?    @map("external_id") @db.VarChar(191)
+  value               Decimal?   @db.Decimal(15, 2)
+  requirements        String?    @db.Text
+  assignedTo          String?    @map("assigned_to") @db.VarChar(150)
+  priority            String     @default("MEDIUM") @db.VarChar(20)
+  status              LeadStatus @default(NEW)
+  nextFollowUpDate    DateTime?  @map("next_follow_up_date")
+  followUpRemarks     String?    @map("follow_up_remarks") @db.Text
+  convertedAt         DateTime?  @map("converted_at")
+  convertedById       String?    @map("converted_by_id") @db.Char(36)
+  convertedByName     String?    @map("converted_by_name") @db.VarChar(150)
+  convertedCustomerId String?    @map("converted_customer_id") @db.Char(36)
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
 
   clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status, createdAt])
   @@index([companyId, externalId])
+  @@index([companyId, phone])
+  @@index([companyId, email])
   @@map("crm_leads")
 }
 
@@ -423,40 +461,70 @@ model CompanyLeadIntegration {
 }
 
 model CrmCustomer {
-  id            String   @id @default(uuid()) @db.Char(36)
-  companyId     String   @map("company_id") @db.Char(36)
-  companyName   String   @map("company_name") @db.VarChar(180)
-  gstin         String?  @db.VarChar(50)
-  contactPerson String?  @map("contact_person") @db.VarChar(150)
-  email         String?  @db.VarChar(180)
-  phone         String?  @db.VarChar(40)
-  industry      String   @default("Technology & IT") @db.VarChar(100)
-  requirements  String?  @db.Text
-  assignedTo    String?  @map("assigned_to") @db.VarChar(150)
-  status        String   @default("ACTIVE") @db.VarChar(30)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                    String            @id @default(uuid()) @db.Char(36)
+  companyId             String            @map("company_id") @db.Char(36)
+  companyName           String            @map("company_name") @db.VarChar(180)
+  customerCode          String?           @map("customer_code") @db.VarChar(50)
+  gstin                 String?           @db.VarChar(50)
+  pan                   String?           @db.VarChar(20)
+  contactPerson         String?           @map("contact_person") @db.VarChar(150)
+  email                 String?           @db.VarChar(180)
+  phone                 String?           @db.VarChar(40)
+  industry              String            @default("Technology & IT") @db.VarChar(100)
+  customerCategory      String            @default("DOMESTIC") @map("customer_category") @db.VarChar(50)
+  billingAddress        String?           @map("billing_address") @db.Text
+  shippingAddress       String?           @map("shipping_address") @db.Text
+  city                  String?           @db.VarChar(100)
+  state                 String?           @db.VarChar(100)
+  pincode               String?           @db.VarChar(20)
+  creditLimit           Decimal?          @default(0) @map("credit_limit") @db.Decimal(15, 2)
+  paymentTerms          String?           @default("30% Advance, 70% against BL/Delivery") @map("payment_terms") @db.VarChar(255)
+  requirements          String?           @db.Text
+  assignedTo            String?           @map("assigned_to") @db.VarChar(150)
+  reorderCycleDays      Int?              @default(30) @map("reorder_cycle_days")
+  lastOrderDate         DateTime?         @map("last_order_date")
+  expectedReorderDate   DateTime?         @map("expected_reorder_date")
+  reorderReminderStatus String?           @default("PENDING") @map("reorder_reminder_status") @db.VarChar(30)
+  status                String            @default("ACTIVE") @db.VarChar(30)
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientAdmin     ClientAdmin       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contacts        CrmContact[]
+  communications  CrmCommunication[]
+  advances        CustomerAdvance[]
 
   @@index([companyId, status, createdAt])
+  @@index([companyId, customerCode])
+  @@index([companyId, phone])
+  @@index([companyId, email])
+  @@index([companyId, gstin])
   @@map("crm_customers")
 }
 
 model CrmContact {
-  id          String   @id @default(uuid()) @db.Char(36)
-  companyId   String   @map("company_id") @db.Char(36)
-  name        String   @db.VarChar(150)
-  companyName String?  @map("company_name") @db.VarChar(180)
-  role        String?  @db.VarChar(100)
-  email       String?  @db.VarChar(180)
-  phone       String?  @db.VarChar(40)
-  channel     String   @default("Email") @db.VarChar(50)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                      String       @id @default(uuid()) @db.Char(36)
+  companyId               String       @map("company_id") @db.Char(36)
+  customerId              String?      @map("customer_id") @db.Char(36)
+  name                    String       @db.VarChar(150)
+  companyName             String?      @map("company_name") @db.VarChar(180)
+  role                    String?      @db.VarChar(100)
+  designation             String?      @db.VarChar(100)
+  department              String?      @db.VarChar(100)
+  stakeholderType         String?      @default("COMMERCIAL") @map("stakeholder_type") @db.VarChar(50)
+  isPrimary               Boolean      @default(false) @map("is_primary")
+  isDecisionMaker         Boolean      @default(false) @map("is_decision_maker")
+  communicationPreference String?      @default("EMAIL") @map("communication_preference") @db.VarChar(50)
+  email                   String?      @db.VarChar(180)
+  phone                   String?      @db.VarChar(40)
+  channel                 String       @default("Email") @db.VarChar(50)
+  createdAt               DateTime     @default(now()) @map("created_at")
+  updatedAt               DateTime     @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientAdmin ClientAdmin  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer    CrmCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
+  @@index([companyId, customerId])
   @@index([companyId, createdAt])
   @@map("crm_contacts")
 }
@@ -479,6 +547,30 @@ model CrmOpportunity {
   @@map("crm_opportunities")
 }
 
+model CrmCommunication {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  companyId          String    @map("company_id") @db.Char(36)
+  customerId         String?   @map("customer_id") @db.Char(36)
+  leadId             String?   @map("lead_id") @db.Char(36)
+  contactId          String?   @map("contact_id") @db.Char(36)
+  communicationType  String    @map("communication_type") @db.VarChar(50)
+  subject            String    @db.VarChar(255)
+  notes              String?   @db.Text
+  outcome            String?   @db.VarChar(100)
+  nextFollowUpDate   DateTime? @map("next_follow_up_date")
+  employeeId         String?   @map("employee_id") @db.Char(36)
+  employeeName       String?   @map("employee_name") @db.VarChar(180)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer    CrmCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, customerId, createdAt])
+  @@index([companyId, leadId])
+  @@map("crm_communications")
+}
+
 model Product {
   id            String           @id @default(uuid()) @db.Char(36)
   companyId     String           @map("company_id") @db.Char(36)
@@ -493,12 +585,28 @@ model Product {
   taxRate       Decimal          @default(18) @map("tax_rate") @db.Decimal(5, 2)
   stock         Int              @default(0)
   status        String           @default("ACTIVE") @db.VarChar(30)
+  length                Decimal?         @db.Decimal(10, 2)
+  width                 Decimal?         @db.Decimal(10, 2)
+  height                Decimal?         @db.Decimal(10, 2)
+  dimensionUnit         String?          @default("MM") @map("dimension_unit") @db.VarChar(20)
+  netWeight             Decimal?         @map("net_weight") @db.Decimal(10, 3)
+  grossWeight           Decimal?         @map("gross_weight") @db.Decimal(10, 3)
+  weightUnit            String?          @default("KG") @map("weight_unit") @db.VarChar(20)
+  materialDetails       String?          @map("material_details") @db.Text
+  packagingInstructions String?          @map("packaging_instructions") @db.Text
+  dieMouldRef           String?          @map("die_mould_ref") @db.VarChar(100)
+  printingSpecs         String?          @map("printing_specs") @db.Text
+  batchPrefix           String?          @map("batch_prefix") @db.VarChar(30)
+  requiresMfgDate       Boolean          @default(false) @map("requires_mfg_date")
+  requiresExpDate       Boolean          @default(false) @map("requires_exp_date")
+  mrp                   Decimal?         @db.Decimal(15, 2)
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
 
   clientAdmin   ClientAdmin      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   pricings      ProductPricing[]
   inventoryStocks InventoryStock[]
+  batches       InventoryBatch[]
 
   @@unique([companyId, sku])
   @@index([companyId, category, status])
@@ -543,90 +651,175 @@ model ProductPricing {
 }
 
 model SalesOrder {
-  id            String   @id @default(uuid()) @db.Char(36)
-  companyId     String   @map("company_id") @db.Char(36)
-  orderNo       String   @map("order_no") @db.VarChar(60)
-  customer      String   @db.VarChar(180)
-  date          DateTime @default(now())
-  itemsCount    Int      @default(1) @map("items_count")
-  amount        Decimal  @default(0) @db.Decimal(15, 2)
-  items         Json?
-  notes         String?  @db.Text
-  assignedTo    String?  @map("assigned_to") @db.VarChar(150)
-  status        String   @default("PENDING_APPROVAL") @db.VarChar(50)
-  paymentStatus String   @default("PENDING") @map("payment_status") @db.VarChar(50)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id              String                @id @default(uuid()) @db.Char(36)
+  companyId       String                @map("company_id") @db.Char(36)
+  orderNo         String                @map("order_no") @db.VarChar(60)
+  customerId      String?               @map("customer_id") @db.Char(36)
+  proformaId      String?               @map("proforma_id") @db.Char(36)
+  proformaNo      String?               @map("proforma_no") @db.VarChar(60)
+  customer        String                @db.VarChar(180)
+  date            DateTime              @default(now())
+  itemsCount      Int                   @default(1) @map("items_count")
+  amount          Decimal               @default(0) @db.Decimal(15, 2)
+  advanceReceived Decimal?              @default(0) @map("advance_received") @db.Decimal(15, 2)
+  balancePayable  Decimal?              @default(0) @map("balance_payable") @db.Decimal(15, 2)
+  deliveryTerms   String?               @map("delivery_terms") @db.VarChar(255)
+  items           Json?
+  notes           String?               @db.Text
+  assignedTo      String?               @map("assigned_to") @db.VarChar(150)
+  status          String                @default("PENDING_APPROVAL") @db.VarChar(50)
+  paymentStatus   String                @default("PENDING") @map("payment_status") @db.VarChar(50)
+  isReleased      Boolean               @default(false) @map("is_released")
+  releasedAt      DateTime?             @map("released_at")
+  releasedById    String?               @map("released_by_id") @db.Char(36)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
 
   clientAdmin          ClientAdmin           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   inventoryFulfillment InventoryFulfillment?
 
   @@unique([companyId, orderNo])
   @@index([companyId, status, date])
+  @@index([companyId, customerId])
   @@map("sales_orders")
 }
 
 model SalesQuotation {
-  id         String    @id @default(uuid()) @db.Char(36)
-  companyId  String    @map("company_id") @db.Char(36)
-  quoteNo    String    @map("quote_no") @db.VarChar(60)
-  customer   String    @db.VarChar(180)
-  title      String    @db.VarChar(180)
-  amount     Decimal   @default(0) @db.Decimal(15, 2)
-  items      Json?
-  notes      String?   @db.Text
-  validUntil DateTime? @map("valid_until")
-  status     String    @default("SENT") @db.VarChar(50)
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(uuid()) @db.Char(36)
+  companyId       String    @map("company_id") @db.Char(36)
+  quoteNo         String    @map("quote_no") @db.VarChar(60)
+  customerId      String?   @map("customer_id") @db.Char(36)
+  contactPersonId String?   @map("contact_person_id") @db.Char(36)
+  customer        String    @db.VarChar(180)
+  title           String    @db.VarChar(180)
+  amount          Decimal   @default(0) @db.Decimal(15, 2)
+  items           Json?
+  notes           String?   @db.Text
+  paymentTerms    String?   @map("payment_terms") @db.VarChar(255)
+  deliveryTerms   String?   @map("delivery_terms") @db.VarChar(255)
+  preparedById    String?   @map("prepared_by_id") @db.Char(36)
+  preparedByName  String?   @map("prepared_by_name") @db.VarChar(180)
+  validUntil      DateTime? @map("valid_until")
+  status          String    @default("SENT") @db.VarChar(50)
+  versionNumber   Int       @default(1) @map("version_number")
+  isLocked        Boolean   @default(false) @map("is_locked")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, quoteNo])
   @@index([companyId, status, createdAt])
+  @@index([companyId, customerId])
   @@map("sales_quotations")
 }
 
 model SalesProforma {
-  id        String   @id @default(uuid()) @db.Char(36)
-  companyId String   @map("company_id") @db.Char(36)
-  invoiceNo String   @map("invoice_no") @db.VarChar(60)
-  customer  String   @db.VarChar(180)
-  orderRef  String?  @map("order_ref") @db.VarChar(60)
-  amount    Decimal  @default(0) @db.Decimal(15, 2)
-  date      DateTime @default(now())
-  status    String   @default("ISSUED") @db.VarChar(50)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String            @id @default(uuid()) @db.Char(36)
+  companyId       String            @map("company_id") @db.Char(36)
+  invoiceNo       String            @map("invoice_no") @db.VarChar(60)
+  customerId      String?           @map("customer_id") @db.Char(36)
+  quotationId     String?           @map("quotation_id") @db.Char(36)
+  quotationNo     String?           @map("quotation_no") @db.VarChar(60)
+  customer        String            @db.VarChar(180)
+  orderRef        String?           @map("order_ref") @db.VarChar(60)
+  items           Json?
+  subtotal        Decimal?          @default(0) @db.Decimal(15, 2)
+  taxAmount       Decimal?          @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  discountAmount  Decimal?          @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  amount          Decimal           @default(0) @db.Decimal(15, 2)
+  advanceRequired Decimal?          @default(0) @map("advance_required") @db.Decimal(15, 2)
+  advanceReceived Decimal?          @default(0) @map("advance_received") @db.Decimal(15, 2)
+  balancePayable  Decimal?          @default(0) @map("balance_payable") @db.Decimal(15, 2)
+  paymentTerms    String?           @map("payment_terms") @db.VarChar(255)
+  deliveryTerms   String?           @map("delivery_terms") @db.VarChar(255)
+  validityDate    DateTime?         @map("validity_date")
+  date            DateTime          @default(now())
+  status          String            @default("ISSUED") @db.VarChar(50)
+  versionNumber   Int               @default(1) @map("version_number")
+  isLocked        Boolean           @default(false) @map("is_locked")
+  createdById     String?           @map("created_by_id") @db.Char(36)
+  createdByName   String?           @map("created_by_name") @db.VarChar(180)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientAdmin ClientAdmin       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  advances    CustomerAdvance[]
 
   @@unique([companyId, invoiceNo])
   @@index([companyId, status, date])
+  @@index([companyId, customerId])
   @@map("sales_proforma_invoices")
 }
 
-model Vendor {
-  id           String   @id @default(uuid()) @db.Char(36)
-  companyId    String   @map("company_id") @db.Char(36)
-  vendorCode   String?  @map("vendor_code") @db.VarChar(40)
-  name         String   @db.VarChar(180)
-  contact      String?  @db.VarChar(150)
-  email        String?  @db.VarChar(180)
-  phone        String?  @db.VarChar(40)
-  category     String   @default("Raw Materials") @db.VarChar(100)
-  taxId        String?  @map("tax_id") @db.VarChar(60)
-  address      String?  @db.Text
-  paymentTerms String?  @default("30 Days") @map("payment_terms") @db.VarChar(100)
-  leadTimeDays Int      @default(7) @map("lead_time_days")
-  rating       String?  @default("5.0 ★") @db.VarChar(30)
-  status       String   @default("ACTIVE") @db.VarChar(30)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+model CustomerAdvance {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  companyId          String    @map("company_id") @db.Char(36)
+  advanceNo          String    @map("advance_no") @db.VarChar(60)
+  customerId         String    @map("customer_id") @db.Char(36)
+  proformaId         String?   @map("proforma_id") @db.Char(36)
+  amount             Decimal   @db.Decimal(15, 2)
+  paymentMode        String    @map("payment_mode") @db.VarChar(50)
+  bankReference      String?   @map("bank_reference") @db.VarChar(100)
+  paymentDate        DateTime  @default(now()) @map("payment_date")
+  notes              String?   @db.Text
+  verificationStatus String    @default("PENDING") @map("verification_status") @db.VarChar(30)
+  verifiedById       String?   @map("verified_by_id") @db.Char(36)
+  verifiedByName     String?   @map("verified_by_name") @db.VarChar(180)
+  verifiedAt         DateTime? @map("verified_at")
+  rejectionReason    String?   @map("rejection_reason") @db.Text
+  attachmentId       String?   @map("attachment_id") @db.Char(36)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  clientAdmin    ClientAdmin         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientAdmin ClientAdmin    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer    CrmCustomer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  proforma    SalesProforma? @relation(fields: [proformaId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, advanceNo])
+  @@index([companyId, customerId, verificationStatus])
+  @@map("customer_advances")
+}
+
+model Vendor {
+  id                String                 @id @default(uuid()) @db.Char(36)
+  companyId         String                 @map("company_id") @db.Char(36)
+  vendorCode        String?                @map("vendor_code") @db.VarChar(40)
+  name              String                 @db.VarChar(180)
+  legalName         String?                @map("legal_name") @db.VarChar(180)
+  contact           String?                @db.VarChar(150)
+  email             String?                @db.VarChar(180)
+  phone             String?                @db.VarChar(40)
+  mobile            String?                @db.VarChar(40)
+  category          String                 @default("Raw Materials") @db.VarChar(100)
+  taxId             String?                @map("tax_id") @db.VarChar(60)
+  pan               String?                @db.VarChar(30)
+  address           String?                @db.Text
+  registeredAddress String?                @map("registered_address") @db.Text
+  billingAddress    String?                @map("billing_address") @db.Text
+  state             String?                @db.VarChar(100)
+  city              String?                @db.VarChar(100)
+  pincode           String?                @db.VarChar(20)
+  contactPersons    Json?                  @map("contact_persons")
+  paymentTerms      String?                @default("30 Days") @map("payment_terms") @db.VarChar(100)
+  creditPeriodDays  Int                    @default(30) @map("credit_period_days")
+  leadTimeDays      Int                    @default(7) @map("lead_time_days")
+  bankDetails       Json?                  @map("bank_details")
+  productCategories Json?                  @map("product_categories")
+  rating            String?                @default("5.0 ★") @db.VarChar(30)
+  status            String                 @default("ACTIVE") @db.VarChar(30)
+  approvalStatus    String                 @default("APPROVED") @map("approval_status") @db.VarChar(40)
+  approvedById      String?                @map("approved_by_id") @db.Char(36)
+  approvedByName    String?                @map("approved_by_name") @db.VarChar(180)
+  approvedAt        DateTime?              @map("approved_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  clientAdmin    ClientAdmin            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   quotations     PurchaseQuotation[]
   purchaseOrders PurchaseOrder[]
+  artworkProofs  PurchaseArtworkProof[]
+  deviations     PurchaseDeviation[]
 
   @@unique([companyId, vendorCode])
   @@index([companyId, category, status, createdAt])
@@ -634,21 +827,28 @@ model Vendor {
 }
 
 model PurchaseRequest {
-  id          String    @id @default(uuid()) @db.Char(36)
-  companyId   String    @map("company_id") @db.Char(36)
-  requestNo   String    @map("request_no") @db.VarChar(60)
-  requestDate DateTime  @default(now()) @map("request_date")
-  requiredBy  DateTime? @map("required_by")
-  department  String?   @db.VarChar(120)
-  requestedBy String?   @map("requested_by") @db.VarChar(150)
-  purpose     String?   @db.Text
-  items       Json
-  sourceType  String?   @map("source_type") @db.VarChar(50)
-  sourceRef   String?   @map("source_ref") @db.VarChar(100)
-  status      String    @default("PENDING_QUOTATION") @db.VarChar(50)
-  notes       String?   @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(uuid()) @db.Char(36)
+  companyId       String    @map("company_id") @db.Char(36)
+  requestNo       String    @map("request_no") @db.VarChar(60)
+  requestDate     DateTime  @default(now()) @map("request_date")
+  requiredBy      DateTime? @map("required_by")
+  department      String?   @db.VarChar(120)
+  requestedBy     String?   @map("requested_by") @db.VarChar(150)
+  purpose         String?   @db.Text
+  items           Json
+  sourceType      String?   @map("source_type") @db.VarChar(50)
+  sourceRef       String?   @map("source_ref") @db.VarChar(100)
+  status          String    @default("PENDING_QUOTATION") @db.VarChar(50)
+  priority        String    @default("MEDIUM") @db.VarChar(20)
+  approvedById    String?   @map("approved_by_id") @db.Char(36)
+  approvedByName  String?   @map("approved_by_name") @db.VarChar(180)
+  approvedAt      DateTime? @map("approved_at")
+  rejectionReason String?   @map("rejection_reason") @db.Text
+  versionNumber   Int       @default(1) @map("version_number")
+  isLocked        Boolean   @default(false) @map("is_locked")
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   clientAdmin    ClientAdmin         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   quotations     PurchaseQuotation[]
@@ -660,25 +860,36 @@ model PurchaseRequest {
 }
 
 model PurchaseQuotation {
-  id            String    @id @default(uuid()) @db.Char(36)
-  companyId     String    @map("company_id") @db.Char(36)
-  requestId     String    @map("request_id") @db.Char(36)
-  vendorId      String    @map("vendor_id") @db.Char(36)
-  quoteNo       String    @map("quote_no") @db.VarChar(60)
-  vendorQuoteNo String?   @map("vendor_quote_no") @db.VarChar(80)
-  quoteDate     DateTime  @default(now()) @map("quote_date")
-  validUntil    DateTime? @map("valid_until")
-  items         Json
-  subtotal      Decimal   @default(0) @db.Decimal(15, 2)
-  taxAmount     Decimal   @default(0) @map("tax_amount") @db.Decimal(15, 2)
-  freightAmount Decimal   @default(0) @map("freight_amount") @db.Decimal(15, 2)
-  totalAmount   Decimal   @default(0) @map("total_amount") @db.Decimal(15, 2)
-  deliveryDays  Int       @default(7) @map("delivery_days")
-  paymentTerms  String?   @map("payment_terms") @db.VarChar(100)
-  status        String    @default("RECEIVED") @db.VarChar(40)
-  notes         String?   @db.Text
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id                        String    @id @default(uuid()) @db.Char(36)
+  companyId                 String    @map("company_id") @db.Char(36)
+  requestId                 String    @map("request_id") @db.Char(36)
+  vendorId                  String    @map("vendor_id") @db.Char(36)
+  quoteNo                   String    @map("quote_no") @db.VarChar(60)
+  vendorQuoteNo             String?   @map("vendor_quote_no") @db.VarChar(80)
+  quoteDate                 DateTime  @default(now()) @map("quote_date")
+  validUntil                DateTime? @map("valid_until")
+  items                     Json
+  subtotal                  Decimal   @default(0) @db.Decimal(15, 2)
+  taxAmount                 Decimal   @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  freightAmount             Decimal   @default(0) @map("freight_amount") @db.Decimal(15, 2)
+  loadingCharges            Decimal   @default(0) @map("loading_charges") @db.Decimal(15, 2)
+  unloadingCharges          Decimal   @default(0) @map("unloading_charges") @db.Decimal(15, 2)
+  handlingCharges           Decimal   @default(0) @map("handling_charges") @db.Decimal(15, 2)
+  otherCharges              Decimal   @default(0) @map("other_charges") @db.Decimal(15, 2)
+  landedCost                Decimal   @default(0) @map("landed_cost") @db.Decimal(15, 2)
+  totalAmount               Decimal   @default(0) @map("total_amount") @db.Decimal(15, 2)
+  deliveryDays              Int       @default(7) @map("delivery_days")
+  paymentTerms              String?   @map("payment_terms") @db.VarChar(100)
+  transporterResponsibility String    @default("SUPPLIER") @map("transporter_responsibility") @db.VarChar(40)
+  isLowestLandedCost        Boolean   @default(false) @map("is_lowest_landed_cost")
+  nonLowestJustification    String?   @map("non_lowest_justification") @db.Text
+  isExceptionApproved       Boolean   @default(false) @map("is_exception_approved")
+  exceptionReason           String?   @map("exception_reason") @db.Text
+  exceptionApprovedById     String?   @map("exception_approved_by_id") @db.Char(36)
+  status                    String    @default("RECEIVED") @db.VarChar(40)
+  notes                     String?   @db.Text
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
 
   clientAdmin   ClientAdmin     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   request       PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -692,35 +903,47 @@ model PurchaseQuotation {
 }
 
 model PurchaseOrder {
-  id              String    @id @default(uuid()) @db.Char(36)
-  companyId       String    @map("company_id") @db.Char(36)
-  requestId       String    @map("request_id") @db.Char(36)
-  quotationId     String    @unique @map("quotation_id") @db.Char(36)
-  vendorId        String    @map("vendor_id") @db.Char(36)
-  poNumber        String    @map("po_number") @db.VarChar(60)
-  orderDate       DateTime  @default(now()) @map("order_date")
-  expectedDate    DateTime? @map("expected_date")
-  items           Json
-  subtotal        Decimal   @default(0) @db.Decimal(15, 2)
-  taxAmount       Decimal   @default(0) @map("tax_amount") @db.Decimal(15, 2)
-  freightAmount   Decimal   @default(0) @map("freight_amount") @db.Decimal(15, 2)
-  totalAmount     Decimal   @default(0) @map("total_amount") @db.Decimal(15, 2)
-  deliveryAddress String?   @map("delivery_address") @db.Text
-  paymentTerms    String?   @map("payment_terms") @db.VarChar(100)
-  terms           String?   @db.Text
-  status          String    @default("ISSUED") @db.VarChar(50)
-  issuedBy        String?   @map("issued_by") @db.VarChar(150)
-  closedAt        DateTime? @map("closed_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id                        String                 @id @default(uuid()) @db.Char(36)
+  companyId                 String                 @map("company_id") @db.Char(36)
+  requestId                 String                 @map("request_id") @db.Char(36)
+  quotationId               String                 @unique @map("quotation_id") @db.Char(36)
+  vendorId                  String                 @map("vendor_id") @db.Char(36)
+  poNumber                  String                 @map("po_number") @db.VarChar(60)
+  orderDate                 DateTime               @default(now()) @map("order_date")
+  expectedDate              DateTime?              @map("expected_date")
+  items                     Json
+  subtotal                  Decimal                @default(0) @db.Decimal(15, 2)
+  taxAmount                 Decimal                @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  freightAmount             Decimal                @default(0) @map("freight_amount") @db.Decimal(15, 2)
+  loadingUnloadingCharges   Decimal                @default(0) @map("loading_unloading_charges") @db.Decimal(15, 2)
+  handlingCharges           Decimal                @default(0) @map("handling_charges") @db.Decimal(15, 2)
+  totalAmount               Decimal                @default(0) @map("total_amount") @db.Decimal(15, 2)
+  deliveryAddress           String?                @map("delivery_address") @db.Text
+  transporterResponsibility String                 @default("SUPPLIER") @map("transporter_responsibility") @db.VarChar(40)
+  paymentTerms              String?                @map("payment_terms") @db.VarChar(100)
+  terms                     String?                @db.Text
+  specialInstructions       String?                @map("special_instructions") @db.Text
+  nonLowestJustification    String?                @map("non_lowest_justification") @db.Text
+  status                    String                 @default("ISSUED") @db.VarChar(50)
+  issuedBy                  String?                @map("issued_by") @db.VarChar(150)
+  approvedById              String?                @map("approved_by_id") @db.Char(36)
+  approvedByName            String?                @map("approved_by_name") @db.VarChar(180)
+  approvedAt                DateTime?              @map("approved_at")
+  versionNumber             Int                    @default(1) @map("version_number")
+  isLocked                  Boolean                @default(false) @map("is_locked")
+  closedAt                  DateTime?              @map("closed_at")
+  createdAt                 DateTime               @default(now()) @map("created_at")
+  updatedAt                 DateTime               @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  request     PurchaseRequest   @relation(fields: [requestId], references: [id], onDelete: Restrict)
-  quotation   PurchaseQuotation @relation(fields: [quotationId], references: [id], onDelete: Restrict)
-  vendor      Vendor            @relation(fields: [vendorId], references: [id], onDelete: Restrict)
-  receipts    PurchaseReceipt[]
-  returns     PurchaseReturn[]
-  bill        PurchaseBill?
+  clientAdmin   ClientAdmin            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  request       PurchaseRequest        @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  quotation     PurchaseQuotation      @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  vendor        Vendor                 @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  receipts      PurchaseReceipt[]
+  returns       PurchaseReturn[]
+  bill          PurchaseBill?
+  artworkProofs PurchaseArtworkProof[]
+  deviations    PurchaseDeviation[]
 
   @@unique([companyId, poNumber])
   @@index([companyId, status, orderDate])
@@ -728,30 +951,105 @@ model PurchaseOrder {
   @@map("purchase_orders")
 }
 
-model PurchaseReceipt {
-  id          String   @id @default(uuid()) @db.Char(36)
-  companyId   String   @map("company_id") @db.Char(36)
-  orderId     String   @map("order_id") @db.Char(36)
-  grnNo       String   @map("grn_no") @db.VarChar(60)
-  warehouse   String   @db.VarChar(120)
-  items       Json
-  receivedQty Int      @default(0) @map("received_qty")
-  acceptedQty Int      @default(0) @map("accepted_qty")
-  rejectedQty Int      @default(0) @map("rejected_qty")
-  qcStatus    String   @default("PASSED") @map("qc_status") @db.VarChar(40)
-  receivedBy  String?  @map("received_by") @db.VarChar(150)
-  notes       String?  @db.Text
-  receivedAt  DateTime @default(now()) @map("received_at")
-  createdAt   DateTime @default(now()) @map("created_at")
+model PurchaseArtworkProof {
+  id                       String         @id @default(uuid()) @db.Char(36)
+  companyId                String         @map("company_id") @db.Char(36)
+  orderId                  String?        @map("order_id") @db.Char(36)
+  vendorId                 String         @map("vendor_id") @db.Char(36)
+  proofNo                  String         @map("proof_no") @db.VarChar(60)
+  title                    String         @db.VarChar(180)
+  buyerArtworkUrl          String?        @map("buyer_artwork_url") @db.VarChar(500)
+  supplierProofUrl         String?        @map("supplier_proof_url") @db.VarChar(500)
+  versionNumber            Int            @default(1) @map("version_number")
+  designStatus             String         @default("PENDING_REVIEW") @map("design_status") @db.VarChar(40)
+  commercialStatus         String         @default("PENDING_PO") @map("commercial_status") @db.VarChar(40)
+  designApprovedById       String?        @map("design_approved_by_id") @db.Char(36)
+  designApprovedByName     String?        @map("design_approved_by_name") @db.VarChar(180)
+  designApprovedAt         DateTime?      @map("design_approved_at")
+  commercialApprovedById   String?        @map("commercial_approved_by_id") @db.Char(36)
+  commercialApprovedByName String?        @map("commercial_approved_by_name") @db.VarChar(180)
+  commercialApprovedAt     DateTime?      @map("commercial_approved_at")
+  comments                 String?        @db.Text
+  createdAt                DateTime       @default(now()) @map("created_at")
+  updatedAt                DateTime       @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  order       PurchaseOrder    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  clientAdmin ClientAdmin    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order       PurchaseOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  vendor      Vendor         @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, proofNo])
+  @@index([companyId, designStatus, commercialStatus])
+  @@index([vendorId, createdAt])
+  @@map("purchase_artwork_proofs")
+}
+
+model PurchaseReceipt {
+  id                String              @id @default(uuid()) @db.Char(36)
+  companyId         String              @map("company_id") @db.Char(36)
+  orderId           String              @map("order_id") @db.Char(36)
+  grnNo             String              @map("grn_no") @db.VarChar(60)
+  warehouse         String              @db.VarChar(120)
+  vehicleNo         String?             @map("vehicle_no") @db.VarChar(50)
+  deliveryChallanNo String?             @map("delivery_challan_no") @db.VarChar(80)
+  carrierName       String?             @map("carrier_name") @db.VarChar(120)
+  challanDate       DateTime?           @map("challan_date")
+  items             Json
+  receivedQty       Int                 @default(0) @map("received_qty")
+  acceptedQty       Int                 @default(0) @map("accepted_qty")
+  rejectedQty       Int                 @default(0) @map("rejected_qty")
+  shortQty          Int                 @default(0) @map("short_qty")
+  damagedQty        Int                 @default(0) @map("damaged_qty")
+  qcStatus          String              @default("PASSED") @map("qc_status") @db.VarChar(40)
+  inspectionRemarks String?             @map("inspection_remarks") @db.Text
+  inspectorId       String?             @map("inspector_id") @db.Char(36)
+  inspectorName     String?             @map("inspector_name") @db.VarChar(180)
+  inspectedAt       DateTime?           @map("inspected_at")
+  receivedBy        String?             @map("received_by") @db.VarChar(150)
+  notes             String?             @db.Text
+  receivedAt        DateTime            @default(now()) @map("received_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+
+  clientAdmin ClientAdmin         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order       PurchaseOrder       @relation(fields: [orderId], references: [id], onDelete: Restrict)
   returns     PurchaseReturn[]
+  deviations  PurchaseDeviation[]
 
   @@unique([companyId, grnNo])
   @@index([companyId, qcStatus, receivedAt])
   @@index([orderId, receivedAt])
   @@map("purchase_receipts")
+}
+
+model PurchaseDeviation {
+  id                String            @id @default(uuid()) @db.Char(36)
+  companyId         String            @map("company_id") @db.Char(36)
+  orderId           String            @map("order_id") @db.Char(36)
+  receiptId         String            @map("receipt_id") @db.Char(36)
+  vendorId          String            @map("vendor_id") @db.Char(36)
+  deviationNo       String            @map("deviation_no") @db.VarChar(60)
+  deviationCategory String            @map("deviation_category") @db.VarChar(60)
+  affectedQty       Int               @map("affected_qty")
+  affectedSku       String?           @map("affected_sku") @db.VarChar(60)
+  rootCause         String?           @map("root_cause") @db.Text
+  supplierResponse  String?           @map("supplier_response") @db.Text
+  correctiveAction  String?           @map("corrective_action") @db.Text
+  resolutionStatus  String            @default("OPEN") @map("resolution_status") @db.VarChar(40)
+  resolvedById      String?           @map("resolved_by_id") @db.Char(36)
+  resolvedByName    String?           @map("resolved_by_name") @db.VarChar(180)
+  resolvedAt        DateTime?         @map("resolved_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order       PurchaseOrder     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  receipt     PurchaseReceipt   @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  vendor      Vendor            @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  bills       PurchaseBill[]
+
+  @@unique([companyId, deviationNo])
+  @@index([companyId, resolutionStatus, createdAt])
+  @@index([orderId, receiptId])
+  @@map("purchase_deviations")
 }
 
 model PurchaseReturn {
@@ -780,26 +1078,34 @@ model PurchaseReturn {
 }
 
 model PurchaseBill {
-  id               String    @id @default(uuid()) @db.Char(36)
-  companyId        String    @map("company_id") @db.Char(36)
-  orderId          String    @unique @map("order_id") @db.Char(36)
-  billNo           String    @map("bill_no") @db.VarChar(60)
-  vendorInvoiceNo  String    @map("vendor_invoice_no") @db.VarChar(80)
-  invoiceDate      DateTime  @default(now()) @map("invoice_date")
-  dueDate          DateTime? @map("due_date")
-  taxableAmount    Decimal   @default(0) @map("taxable_amount") @db.Decimal(15, 2)
-  taxAmount        Decimal   @default(0) @map("tax_amount") @db.Decimal(15, 2)
-  otherCharges     Decimal   @default(0) @map("other_charges") @db.Decimal(15, 2)
-  totalAmount      Decimal   @default(0) @map("total_amount") @db.Decimal(15, 2)
-  status           String    @default("UNPAID") @db.VarChar(30)
-  paymentReference String?   @map("payment_reference") @db.VarChar(100)
-  paidAt           DateTime? @map("paid_at")
-  notes            String?   @db.Text
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  id                 String             @id @default(uuid()) @db.Char(36)
+  companyId          String             @map("company_id") @db.Char(36)
+  orderId            String             @unique @map("order_id") @db.Char(36)
+  billNo             String             @map("bill_no") @db.VarChar(60)
+  vendorInvoiceNo    String             @map("vendor_invoice_no") @db.VarChar(80)
+  invoiceDate        DateTime           @default(now()) @map("invoice_date")
+  dueDate            DateTime?          @map("due_date")
+  taxableAmount      Decimal            @default(0) @map("taxable_amount") @db.Decimal(15, 2)
+  taxAmount          Decimal            @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  otherCharges       Decimal            @default(0) @map("other_charges") @db.Decimal(15, 2)
+  totalAmount        Decimal            @default(0) @map("total_amount") @db.Decimal(15, 2)
+  status             String             @default("UNPAID") @db.VarChar(30)
+  paymentHold        Boolean            @default(false) @map("payment_hold")
+  holdReason         String?            @map("hold_reason") @db.Text
+  holdDeviationId    String?            @map("hold_deviation_id") @db.Char(36)
+  holdReleasedById   String?            @map("hold_released_by_id") @db.Char(36)
+  holdReleasedByName String?            @map("hold_released_by_name") @db.VarChar(180)
+  holdReleasedAt     DateTime?          @map("hold_released_at")
+  holdReleaseReason  String?            @map("hold_release_reason") @db.Text
+  paymentReference   String?            @map("payment_reference") @db.VarChar(100)
+  paidAt             DateTime?          @map("paid_at")
+  notes              String?            @db.Text
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
-  clientAdmin ClientAdmin   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  clientAdmin   ClientAdmin        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order         PurchaseOrder      @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  holdDeviation PurchaseDeviation? @relation(fields: [holdDeviationId], references: [id], onDelete: SetNull)
 
   @@unique([companyId, billNo])
   @@unique([companyId, vendorInvoiceNo])
@@ -817,6 +1123,13 @@ model InventoryStock {
   warehouse     String   @default("Main Warehouse") @db.VarChar(100)
   stock         Int      @default(0)
   reservedStock Int      @default(0) @map("reserved_stock")
+  availableQty  Int      @default(0) @map("available_qty")
+  wipQty        Int      @default(0) @map("wip_qty")
+  qualityHoldQty Int     @default(0) @map("quality_hold_qty")
+  rejectedQty   Int      @default(0) @map("rejected_qty")
+  samplingQty   Int      @default(0) @map("sampling_qty")
+  returnHoldQty Int      @default(0) @map("return_hold_qty")
+  scrapQty      Int      @default(0) @map("scrap_qty")
   reorderLevel  Int      @default(10) @map("reorder_level")
   uom           String   @default("PCS") @db.VarChar(30)
   itemType      String   @default("FINISHED_GOOD") @map("item_type") @db.VarChar(40)
@@ -829,6 +1142,7 @@ model InventoryStock {
   product     Product?            @relation(fields: [productId], references: [id], onDelete: SetNull)
   bin         InventoryBin?       @relation(fields: [binId], references: [id], onDelete: SetNull)
   movements   InventoryMovement[]
+  batches     InventoryBatch[]
 
   @@unique([companyId, sku, warehouse])
   @@index([companyId, warehouse])
@@ -922,6 +1236,11 @@ model InventoryMovement {
   reason        String?  @db.VarChar(180)
   notes         String?  @db.Text
   createdBy     String?  @map("created_by") @db.VarChar(150)
+  batchId       String?  @map("batch_id") @db.Char(36)
+  batchNo       String?  @map("batch_no") @db.VarChar(60)
+  sourceBucket  String?  @map("source_bucket") @db.VarChar(40)
+  destinationBucket String? @map("destination_bucket") @db.VarChar(40)
+  approvedBy    String?  @map("approved_by") @db.VarChar(150)
   createdAt     DateTime @default(now()) @map("created_at")
 
   clientAdmin ClientAdmin     @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1033,4 +1352,389 @@ model InventoryProductionReceipt {
   @@unique([companyId, receiptNo])
   @@index([companyId, receivedAt])
   @@map("inventory_production_receipts")
+}
+
+
+// ==========================================
+// PHASE 1: SHARED CONTROL LAYER MODELS
+// ==========================================
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalDecisionType {
+  APPROVED
+  REJECTED
+}
+
+enum NotificationCategory {
+  APPROVAL
+  TASK
+  SYSTEM
+  ALERT
+}
+
+enum IntegrationJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRY_SCHEDULED
+  CANCELLED
+}
+
+model ApprovalRequest {
+  id                  String         @id @default(uuid()) @db.Char(36)
+  companyId           String         @map("company_id") @db.Char(36)
+  entityType          String         @map("entity_type") @db.VarChar(60)
+  entityId            String         @map("entity_id") @db.Char(36)
+  documentVersionId   String?        @map("document_version_id") @db.Char(36)
+  createdById         String         @map("created_by_id") @db.Char(36)
+  createdByName       String         @map("created_by_name") @db.VarChar(180)
+  currentApproverRole String?        @map("current_approver_role") @db.VarChar(60)
+  currentApproverId   String?        @map("current_approver_id") @db.Char(36)
+  approvalLevel       Int            @default(1) @map("approval_level")
+  maxLevels           Int            @default(1) @map("max_levels")
+  status              ApprovalStatus @default(PENDING)
+  title               String         @db.VarChar(200)
+  summary             String?        @db.Text
+  amount              Decimal?       @db.Decimal(15, 2)
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  company   ClientAdmin        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  decisions ApprovalDecision[]
+
+  @@index([companyId, status])
+  @@index([companyId, entityType, entityId])
+  @@map("approval_requests")
+}
+
+model ApprovalDecision {
+  id           String               @id @default(uuid()) @db.Char(36)
+  requestId    String               @map("request_id") @db.Char(36)
+  approverId   String               @map("approver_id") @db.Char(36)
+  approverName String               @map("approver_name") @db.VarChar(180)
+  approverRole String               @map("approver_role") @db.VarChar(60)
+  level        Int                  @default(1)
+  decision     ApprovalDecisionType
+  remarks      String?              @db.Text
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@map("approval_decisions")
+}
+
+model DocumentVersion {
+  id              String    @id @default(uuid()) @db.Char(36)
+  companyId       String    @map("company_id") @db.Char(36)
+  entityType      String    @map("entity_type") @db.VarChar(60)
+  entityId        String    @map("entity_id") @db.Char(36)
+  versionNumber   Int       @map("version_number")
+  parentVersionId String?   @map("parent_version_id") @db.Char(36)
+  revisionReason  String?   @map("revision_reason") @db.Text
+  isLocked        Boolean   @default(false) @map("is_locked")
+  lockedAt        DateTime? @map("locked_at")
+  createdById     String    @map("created_by_id") @db.Char(36)
+  createdByName   String    @map("created_by_name") @db.VarChar(180)
+  snapshotData    Json      @map("snapshot_data")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  company ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, entityType, entityId, versionNumber])
+  @@index([companyId, entityType, entityId])
+  @@map("document_versions")
+}
+
+model Attachment {
+  id              String   @id @default(uuid()) @db.Char(36)
+  companyId       String   @map("company_id") @db.Char(36)
+  entityType      String   @map("entity_type") @db.VarChar(60)
+  entityId        String   @map("entity_id") @db.Char(36)
+  originalName    String   @map("original_name") @db.VarChar(255)
+  storedName      String   @map("stored_name") @db.VarChar(255)
+  storageProvider String   @default("local") @map("storage_provider") @db.VarChar(30)
+  storageKey      String   @map("storage_key") @db.VarChar(500)
+  mimeType        String   @map("mime_type") @db.VarChar(100)
+  fileSize        Int      @map("file_size")
+  fileChecksum    String   @map("file_checksum") @db.Char(64)
+  uploadedById    String   @map("uploaded_by_id") @db.Char(36)
+  uploadedByName  String   @map("uploaded_by_name") @db.VarChar(180)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  company ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, entityType, entityId])
+  @@map("attachments")
+}
+
+model Notification {
+  id          String               @id @default(uuid()) @db.Char(36)
+  companyId   String               @map("company_id") @db.Char(36)
+  recipientId String               @map("recipient_id") @db.Char(36)
+  title       String               @db.VarChar(180)
+  message     String               @db.Text
+  category    NotificationCategory @default(SYSTEM)
+  entityType  String?              @map("entity_type") @db.VarChar(60)
+  entityId    String?              @map("entity_id") @db.Char(36)
+  isRead      Boolean              @default(false) @map("is_read")
+  readAt      DateTime?            @map("read_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  company ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, recipientId, isRead])
+  @@map("notifications")
+}
+
+model IntegrationJob {
+  id                String               @id @default(uuid()) @db.Char(36)
+  companyId         String               @map("company_id") @db.Char(36)
+  jobType           String               @map("job_type") @db.VarChar(80)
+  sourceSystem      String               @map("source_system") @db.VarChar(60)
+  destinationSystem String               @map("destination_system") @db.VarChar(60)
+  idempotencyKey    String               @unique @map("idempotency_key") @db.VarChar(128)
+  payload           Json?
+  status            IntegrationJobStatus @default(PENDING)
+  attempts          Int                  @default(0)
+  maxAttempts       Int                  @default(5) @map("max_attempts")
+  nextRetryAt       DateTime?            @map("next_retry_at")
+  lastError         String?              @map("last_error") @db.Text
+  result            Json?
+  startedAt         DateTime?            @map("started_at")
+  completedAt       DateTime?            @map("completed_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  company ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, nextRetryAt])
+  @@map("integration_jobs")
+}
+
+model InventoryBatch {
+  id                String    @id @default(uuid()) @db.Char(36)
+  companyId         String    @map("company_id") @db.Char(36)
+  stockId           String?   @map("stock_id") @db.Char(36)
+  productId         String?   @map("product_id") @db.Char(36)
+  sku               String    @db.VarChar(60)
+  batchNo           String    @map("batch_no") @db.VarChar(60)
+  warehouse         String    @default("Main Warehouse") @db.VarChar(100)
+  manufacturingDate DateTime? @map("manufacturing_date")
+  expiryDate        DateTime? @map("expiry_date")
+  receivedDate      DateTime  @default(now()) @map("received_date")
+  vendorId          String?   @map("vendor_id") @db.Char(36)
+  vendorName        String?   @map("vendor_name") @db.VarChar(180)
+  grnId             String?   @map("grn_id") @db.Char(36)
+  grnNo             String?   @map("grn_no") @db.VarChar(60)
+  initialQty        Int       @default(0) @map("initial_qty")
+  availableQty      Int       @default(0) @map("available_qty")
+  reservedQty       Int       @default(0) @map("reserved_qty")
+  wipQty            Int       @default(0) @map("wip_qty")
+  qualityHoldQty    Int       @default(0) @map("quality_hold_qty")
+  rejectedQty       Int       @default(0) @map("rejected_qty")
+  samplingQty       Int       @default(0) @map("sampling_qty")
+  returnHoldQty     Int       @default(0) @map("return_hold_qty")
+  scrapQty          Int       @default(0) @map("scrap_qty")
+  qualityStatus     String    @default("ACCEPTED") @map("quality_status") @db.VarChar(40)
+  status            String    @default("ACTIVE") @db.VarChar(30)
+  unitCost          Decimal   @default(0) @map("unit_cost") @db.Decimal(15, 2)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stock       InventoryStock? @relation(fields: [stockId], references: [id], onDelete: SetNull)
+  product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, sku, batchNo, warehouse])
+  @@index([companyId, batchNo])
+  @@index([companyId, sku, warehouse])
+  @@index([companyId, status, expiryDate])
+  @@map("inventory_batches")
+}
+
+model InventoryReservation {
+  id            String    @id @default(uuid()) @db.Char(36)
+  companyId     String    @map("company_id") @db.Char(36)
+  reservationNo String    @map("reservation_no") @db.VarChar(60)
+  productId     String?   @map("product_id") @db.Char(36)
+  sku           String    @db.VarChar(60)
+  warehouse     String    @default("Main Warehouse") @db.VarChar(100)
+  batchId       String?   @map("batch_id") @db.Char(36)
+  batchNo       String?   @map("batch_no") @db.VarChar(60)
+  quantity      Int
+  referenceType String    @default("SALES_ORDER") @map("reference_type") @db.VarChar(50)
+  referenceId   String?   @map("reference_id") @db.Char(36)
+  referenceNo   String?   @map("reference_no") @db.VarChar(60)
+  status        String    @default("ACTIVE") @db.VarChar(30)
+  reservedBy    String?   @map("reserved_by") @db.VarChar(150)
+  releasedBy    String?   @map("released_by") @db.VarChar(150)
+  releasedAt    DateTime? @map("released_at")
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, reservationNo])
+  @@index([companyId, sku, status])
+  @@index([companyId, referenceType, referenceId])
+  @@map("inventory_reservations")
+}
+
+model InventorySampling {
+  id                     String    @id @default(uuid()) @db.Char(36)
+  companyId              String    @map("company_id") @db.Char(36)
+  samplingNo             String    @map("sampling_no") @db.VarChar(60)
+  productId              String?   @map("product_id") @db.Char(36)
+  sku                    String    @db.VarChar(60)
+  name                   String    @db.VarChar(180)
+  warehouse              String    @default("Main Warehouse") @db.VarChar(100)
+  batchId                String?   @map("batch_id") @db.Char(36)
+  batchNo                String?   @map("batch_no") @db.VarChar(60)
+  quantity               Int
+  customerName           String?   @map("customer_name") @db.VarChar(180)
+  referenceType          String?   @map("reference_type") @db.VarChar(50)
+  referenceNo            String?   @map("reference_no") @db.VarChar(60)
+  billingType            String    @default("FREE") @map("billing_type") @db.VarChar(30)
+  isWaivedApproved       Boolean   @default(false) @map("is_waived_approved")
+  waivedReason           String?   @map("waived_reason") @db.Text
+  waivedApprovedById     String?   @map("waived_approved_by_id") @db.Char(36)
+  waivedApprovedByName   String?   @map("waived_approved_by_name") @db.VarChar(180)
+  issueDate              DateTime  @default(now()) @map("issue_date")
+  expectedReturnDate     DateTime? @map("expected_return_date")
+  responsiblePerson      String    @map("responsible_person") @db.VarChar(150)
+  gatePassNo             String?   @map("gate_pass_no") @db.VarChar(60)
+  status                 String    @default("ISSUED") @db.VarChar(30)
+  returnedQty            Int       @default(0) @map("returned_qty")
+  returnInspectionStatus String?   @map("return_inspection_status") @db.VarChar(40)
+  returnDestinationBucket String?  @map("return_destination_bucket") @db.VarChar(40)
+  notes                  String?   @db.Text
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, samplingNo])
+  @@index([companyId, sku, status])
+  @@index([companyId, billingType])
+  @@map("inventory_samplings")
+}
+
+model InventoryGatePass {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  companyId          String    @map("company_id") @db.Char(36)
+  gatePassNo         String    @map("gate_pass_no") @db.VarChar(60)
+  gatePassType       String    @default("SAMPLE") @map("gate_pass_type") @db.VarChar(30)
+  fromWarehouse      String    @default("Main Warehouse") @map("from_warehouse") @db.VarChar(100)
+  destination        String    @db.VarChar(180)
+  purpose            String    @db.VarChar(200)
+  referenceType      String?   @map("reference_type") @db.VarChar(50)
+  referenceId        String?   @map("reference_id") @db.Char(36)
+  referenceNo        String?   @map("reference_no") @db.VarChar(60)
+  items              Json
+  issuedBy           String    @map("issued_by") @db.VarChar(150)
+  approvedBy         String?   @map("approved_by") @db.VarChar(150)
+  approvedAt         DateTime? @map("approved_at")
+  dispatchDate       DateTime  @default(now()) @map("dispatch_date")
+  expectedReturnDate DateTime? @map("expected_return_date")
+  actualReturnDate   DateTime? @map("actual_return_date")
+  status             String    @default("APPROVED") @db.VarChar(30)
+  notes              String?   @db.Text
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, gatePassNo])
+  @@index([companyId, gatePassType, status])
+  @@map("inventory_gate_passes")
+}
+
+model InventoryPhysicalVerification {
+  id                    String    @id @default(uuid()) @db.Char(36)
+  companyId             String    @map("company_id") @db.Char(36)
+  sessionNo             String    @map("session_no") @db.VarChar(60)
+  warehouse             String    @default("Main Warehouse") @db.VarChar(100)
+  scheduleFrequency     String    @default("FORTNIGHTLY") @map("schedule_frequency") @db.VarChar(30)
+  scheduledDate         DateTime  @default(now()) @map("scheduled_date")
+  verifiedDate          DateTime? @map("verified_date")
+  verifierName          String    @map("verifier_name") @db.VarChar(150)
+  status                String    @default("DRAFT") @db.VarChar(30)
+  totalVarianceShortage Int       @default(0) @map("total_variance_shortage")
+  totalVarianceExcess   Int       @default(0) @map("total_variance_excess")
+  approvedById          String?   @map("approved_by_id") @db.Char(36)
+  approvedByName        String?   @map("approved_by_name") @db.VarChar(180)
+  approvedAt            DateTime? @map("approved_at")
+  notes                 String?   @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin                         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items       InventoryPhysicalVerificationItem[]
+
+  @@unique([companyId, sessionNo])
+  @@index([companyId, warehouse, status])
+  @@map("inventory_physical_verifications")
+}
+
+model InventoryPhysicalVerificationItem {
+  id          String  @id @default(uuid()) @db.Char(36)
+  sessionId   String  @map("session_id") @db.Char(36)
+  sku         String  @db.VarChar(60)
+  name        String  @db.VarChar(180)
+  batchNo     String? @map("batch_no") @db.VarChar(60)
+  uom         String  @default("PCS") @db.VarChar(30)
+  systemQty   Int     @default(0) @map("system_qty")
+  countedQty  Int     @default(0) @map("counted_qty")
+  varianceQty Int     @default(0) @map("variance_qty")
+  shortageQty Int     @default(0) @map("shortage_qty")
+  excessQty   Int     @default(0) @map("excess_qty")
+  remarks     String? @db.VarChar(255)
+
+  session InventoryPhysicalVerification @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, sku])
+  @@map("inventory_physical_verification_items")
+}
+
+model InventoryAdjustment {
+  id                String    @id @default(uuid()) @db.Char(36)
+  companyId         String    @map("company_id") @db.Char(36)
+  adjustmentNo      String    @map("adjustment_no") @db.VarChar(60)
+  warehouse         String    @default("Main Warehouse") @db.VarChar(100)
+  sku               String    @db.VarChar(60)
+  name              String    @db.VarChar(180)
+  batchNo           String?   @map("batch_no") @db.VarChar(60)
+  bucket            String    @default("AVAILABLE") @db.VarChar(40)
+  adjustmentType    String    @map("adjustment_type") @db.VarChar(40)
+  beforeQty         Int       @map("before_qty")
+  adjustmentQty     Int       @map("adjustment_qty")
+  afterQty          Int       @map("after_qty")
+  reason            String    @db.VarChar(200)
+  supportingDocUrl  String?   @map("supporting_doc_url") @db.VarChar(255)
+  status            String    @default("PENDING_APPROVAL") @db.VarChar(30)
+  thresholdExceeded Boolean   @default(false) @map("threshold_exceeded")
+  creatorId         String    @map("creator_id") @db.Char(36)
+  creatorName       String    @map("creator_name") @db.VarChar(180)
+  approvedById      String?   @map("approved_by_id") @db.Char(36)
+  approvedByName    String?   @map("approved_by_name") @db.VarChar(180)
+  approvedAt        DateTime? @map("approved_at")
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, adjustmentNo])
+  @@index([companyId, sku, status])
+  @@index([companyId, adjustmentType, status])
+  @@map("inventory_adjustments")
 }

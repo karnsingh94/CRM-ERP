@@ -42,6 +42,16 @@ export const customerController = {
       res.json({ success: true, message: 'Customer deleted.' });
     } catch (err) { respondError(err, res, next); }
   },
+
+  async getTimeline(req, res, next) {
+    try {
+      const data = await customerService.getCustomerTimeline(
+        String(req.params.companyId),
+        String(req.params.customerId)
+      );
+      res.json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
 };
 
 export default customerController;

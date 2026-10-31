@@ -20,9 +20,18 @@ export const crmLeadController = {
     }
   },
 
+  async checkDuplicates(req, res, next) {
+    try {
+      const result = await crmLeadService.checkDuplicates(String(req.params.companyId), req.body || {});
+      res.json({ success: true, data: result });
+    } catch (error) {
+      respondError(error, res, next);
+    }
+  },
+
   async create(req, res, next) {
     try {
-      const lead = await crmLeadService.create(String(req.params.companyId), req.body || {});
+      const lead = await crmLeadService.create(String(req.params.companyId), req.body || {}, req.user || {});
       res.status(201).json({ success: true, data: lead });
     } catch (error) {
       respondError(error, res, next);
@@ -34,7 +43,8 @@ export const crmLeadController = {
       const lead = await crmLeadService.update(
         String(req.params.companyId),
         req.params.leadId,
-        req.body || {}
+        req.body || {},
+        req.user || {}
       );
       res.json({ success: true, data: lead });
     } catch (error) {
@@ -56,7 +66,8 @@ export const crmLeadController = {
       const result = await crmLeadService.convert(
         String(req.params.companyId),
         req.params.leadId,
-        req.body || {}
+        req.body || {},
+        req.user || {}
       );
       res.json({ success: true, data: result });
     } catch (error) {

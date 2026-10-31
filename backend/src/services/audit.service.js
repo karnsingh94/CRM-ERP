@@ -2,85 +2,152 @@ import prisma from '../config/prisma.js';
 import logger from '../utils/logger.js';
 import { normalizeClientIp } from '../utils/clientIp.js';
 
-function getEntityName(log) {
-  for (const value of [log.newValue, log.oldValue]) {
-    if (!value) continue;
-
+/**
+ * Remove sensitive credentials from audit logs
+ */
+function sanitizeAuditPayload(data) {
+  if (!data) return null;
+  if (typeof data === 'string') {
     try {
-      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
-      if (typeof parsed?.name === 'string' && parsed.name.trim()) {
-        return parsed.name.trim();
-      }
+      data = JSON.parse(data);
     } catch {
-      // Values that are not JSON do not provide a display name.
+      return data;
     }
   }
 
-  return log.entityId ? `#${log.entityId}` : '—';
+  if (typeof data !== 'object') return data;
+
+  const sanitized = Array.isArray(data) ? [...data] : { ...data };
+  const sensitiveKeys = ['password', 'passwordhash', 'token', 'secret', 'apikey', 'key', 'credential', 'auth', 'access_token'];
+
+  for (const k of Object.keys(sanitized)) {
+    const lowerKey = k.toLowerCase();
+    if (sensitiveKeys.some(s => lowerKey.includes(s))) {
+      sanitized[k] = '[REDACTED]';
+    } else if (typeof sanitized[k] === 'object' && sanitized[k] !== null) {
+      sanitized[k] = sanitizeAuditPayload(sanitized[k]);
+    }
+  }
+
+  return JSON.stringify(sanitized);
 }
 
-/**
- * Service for logging and retrieving audit trail entries
- */
 export const auditService = {
   /**
-   * Retrieve latest audit logs
+   * Universal audit logger supporting both Super Admin and Company Tenants
    */
-  async getAuditLogs(limit = 100) {
-    const logs = await prisma.auditLog.findMany({
-      take: Number(limit),
-      orderBy: { createdAt: 'desc' },
-      include: { superAdmin: { select: { id: true, name: true, email: true } } },
-    });
+  async logAction({
+    companyId = null,
+    actor = null,
+    action,
+    serviceCode = null,
+    moduleCode = null,
+    entityType = null,
+    entityId = null,
+    beforeState = null,
+    afterState = null,
+    reason = null,
+    req = null,
+  }) {
+    try {
+      let ipAddress = '127.0.0.1';
+      let userAgent = 'System / API';
 
-    return logs.map((l) => ({
-      id: l.id.toString(),
-      actor_id: l.actorId ? l.actorId.toString() : null,
-      actor_name: l.superAdmin?.name || 'System / Platform Admin',
-      action: l.action,
-      entity_type: l.entityType,
-      entity_id: l.entityId ? l.entityId.toString() : null,
-      entity_name: getEntityName(l),
-      old_value: l.oldValue,
-      new_value: l.newValue,
-      reason: l.reason,
-      ip_address: normalizeClientIp(l.ipAddress) || 'Unknown',
-      user_agent: l.userAgent,
-      created_at: l.createdAt,
-      createdAt: l.createdAt,
-      details: l.reason || `${l.action} ${l.entityType}`,
-    }));
+      if (req) {
+        ipAddress = normalizeClientIp(req.ip || req.socket?.remoteAddress) || req.meta?.ip || '127.0.0.1';
+        userAgent = req.headers?.['user-agent'] || req.meta?.userAgent || 'API Client';
+      }
+
+      let actorId = null;
+      let userId = null;
+      let userName = null;
+
+      if (actor) {
+        if (typeof actor === 'string') {
+          userName = actor;
+        } else if (actor.role === 'SUPER_ADMIN') {
+          actorId = String(actor.id || actor.userId || 'super-admin');
+          userName = actor.name || 'Super Admin';
+        } else {
+          userId = String(actor.userId || actor.id || 'company-user');
+          userName = actor.name || actor.organizationName || 'User';
+        }
+      }
+
+      const resolvedEntityType = entityType || (action ? String(action).split('_')[0] : 'GENERAL');
+
+      const log = await prisma.auditLog.create({
+        data: {
+          companyId: companyId ? String(companyId) : null,
+          actorId,
+          userId,
+          userName: userName || 'System',
+          serviceCode,
+          moduleCode,
+          action,
+          entityType: resolvedEntityType,
+          entityId: entityId ? String(entityId) : null,
+          beforeState: sanitizeAuditPayload(beforeState),
+          afterState: sanitizeAuditPayload(afterState),
+          reason: reason ? String(reason).trim() : null,
+          ipAddress: String(ipAddress).slice(0, 64),
+          userAgent: String(userAgent).slice(0, 255),
+        },
+      });
+
+      return log;
+    } catch (err) {
+      logger.error('Failed to write audit log:', err.message);
+      return null;
+    }
   },
 
   /**
-   * Log an audit event
+   * Platform-level audit logs (Super Admin)
    */
-  async logAudit({
-    action,
-    entityType,
-    entityId = null,
-    oldValue = null,
-    newValue = null,
-    reason = null,
-    ipAddress = 'Unknown',
-    userAgent = null,
-  }) {
-    try {
-      await prisma.auditLog.create({
-        data: {
-          action,
-          entityType,
-          entityId: entityId ? String(entityId) : null,
-          oldValue: typeof oldValue === 'object' ? JSON.stringify(oldValue) : oldValue,
-          newValue: typeof newValue === 'object' ? JSON.stringify(newValue) : newValue,
-          reason,
-          ipAddress: normalizeClientIp(ipAddress) || 'Unknown',
-          userAgent,
-        },
-      });
-    } catch (err) {
-      logger.error('Failed to log audit event:', err);
-    }
+  async getAuditLogs(limit = 100) {
+    return prisma.auditLog.findMany({
+      where: { companyId: null },
+      orderBy: { createdAt: 'desc' },
+      take: Number(limit) || 100,
+    });
+  },
+
+  /**
+   * Tenant-isolated company audit logs with filtering and pagination
+   */
+  async getCompanyAuditLogs(companyId, filters = {}) {
+    const {
+      serviceCode,
+      moduleCode,
+      action,
+      entityType,
+      entityId,
+      userId,
+      limit = 50,
+      offset = 0,
+    } = filters;
+
+    const where = { companyId };
+
+    if (serviceCode) where.serviceCode = serviceCode;
+    if (moduleCode) where.moduleCode = moduleCode;
+    if (action) where.action = action;
+    if (entityType) where.entityType = entityType;
+    if (entityId) where.entityId = entityId;
+    if (userId) where.userId = userId;
+
+    const [items, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: Number(limit) || 50,
+        skip: Number(offset) || 0,
+      }),
+      prisma.auditLog.count({ where }),
+    ]);
+
+    return { items, total };
   },
 };
 
