@@ -136,6 +136,42 @@ const SUBMODULE_PAGES = {
     { label: 'Global Feature Toggles', href: '/team/roles', code: 'global_feature_toggles' },
     { label: 'Security Profiles', href: '/team/audit', code: 'security_profiles' },
   ],
+
+  // 8. HRMS & Payroll
+  hr_employee: [
+    { label: 'Employee Master', href: '/hr/employees', code: 'employee_master' },
+    { label: 'Onboarding & KYC', href: '/hr/onboarding', code: 'employee_onboarding' },
+    { label: 'Document Vault', href: '/hr/documents', code: 'employee_documents' },
+  ],
+  hr_attendance: [
+    { label: 'Daily Attendance', href: '/hr/attendance', code: 'attendance_daily' },
+    { label: 'Shift Management', href: '/hr/shifts', code: 'shift_management' },
+    { label: 'Leave Management', href: '/hr/leaves', code: 'leave_management' },
+    { label: 'Biometric Integration', href: '/hr/biometric', code: 'biometric_integration' },
+  ],
+  payroll: [
+    { label: 'Salary Structure', href: '/payroll/structure', code: 'salary_structure' },
+    { label: 'Monthly Payroll', href: '/payroll/process', code: 'monthly_payroll' },
+    { label: 'Statutory (PF/ESI/TDS)', href: '/payroll/statutory', code: 'statutory_compliance' },
+    { label: 'Payslips', href: '/payroll/payslips', code: 'employee_payslips' },
+  ],
+
+  // 9. Solar Monitoring
+  solar_master: [
+    { label: 'Solar Plants', href: '/solar/plants', code: 'solar_plants' },
+    { label: 'Inverter Configuration', href: '/solar/inverters', code: 'inverter_config' },
+    { label: 'Panel Layout', href: '/solar/panels', code: 'panel_layout' },
+  ],
+  solar_generation: [
+    { label: 'Live Generation', href: '/solar/generation-live', code: 'live_generation' },
+    { label: 'Yield Analytics & PR', href: '/solar/yield-analytics', code: 'yield_analytics' },
+    { label: 'Inverter Alarms & Faults', href: '/solar/alarms', code: 'inverter_alarms' },
+  ],
+  solar_maintenance: [
+    { label: 'Cleaning Schedules', href: '/solar/cleaning', code: 'cleaning_schedules' },
+    { label: 'Maintenance Tickets', href: '/solar/maintenance-tickets', code: 'maintenance_tickets' },
+    { label: 'O&M Spares', href: '/solar/spares', code: 'om_spares' },
+  ],
 };
 
 const normalize = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');

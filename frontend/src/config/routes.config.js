@@ -619,6 +619,250 @@ export const COMPANY_ADMIN_ROUTES = [
     icon: 'IconClipboardCheck',
     isNav: true,
   },
+  // 9. HRMS & Payroll (hrms_payroll)
+  {
+    path: '/hr/employees',
+    label: 'Employee Master',
+    title: 'Employee Master Directory',
+    description: 'Active personnel records, designations, and departmental allocations',
+    parent: '/hr',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'hr_employee',
+    subModuleCode: 'employees',
+    icon: 'IconUsers',
+    isNav: true,
+  },
+  {
+    path: '/hr/onboarding',
+    label: 'Onboarding & KYC',
+    title: 'Staff Onboarding & KYC Verification',
+    description: 'Aadhaar, PAN, and bank mandate verification workflows',
+    parent: '/hr',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'hr_employee',
+    subModuleCode: 'onboarding',
+    icon: 'IconClipboardCheck',
+    isNav: true,
+  },
+  {
+    path: '/hr/documents',
+    label: 'Document Vault',
+    title: 'Employee Document Vault',
+    description: 'Encrypted storage for appointment letters, contracts, and educational certificates',
+    parent: '/hr',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'hr_employee',
+    subModuleCode: 'documents',
+    icon: 'IconLayers',
+    isNav: true,
+  },
+  {
+    path: '/hr/attendance',
+    label: 'Daily Attendance',
+    title: 'Daily Attendance Register',
+    description: 'Daily in/out punch tracking, shift allocations, and overtime records',
+    parent: '/hr',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'hr_attendance',
+    subModuleCode: 'attendance',
+    icon: 'IconClock',
+    isNav: true,
+  },
+  {
+    path: '/hr/shifts',
+    label: 'Shift Management',
+    title: 'Rotational Shift Roster',
+    description: 'General, morning, evening, and night shift definitions and rosters',
+    parent: '/hr',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'hr_attendance',
+    subModuleCode: 'shifts',
+    icon: 'IconCalendar',
+    isNav: true,
+  },
+  {
+    path: '/hr/leaves',
+    label: 'Leave Requests',
+    title: 'Leave & Absence Management',
+    description: 'Casual, paid, and sick leave approvals and encashment balance tracking',
+    parent: '/hr',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'hr_attendance',
+    subModuleCode: 'leaves',
+    icon: 'IconCheckCircle',
+    isNav: true,
+  },
+  {
+    path: '/hr/biometric',
+    label: 'Biometric Devices',
+    title: 'Biometric Terminal Sync',
+    description: 'Hardware punch integration, eSSL / ZKTeco terminals, and sync status',
+    parent: '/hr',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'hr_attendance',
+    subModuleCode: 'biometric',
+    icon: 'IconActivity',
+    isNav: true,
+  },
+  {
+    path: '/payroll/structure',
+    label: 'Salary Structure',
+    title: 'Salary & CTC Breakup',
+    description: 'Basic, HRA, DA, conveyance, and allowance structure templates',
+    parent: '/payroll',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'payroll',
+    subModuleCode: 'structure',
+    icon: 'IconFileText',
+    isNav: true,
+  },
+  {
+    path: '/payroll/process',
+    label: 'Monthly Payroll',
+    title: 'Monthly Payroll Processing',
+    description: 'Gross-to-net computation, attendance deductions, and batch approval',
+    parent: '/payroll',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'payroll',
+    subModuleCode: 'process',
+    icon: 'IconTrendingUp',
+    isNav: true,
+  },
+  {
+    path: '/payroll/statutory',
+    label: 'Statutory PF/ESI/TDS',
+    title: 'Statutory Compliance Register',
+    description: 'EPF ECR challans, ESIC return filings, and Section 192 TDS summaries',
+    parent: '/payroll',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'payroll',
+    subModuleCode: 'statutory',
+    icon: 'IconShield',
+    isNav: true,
+  },
+  {
+    path: '/payroll/payslips',
+    label: 'Employee Payslips',
+    title: 'Salary Payslips & PDF Generation',
+    description: 'Automated digital salary slips and downloadable payslips',
+    parent: '/payroll',
+    serviceCode: 'hrms_payroll',
+    moduleCode: 'payroll',
+    subModuleCode: 'payslips',
+    icon: 'IconDownload',
+    isNav: true,
+  },
+
+  // 10. Solar Monitoring (solar_monitoring)
+  {
+    path: '/solar/plants',
+    label: 'Solar Plants Master',
+    title: 'Solar Power Plants Master',
+    description: 'Rooftop and ground-mount PV plant assets, capacity, and commissioning dates',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_master',
+    subModuleCode: 'plants',
+    icon: 'IconSun',
+    isNav: true,
+  },
+  {
+    path: '/solar/inverters',
+    label: 'Inverter Configuration',
+    title: 'Inverter & String Monitor',
+    description: 'String inverters, central PCUs, MPPT trackers, and Modbus TCP/RTU config',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_master',
+    subModuleCode: 'inverters',
+    icon: 'IconCpu',
+    isNav: true,
+  },
+  {
+    path: '/solar/panels',
+    label: 'Panel Layout',
+    title: 'PV Module Strings & Layout',
+    description: 'Mono PERC / Bifacial array layout, tilt angle, and azimuth mapping',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_master',
+    subModuleCode: 'panels',
+    icon: 'IconLayers',
+    isNav: true,
+  },
+  {
+    path: '/solar/generation-live',
+    label: 'Live Generation Telemetry',
+    title: 'Real-Time Generation & Power Telemetry',
+    description: 'Real-time kW output, daily yield (kWh), solar irradiation (W/m²), and grid freq',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_generation',
+    subModuleCode: 'generation_live',
+    icon: 'IconActivity',
+    isNav: true,
+  },
+  {
+    path: '/solar/yield-analytics',
+    label: 'Yield Analytics & PR',
+    title: 'Yield Analytics & Performance Ratio (PR)',
+    description: 'Specific yield (kWh/kWp), PR benchmarks, CUF tracking, and degradation curves',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_generation',
+    subModuleCode: 'yield_analytics',
+    icon: 'IconTrendingUp',
+    isNav: true,
+  },
+  {
+    path: '/solar/alarms',
+    label: 'Inverter Alarms',
+    title: 'Telemetry Alarms & Fault Dispatch',
+    description: 'Ground fault, grid over-voltage, inverter tripping, and MPPT clipping alerts',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_generation',
+    subModuleCode: 'alarms',
+    icon: 'IconAlertTriangle',
+    isNav: true,
+  },
+  {
+    path: '/solar/cleaning',
+    label: 'Cleaning Schedules',
+    title: 'Module Cleaning & Soiling Management',
+    description: 'Robotic wash cycles, soiling loss tracking, and dry-sweep schedule rosters',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_maintenance',
+    subModuleCode: 'cleaning',
+    icon: 'IconCheckCircle',
+    isNav: true,
+  },
+  {
+    path: '/solar/maintenance-tickets',
+    label: 'Maintenance Tickets',
+    title: 'Corrective & Preventive O&M Tickets',
+    description: 'Field engineer dispatches, isolator checks, and thermography hotspots',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_maintenance',
+    subModuleCode: 'maintenance_tickets',
+    icon: 'IconWrench',
+    isNav: true,
+  },
+  {
+    path: '/solar/spares',
+    label: 'O&M Spares Tracking',
+    title: 'Solar O&M Spares Inventory',
+    description: 'Spare MC4 connectors, string fuses, surge arresters, and DC cables',
+    parent: '/solar',
+    serviceCode: 'solar_monitoring',
+    moduleCode: 'solar_maintenance',
+    subModuleCode: 'spares',
+    icon: 'IconBox',
+    isNav: true,
+  },
+
 ];
 
 // Map of canonical service metadata
@@ -630,6 +874,8 @@ export const SERVICE_TITLES = {
   dispatch_returns: 'Dispatch & Returns',
   accounts_banking: 'Accounts & Banking',
   permission_controls: 'Permission Controls',
+  hrms_payroll: 'HRMS & Payroll',
+  solar_monitoring: 'Solar Monitoring',
 };
 
 // Map of canonical module metadata
@@ -648,6 +894,12 @@ export const MODULE_TITLES = {
   returns: 'Customer Returns (RMA)',
   accounts_banking: 'Financial Ledger',
   permission_controls: 'Company Team & Access',
+  hr_employee: 'HR & Employees',
+  hr_attendance: 'Attendance & Leaves',
+  payroll: 'Payroll & Compensation',
+  solar_master: 'Solar Plant Master',
+  solar_generation: 'Generation & Analytics',
+  solar_maintenance: 'Solar Maintenance & O&M',
 };
 
 /**
@@ -737,6 +989,14 @@ export const SERVICE_DEFAULT_ROUTES = {
   dispatch_returns: '/dispatch',
   accounts_banking: '/accounts/invoices',
   permission_controls: '/team',
+  hr_employee: '/hr/employees',
+  hr_attendance: '/hr/attendance',
+  payroll: '/payroll/process',
+  solar_master: '/solar/plants',
+  solar_generation: '/solar/generation-live',
+  solar_maintenance: '/solar/maintenance-tickets',
+  hrms_payroll: '/hr/employees',
+  solar_monitoring: '/solar/plants',
 };
 
 // Canonical Default Routes for Submodules
@@ -867,6 +1127,24 @@ export function getHierarchyFromPathname(pathname) {
   }
   if (pathname.startsWith('/team')) {
     return { serviceCode: 'permission_controls', moduleCode: 'permission_controls', isDepartmentRoute: false, isDashboard: false, isSettings: false, activePath: pathname };
+  }
+  if (pathname.startsWith('/hr')) {
+    if (pathname.startsWith('/hr/attendance') || pathname.startsWith('/hr/shifts') || pathname.startsWith('/hr/leaves') || pathname.startsWith('/hr/biometric')) {
+      return { serviceCode: 'hrms_payroll', moduleCode: 'hr_attendance', isDepartmentRoute: false, isDashboard: false, isSettings: false, activePath: pathname };
+    }
+    return { serviceCode: 'hrms_payroll', moduleCode: 'hr_employee', isDepartmentRoute: false, isDashboard: false, isSettings: false, activePath: pathname };
+  }
+  if (pathname.startsWith('/payroll')) {
+    return { serviceCode: 'hrms_payroll', moduleCode: 'payroll', isDepartmentRoute: false, isDashboard: false, isSettings: false, activePath: pathname };
+  }
+  if (pathname.startsWith('/solar')) {
+    if (pathname.startsWith('/solar/generation') || pathname.startsWith('/solar/yield') || pathname.startsWith('/solar/alarms')) {
+      return { serviceCode: 'solar_monitoring', moduleCode: 'solar_generation', isDepartmentRoute: false, isDashboard: false, isSettings: false, activePath: pathname };
+    }
+    if (pathname.startsWith('/solar/cleaning') || pathname.startsWith('/solar/maintenance') || pathname.startsWith('/solar/spares')) {
+      return { serviceCode: 'solar_monitoring', moduleCode: 'solar_maintenance', isDepartmentRoute: false, isDashboard: false, isSettings: false, activePath: pathname };
+    }
+    return { serviceCode: 'solar_monitoring', moduleCode: 'solar_master', isDepartmentRoute: false, isDashboard: false, isSettings: false, activePath: pathname };
   }
 
   return {

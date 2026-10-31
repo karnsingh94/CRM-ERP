@@ -23,15 +23,23 @@ router.use('/companies/:companyId', requireCompanyUser, validateCompanyAccess);
 // ==================== CRM LEADS ====================
 router.get('/companies/:companyId/crm/leads', validateSubModuleAccess('crm_leads'), crmLeadController.list);
 router.post('/companies/:companyId/crm/leads', validateSubModuleAccess('crm_leads'), crmLeadController.create);
+router.post('/companies/:companyId/crm/leads/check-duplicates', validateSubModuleAccess('crm_leads'), crmLeadController.checkDuplicates);
 router.post('/companies/:companyId/crm/leads/:leadId/convert', validateSubModuleAccess('crm_leads'), crmLeadController.convert);
 router.patch('/companies/:companyId/crm/leads/:leadId', validateSubModuleAccess('crm_leads'), crmLeadController.update);
 router.delete('/companies/:companyId/crm/leads/:leadId', validateSubModuleAccess('crm_leads'), crmLeadController.remove);
 
 // ==================== CRM CUSTOMERS ====================
 router.get('/companies/:companyId/crm/customers', validateSubModuleAccess('crm_customers'), crmCoreController.listCustomers);
+router.get('/companies/:companyId/crm/customers/:customerId/timeline', validateSubModuleAccess('crm_customers'), crmCoreController.getCustomerTimeline);
 router.post('/companies/:companyId/crm/customers', validateSubModuleAccess('crm_customers'), crmCoreController.createCustomer);
 router.patch('/companies/:companyId/crm/customers/:customerId', validateSubModuleAccess('crm_customers'), crmCoreController.updateCustomer);
 router.delete('/companies/:companyId/crm/customers/:customerId', validateSubModuleAccess('crm_customers'), crmCoreController.removeCustomer);
+
+// ==================== CRM COMMUNICATIONS & REASSIGNMENT ====================
+router.get('/companies/:companyId/crm/communications', validateSubModuleAccess('crm_leads'), crmCoreController.listCommunications);
+router.post('/companies/:companyId/crm/communications', validateSubModuleAccess('crm_leads'), crmCoreController.createCommunication);
+router.post('/companies/:companyId/crm/reorder-reminders/process', crmCoreController.processReorderReminders);
+router.post('/companies/:companyId/crm/reassign-portfolio', crmCoreController.reassignSalesRepresentative);
 
 // ==================== CRM CONTACTS ====================
 router.get('/companies/:companyId/crm/contacts', validateSubModuleAccess('crm_contacts'), crmCoreController.listContacts);
@@ -69,6 +77,7 @@ router.delete('/companies/:companyId/products/:productId', validateSubModuleAcce
 router.get('/companies/:companyId/sales/orders', validateSubModuleAccess('sales_orders'), crmCoreController.listSalesOrders);
 router.post('/companies/:companyId/sales/orders', validateSubModuleAccess('sales_orders'), crmCoreController.createSalesOrder);
 router.patch('/companies/:companyId/sales/orders/:orderId/status', validateSubModuleAccess('sales_orders'), crmCoreController.updateSalesOrderStatus);
+router.post('/companies/:companyId/sales/orders/:orderId/release', validateSubModuleAccess('sales_orders'), crmCoreController.releaseSalesOrder);
 router.delete('/companies/:companyId/sales/orders/:orderId', validateSubModuleAccess('sales_orders'), crmCoreController.removeSalesOrder);
 
 // ==================== SALES QUOTATIONS ====================
@@ -76,13 +85,22 @@ router.get('/companies/:companyId/sales/quotations', validateSubModuleAccess('sa
 router.post('/companies/:companyId/sales/quotations', validateSubModuleAccess('sales_quotations'), crmCoreController.createQuotation);
 router.patch('/companies/:companyId/sales/quotations/:quoteId/status', validateSubModuleAccess('sales_quotations'), crmCoreController.updateQuotationStatus);
 router.post('/companies/:companyId/sales/quotations/:quoteId/convert-to-order', validateSubModuleAccess('sales_quotations'), crmCoreController.convertQuotationToOrder);
+router.post('/companies/:companyId/sales/quotations/:quoteId/submit-approval', validateSubModuleAccess('sales_quotations'), crmCoreController.submitQuotationApproval);
+router.post('/companies/:companyId/sales/quotations/:quoteId/revise', validateSubModuleAccess('sales_quotations'), crmCoreController.reviseQuotation);
 router.delete('/companies/:companyId/sales/quotations/:quoteId', validateSubModuleAccess('sales_quotations'), crmCoreController.removeQuotation);
 
 // ==================== SALES PROFORMA ====================
 router.get('/companies/:companyId/sales/proforma', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.listProformas);
 router.post('/companies/:companyId/sales/proforma', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.createProforma);
 router.patch('/companies/:companyId/sales/proforma/:proformaId/status', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.updateProformaStatus);
+router.post('/companies/:companyId/sales/proforma/:proformaId/submit-approval', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.submitProformaApproval);
+router.post('/companies/:companyId/sales/proforma/:proformaId/revise', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.reviseProforma);
 router.delete('/companies/:companyId/sales/proforma/:proformaId', validateSubModuleAccess('sales_proforma_invoices'), crmCoreController.removeProforma);
+
+// ==================== CUSTOMER ADVANCES ====================
+router.get('/companies/:companyId/sales/advances', validateSubModuleAccess('sales_orders'), crmCoreController.listCustomerAdvances);
+router.post('/companies/:companyId/sales/advances', validateSubModuleAccess('sales_orders'), crmCoreController.recordCustomerAdvance);
+router.post('/companies/:companyId/sales/advances/:advanceId/verify', validateSubModuleAccess('sales_orders'), crmCoreController.verifyCustomerAdvance);
 
 // ==================== VENDORS ====================
 router.get('/companies/:companyId/purchase/vendors', validateSubModuleAccess('vendor_directory'), crmCoreController.listVendors);

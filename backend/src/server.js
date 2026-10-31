@@ -2,6 +2,7 @@ import app from './app.js';
 import env from './config/env.js';
 import prisma from './config/prisma.js';
 import logger from './utils/logger.js';
+import { startIntegrationWorker, stopIntegrationWorker } from './workers/integrationJob.worker.js';
 
 let server = null;
 
@@ -13,6 +14,9 @@ export function startServer() {
     logger.info(`🚀 Backend server is running on http://localhost:${env.port}`);
     logger.info(`ℹ️  Note: Authentication system is pending separate module integration`);
     logger.info(`⚙️  Environment: ${env.nodeEnv}`);
+
+    // Start background integration job worker
+    startIntegrationWorker();
   });
 
   server.on('error', (err) => {
@@ -28,6 +32,9 @@ export function startServer() {
  */
 export async function gracefulShutdown(signal) {
   logger.info(`[${signal}] Initiating graceful shutdown...`);
+
+  // Stop background worker
+  stopIntegrationWorker();
 
   if (server) {
     server.close(async () => {

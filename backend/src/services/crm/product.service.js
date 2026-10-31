@@ -187,6 +187,21 @@ export const productService = {
             taxRate,
             stock: initialStock,
             status: data.status?.trim() || 'ACTIVE',
+            length: data.length !== undefined && data.length !== '' ? parseFloat(data.length) : null,
+            width: data.width !== undefined && data.width !== '' ? parseFloat(data.width) : null,
+            height: data.height !== undefined && data.height !== '' ? parseFloat(data.height) : null,
+            dimensionUnit: data.dimensionUnit?.trim() || 'MM',
+            netWeight: data.netWeight !== undefined && data.netWeight !== '' ? parseFloat(data.netWeight) : null,
+            grossWeight: data.grossWeight !== undefined && data.grossWeight !== '' ? parseFloat(data.grossWeight) : null,
+            weightUnit: data.weightUnit?.trim() || 'KG',
+            materialDetails: data.materialDetails?.trim() || null,
+            packagingInstructions: data.packagingInstructions?.trim() || null,
+            dieMouldRef: data.dieMouldRef?.trim() || null,
+            printingSpecs: data.printingSpecs?.trim() || null,
+            batchPrefix: data.batchPrefix?.trim() || null,
+            requiresMfgDate: Boolean(data.requiresMfgDate),
+            requiresExpDate: Boolean(data.requiresExpDate),
+            mrp: data.mrp !== undefined && data.mrp !== '' ? parseFloat(data.mrp) : null,
           },
         });
 
@@ -347,6 +362,22 @@ export const productService = {
       }
       updateData.stock = stockUpdate;
     }
+
+    if (data.length !== undefined) updateData.length = data.length !== '' ? parseFloat(data.length) : null;
+    if (data.width !== undefined) updateData.width = data.width !== '' ? parseFloat(data.width) : null;
+    if (data.height !== undefined) updateData.height = data.height !== '' ? parseFloat(data.height) : null;
+    if (data.dimensionUnit !== undefined) updateData.dimensionUnit = data.dimensionUnit?.trim() || 'MM';
+    if (data.netWeight !== undefined) updateData.netWeight = data.netWeight !== '' ? parseFloat(data.netWeight) : null;
+    if (data.grossWeight !== undefined) updateData.grossWeight = data.grossWeight !== '' ? parseFloat(data.grossWeight) : null;
+    if (data.weightUnit !== undefined) updateData.weightUnit = data.weightUnit?.trim() || 'KG';
+    if (data.materialDetails !== undefined) updateData.materialDetails = data.materialDetails?.trim() || null;
+    if (data.packagingInstructions !== undefined) updateData.packagingInstructions = data.packagingInstructions?.trim() || null;
+    if (data.dieMouldRef !== undefined) updateData.dieMouldRef = data.dieMouldRef?.trim() || null;
+    if (data.printingSpecs !== undefined) updateData.printingSpecs = data.printingSpecs?.trim() || null;
+    if (data.batchPrefix !== undefined) updateData.batchPrefix = data.batchPrefix?.trim() || null;
+    if (data.requiresMfgDate !== undefined) updateData.requiresMfgDate = Boolean(data.requiresMfgDate);
+    if (data.requiresExpDate !== undefined) updateData.requiresExpDate = Boolean(data.requiresExpDate);
+    if (data.mrp !== undefined) updateData.mrp = data.mrp !== '' ? parseFloat(data.mrp) : null;
 
     try {
       const result = await prisma.$transaction(async (tx) => {

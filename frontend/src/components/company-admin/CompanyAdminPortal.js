@@ -65,6 +65,22 @@ export function resolveTabFromPathname(pathname) {
   if (pathname.startsWith('/dispatch')) return 'dispatch_returns:dispatch';
   if (pathname.startsWith('/accounts')) return 'accounts_banking:accounts_banking';
   if (pathname.startsWith('/team')) return 'permission_controls:permission_controls';
+  if (pathname.startsWith('/hr')) {
+    if (pathname.startsWith('/hr/attendance') || pathname.startsWith('/hr/shifts') || pathname.startsWith('/hr/leaves') || pathname.startsWith('/hr/biometric')) {
+      return 'hrms_payroll:hr_attendance';
+    }
+    return 'hrms_payroll:hr_employee';
+  }
+  if (pathname.startsWith('/payroll')) return 'hrms_payroll:payroll';
+  if (pathname.startsWith('/solar')) {
+    if (pathname.startsWith('/solar/generation') || pathname.startsWith('/solar/yield') || pathname.startsWith('/solar/alarms')) {
+      return 'solar_monitoring:solar_generation';
+    }
+    if (pathname.startsWith('/solar/cleaning') || pathname.startsWith('/solar/maintenance') || pathname.startsWith('/solar/spares')) {
+      return 'solar_monitoring:solar_maintenance';
+    }
+    return 'solar_monitoring:solar_master';
+  }
   return 'dashboard';
 }
 
@@ -688,6 +704,14 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         }
         if (!hasModuleAccess('team') && !hasModuleAccess('permission_controls')) return renderModuleRestricted('Team & Permissions');
         return <TeamModule key="module-team" activeCompany={activeCompany} currentUser={currentUser} showToast={showToast} initialSubTab={initialSubTab} />;
+
+      case 'hrms_payroll':
+        if (!hasServiceAccess('hrms_payroll')) return renderModuleRestricted('HRMS & Payroll');
+        return <HrmsModule key="module-hrms" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} pathname={pathname} />;
+
+      case 'solar_monitoring':
+        if (!hasServiceAccess('solar_monitoring')) return renderModuleRestricted('Solar Monitoring');
+        return <SolarModule key="module-solar" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} pathname={pathname} />;
 
       default:
         return (

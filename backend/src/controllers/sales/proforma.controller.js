@@ -42,6 +42,29 @@ export const proformaController = {
       res.json({ success: true, message: 'Proforma deleted.' });
     } catch (err) { respondError(err, res, next); }
   },
+
+  async submitForApproval(req, res, next) {
+    try {
+      const data = await proformaService.submitForApproval(
+        String(req.params.companyId),
+        String(req.params.proformaId),
+        req.user || {}
+      );
+      res.json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
+
+  async revise(req, res, next) {
+    try {
+      const data = await proformaService.reviseProforma(
+        String(req.params.companyId),
+        String(req.params.proformaId),
+        req.body || {},
+        req.user || {}
+      );
+      res.status(201).json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
 };
 
 export default proformaController;

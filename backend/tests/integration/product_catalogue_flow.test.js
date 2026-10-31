@@ -6,6 +6,14 @@ import { signToken } from '../../src/utils/token.js';
 const API_BASE = process.env.API_BASE || 'http://127.0.0.1:5000/api';
 
 export async function runProductCatalogueFlowTests() {
+  const resolveUploadPath = (relPath) => {
+    const normalized = (relPath || '').startsWith('/') ? relPath.slice(1) : (relPath || '');
+    const directPath = path.resolve(process.cwd(), normalized);
+    if (fs.existsSync(directPath)) return directPath;
+    const backendPath = path.resolve(process.cwd(), 'backend', normalized);
+    if (fs.existsSync(backendPath)) return backendPath;
+    return directPath;
+  };
   const uploadsBase = fs.existsSync(path.resolve(process.cwd(), 'backend', 'uploads')) ? path.resolve(process.cwd(), 'backend') : process.cwd();
   console.log('\n========================================================================');
   console.log('AZZUNIQE CRM & ERP — Product Catalogue, Categories & Pricing Test Suite');
@@ -620,7 +628,7 @@ export async function runProductCatalogueFlowTests() {
 
     // Verify file exists on server disk
     const normalized = firstUploadedImagePath.startsWith('/') ? firstUploadedImagePath.slice(1) : firstUploadedImagePath;
-        const fullPath = path.resolve(uploadsBase, normalized);
+        const fullPath = resolveUploadPath(normalized);
     if (!fs.existsSync(fullPath)) {
       throw new Error(`Uploaded image file does not exist on disk: ${fullPath}`);
     }
@@ -677,14 +685,14 @@ export async function runProductCatalogueFlowTests() {
 
     // Verify old file was deleted from disk
     const oldNorm = firstUploadedImagePath.startsWith('/') ? firstUploadedImagePath.slice(1) : firstUploadedImagePath;
-        const oldFullPath = path.resolve(uploadsBase, oldNorm);
+        const oldFullPath = resolveUploadPath(oldNorm);
     if (fs.existsSync(oldFullPath)) {
       throw new Error(`Old image file was NOT deleted after replacement: ${oldFullPath}`);
     }
 
     // Verify new file exists on disk
     const newNorm = secondUploadedImagePath.startsWith('/') ? secondUploadedImagePath.slice(1) : secondUploadedImagePath;
-        const newFullPath = path.resolve(uploadsBase, newNorm);
+        const newFullPath = resolveUploadPath(newNorm);
     if (!fs.existsSync(newFullPath)) {
       throw new Error(`New replacement image file does not exist on disk: ${newFullPath}`);
     }
@@ -703,7 +711,7 @@ export async function runProductCatalogueFlowTests() {
 
     // Verify file still exists on disk
     const norm = secondUploadedImagePath.startsWith('/') ? secondUploadedImagePath.slice(1) : secondUploadedImagePath;
-        if (!fs.existsSync(path.resolve(uploadsBase, norm))) {
+        if (!fs.existsSync(resolveUploadPath(norm))) {
       throw new Error('Image file on disk was unexpectedly deleted during non-image update');
     }
   });
@@ -721,7 +729,7 @@ export async function runProductCatalogueFlowTests() {
 
     // Verify file was deleted from disk
     const norm = secondUploadedImagePath.startsWith('/') ? secondUploadedImagePath.slice(1) : secondUploadedImagePath;
-        if (fs.existsSync(path.resolve(uploadsBase, norm))) {
+        if (fs.existsSync(resolveUploadPath(norm))) {
       throw new Error('Image file on disk was NOT deleted after removeImage: true');
     }
   });
@@ -746,7 +754,7 @@ export async function runProductCatalogueFlowTests() {
     if (!tempProdId || !tempImgPath) throw new Error('Failed to create temp product for delete test');
 
     const tempNorm = tempImgPath.startsWith('/') ? tempImgPath.slice(1) : tempImgPath;
-        const tempFullPath = path.resolve(uploadsBase, tempNorm);
+        const tempFullPath = resolveUploadPath(tempNorm);
     if (!fs.existsSync(tempFullPath)) throw new Error('Temp image was not created on disk');
 
     // 2. Delete product

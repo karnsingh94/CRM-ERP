@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   IconSearch,
@@ -11,6 +11,7 @@ import {
   IconBell,
   IconMenu,
 } from '../ui/Icons';
+import { apiRequest } from '../../lib/api';
 import styles from '../company-admin/CompanyAdminPortal.module.css';
 
 export default function Topbar({
@@ -29,8 +30,14 @@ export default function Topbar({
 }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showCompanyMenu, setShowCompanyMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+
   const profileRef = useRef(null);
   const companyRef = useRef(null);
+  const notificationRef = useRef(null);
 
   // Close menus on click outside
   useEffect(() => {
@@ -41,10 +48,65 @@ export default function Topbar({
       if (companyRef.current && !companyRef.current.contains(e.target)) {
         setShowCompanyMenu(false);
       }
+      if (notificationRef.current && !notificationRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fetch notifications for the active company tenant
+  const loadNotifications = useCallback(async () => {
+    if (!activeCompany?.id) return;
+    try {
+      setLoadingNotifications(true);
+      const res = await apiRequest(`/companies/${activeCompany.id}/notifications?limit=10`, { noCache: true });
+      if (res?.success) {
+        setNotifications(res.data || []);
+        setUnreadCount(res.unreadCount || 0);
+      }
+    } catch {
+      // Keep UI functional if backend notifications route is temporarily unavailable
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }, [activeCompany?.id]);
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
+  const handleMarkAsRead = async (notificationId, e) => {
+    if (e) e.stopPropagation();
+    if (!activeCompany?.id) return;
+    try {
+      await apiRequest(`/companies/${activeCompany.id}/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+      });
+      setNotifications(prev =>
+        prev.map(n => (n.id === notificationId ? { ...n, isRead: true } : n))
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    if (!activeCompany?.id) return;
+    try {
+      await apiRequest(`/companies/${activeCompany.id}/notifications/mark-all-read`, {
+        method: 'POST',
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+  };
 
   // Compute initials dynamically from actual real name
   const getInitials = (name) => {
@@ -80,6 +142,15 @@ export default function Topbar({
   const userInitials = getInitials(displayName);
   const brandColor = accentColor || activeCompany?.theme_color || activeCompany?.themeColor || currentUser?.theme_color || currentUser?.themeColor || '#7f22fe';
   const brandGlow = `${brandColor}4d`;
+
+  const getCategoryColor = (category) => {
+    switch (category) {
+      case 'APPROVAL': return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+      case 'TASK': return { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' };
+      case 'ALERT': return { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
+      default: return { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+    }
+  };
 
   return (
     <header
@@ -174,8 +245,188 @@ export default function Topbar({
         </div>
       </div>
 
-      {/* Right: Company Name Context + Profile Trigger */}
+      {/* Right: Notifications + Company Badge + Profile Trigger */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexShrink: 0 }}>
+        {/* Universal Topbar Notification Center */}
+        <div style={{ position: 'relative' }} ref={notificationRef}>
+          <button
+            type="button"
+            onClick={() => setShowNotifications(prev => !prev)}
+            style={{
+              position: 'relative',
+              width: '38px',
+              height: '38px',
+              borderRadius: '50%',
+              border: '1px solid #e2e8f0',
+              backgroundColor: showNotifications ? `${brandColor}10` : '#f8fafc',
+              color: showNotifications ? brandColor : '#475569',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            aria-label="View notifications"
+            title="Notifications & Approval Alerts"
+          >
+            <IconBell size={18} />
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-2px',
+                  right: '-2px',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  minWidth: '18px',
+                  height: '18px',
+                  borderRadius: '9999px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 4px',
+                  border: '2px solid #ffffff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                }}
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {/* Notifications Popover Dropdown */}
+          {showNotifications && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                width: '340px',
+                maxHeight: '440px',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.12)',
+                display: 'flex',
+                flexDirection: 'column',
+                zIndex: 100,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  borderBottom: '1px solid #f1f5f9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: '#f8fafc',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 800, fontSize: '0.86rem', color: '#0f172a' }}>Notifications</span>
+                  {unreadCount > 0 && (
+                    <span
+                      style={{
+                        backgroundColor: `${brandColor}18`,
+                        color: brandColor,
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        padding: '0.1rem 0.45rem',
+                        borderRadius: '9999px',
+                      }}
+                    >
+                      {unreadCount} new
+                    </span>
+                  )}
+                </div>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: brandColor,
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    Mark all as read
+                  </button>
+                )}
+              </div>
+
+              {/* Notification Items List */}
+              <div style={{ overflowY: 'auto', maxHeight: '360px' }}>
+                {loadingNotifications && notifications.length === 0 ? (
+                  <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
+                    Loading updates...
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div style={{ padding: '2rem 1.5rem', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ fontSize: '1.2rem', marginBottom: '0.35rem' }}>🔔</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>No notifications yet</div>
+                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                      Approval requests and workflow alerts will appear here.
+                    </div>
+                  </div>
+                ) : (
+                  notifications.map((item) => {
+                    const tagTheme = getCategoryColor(item.category);
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={(e) => !item.isRead && handleMarkAsRead(item.id, e)}
+                        style={{
+                          padding: '0.75rem 1rem',
+                          borderBottom: '1px solid #f1f5f9',
+                          backgroundColor: item.isRead ? '#ffffff' : '#f8fafc',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.25rem',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '4px',
+                              backgroundColor: tagTheme.bg,
+                              color: tagTheme.text,
+                              border: `1px solid ${tagTheme.border}`,
+                            }}
+                          >
+                            {item.category || 'SYSTEM'}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                            {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: item.isRead ? 600 : 700, color: '#0f172a' }}>
+                          {item.title}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: '#64748b', lineHeight: 1.35 }}>
+                          {item.message}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Company Context Presentation */}
         {hasMultipleCompanies && allCompanies.length > 1 ? (
           /* Multi-company switcher dropdown only when multiple authorized companies exist */

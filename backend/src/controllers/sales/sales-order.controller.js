@@ -43,6 +43,17 @@ export const salesOrderController = {
       res.json({ success: true, message: 'Sales order deleted.' });
     } catch (err) { respondError(err, res, next); }
   },
+
+  async release(req, res, next) {
+    try {
+      const data = await salesOrderService.releaseSalesOrder(
+        String(req.params.companyId),
+        String(req.params.orderId),
+        req.user || {}
+      );
+      res.json({ success: true, data });
+    } catch (err) { respondError(err, res, next); }
+  },
 };
 
 export default salesOrderController;
