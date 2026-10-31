@@ -1,5 +1,5 @@
 /**
- * Fixed 7-Service Catalogue Definition
+ * Fixed 9-Service Catalogue Definition
  * Synchronized with AZZUNIQE Backend Catalogue Specification & Prisma Models.
  */
 
@@ -213,6 +213,86 @@ export const CORE_SERVICES = [
           { code: 'rbac_configuration', name: 'RBAC Configuration', route: '/team', alias: 'team_users' },
           { code: 'global_feature_toggles', name: 'Global Feature Toggles', route: '/team/roles', alias: 'role_assignment' },
           { code: 'security_profiles', name: 'Security Profiles', route: '/team/audit', alias: 'audit_trail' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 8,
+    code: 'hrms_payroll',
+    name: 'HRMS & Payroll',
+    icon: 'IconUsers',
+    description: 'Employee records, attendance tracking, shift roster, biometric sync, payroll processing and payslips.',
+    modules: [
+      {
+        code: 'hr_employee',
+        name: 'HR & Employees',
+        icon: 'IconUsers',
+        subModules: [
+          { code: 'employee_master', name: 'Employee Master', route: '/hr/employees' },
+          { code: 'employee_onboarding', name: 'Onboarding & KYC', route: '/hr/onboarding' },
+          { code: 'employee_documents', name: 'Document Vault', route: '/hr/documents' },
+        ],
+      },
+      {
+        code: 'hr_attendance',
+        name: 'Attendance & Leaves',
+        icon: 'IconCalendar',
+        subModules: [
+          { code: 'attendance_daily', name: 'Daily Attendance', route: '/hr/attendance' },
+          { code: 'shift_management', name: 'Shift Management', route: '/hr/shifts' },
+          { code: 'leave_management', name: 'Leave Management', route: '/hr/leaves' },
+          { code: 'biometric_integration', name: 'Biometric Integration', route: '/hr/biometric' },
+        ],
+      },
+      {
+        code: 'payroll',
+        name: 'Payroll & Compensation',
+        icon: 'IconCreditCard',
+        subModules: [
+          { code: 'salary_structure', name: 'Salary Structure', route: '/payroll/structure' },
+          { code: 'monthly_payroll', name: 'Monthly Payroll', route: '/payroll/process' },
+          { code: 'statutory_compliance', name: 'Statutory (PF/ESI/TDS)', route: '/payroll/statutory' },
+          { code: 'employee_payslips', name: 'Payslips', route: '/payroll/payslips' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 9,
+    code: 'solar_monitoring',
+    name: 'Solar Monitoring',
+    icon: 'IconSun',
+    description: 'Solar power plant setup, inverter telemetry, generation analytics, PR ratio and O&M maintenance.',
+    modules: [
+      {
+        code: 'solar_master',
+        name: 'Solar Plant Master',
+        icon: 'IconSun',
+        subModules: [
+          { code: 'solar_plants', name: 'Solar Plants', route: '/solar/plants' },
+          { code: 'inverter_config', name: 'Inverter Configuration', route: '/solar/inverters' },
+          { code: 'panel_layout', name: 'Panel Layout', route: '/solar/panels' },
+        ],
+      },
+      {
+        code: 'solar_generation',
+        name: 'Generation & Analytics',
+        icon: 'IconActivity',
+        subModules: [
+          { code: 'live_generation', name: 'Live Generation', route: '/solar/generation-live' },
+          { code: 'yield_analytics', name: 'Yield Analytics & PR', route: '/solar/yield-analytics' },
+          { code: 'inverter_alarms', name: 'Inverter Alarms & Faults', route: '/solar/alarms' },
+        ],
+      },
+      {
+        code: 'solar_maintenance',
+        name: 'Solar Maintenance & O&M',
+        icon: 'IconShield',
+        subModules: [
+          { code: 'cleaning_schedules', name: 'Cleaning Schedules', route: '/solar/cleaning' },
+          { code: 'maintenance_tickets', name: 'Maintenance Tickets', route: '/solar/maintenance-tickets' },
+          { code: 'om_spares', name: 'O&M Spares Tracking', route: '/solar/spares' },
         ],
       },
     ],

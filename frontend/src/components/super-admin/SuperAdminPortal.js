@@ -29,6 +29,8 @@ const SEEDED_SERVICE_CODES = new Set([
   'dispatch_returns',
   'accounts_banking',
   'permission_controls',
+  'hrms_payroll',
+  'solar_monitoring',
 ]);
 
 // ============================================================================

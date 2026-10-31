@@ -71,7 +71,7 @@ export async function runClientCheckPermissionsVerification() {
   });
 
   // 2. Verify Other Six Services Remain in Master Catalogue
-  await test('Verify all 7 services exist and remain ACTIVE in master catalogue', async () => {
+  await test('Verify all 9 services exist and remain ACTIVE in master catalogue', async () => {
     const allServices = await prisma.service.findMany();
     const expectedServices = [
       'crm_sales',
@@ -81,9 +81,11 @@ export async function runClientCheckPermissionsVerification() {
       'dispatch_returns',
       'accounts_banking',
       'permission_controls',
+      'hrms_payroll',
+      'solar_monitoring',
     ];
-    if (allServices.length !== 7) {
-      throw new Error(`Expected exactly 7 services in catalogue, found ${allServices.length}`);
+    if (allServices.length !== 9) {
+      throw new Error(`Expected exactly 9 services in catalogue, found ${allServices.length}`);
     }
     for (const code of expectedServices) {
       const s = allServices.find((item) => item.code === code);

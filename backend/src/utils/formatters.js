@@ -43,6 +43,8 @@ const SEEDED_SERVICE_ORDER = new Map([
   ['dispatch_returns', 5],
   ['accounts_banking', 6],
   ['permission_controls', 7],
+  ['hrms_payroll', 8],
+  ['solar_monitoring', 9],
 ]);
 
 export function formatServicesInDisplayOrder(services) {

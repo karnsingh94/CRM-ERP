@@ -41,6 +41,7 @@ export const SEED_CATALOG = [
         subModules: [
           { name: 'Product Master', code: 'product_master', route: '/product/master', orderNo: 1 },
           { name: 'Price Management', code: 'price_management', route: '/product/pricing', orderNo: 2 },
+          { name: 'Categories', code: 'categories', route: '/products/categories', orderNo: 3 },
         ]
       },
       {
@@ -259,9 +260,109 @@ export const SEED_CATALOG = [
         ]
       }
     ]
+    },
+  {
+    name: 'HRMS & Payroll',
+    code: 'hrms_payroll',
+    description: 'Employee records, attendance tracking, shift roster, biometric integration, payroll, statutory deductions, and payslips.',
+    orderNo: 8,
+    status: 'ACTIVE',
+    modules: [
+      {
+        name: 'HR & Employees',
+        code: 'hr_employee',
+        icon: 'users',
+        description: 'Employee directory, onboarding documentation, KYC, and personal records.',
+        orderNo: 1,
+        status: 'ACTIVE',
+        subModules: [
+          { name: 'Employee Master', code: 'employee_master', route: '/hr/employees', orderNo: 1 },
+          { name: 'Onboarding & KYC', code: 'employee_onboarding', route: '/hr/onboarding', orderNo: 2 },
+          { name: 'Document Vault', code: 'employee_documents', route: '/hr/documents', orderNo: 3 },
+        ],
+      },
+      {
+        name: 'Attendance & Leaves',
+        code: 'hr_attendance',
+        icon: 'calendar',
+        description: 'Daily attendance logs, shift rosters, biometric sync, and leave balances.',
+        orderNo: 2,
+        status: 'ACTIVE',
+        subModules: [
+          { name: 'Daily Attendance', code: 'attendance_daily', route: '/hr/attendance', orderNo: 1 },
+          { name: 'Shift Management', code: 'shift_management', route: '/hr/shifts', orderNo: 2 },
+          { name: 'Leave Management', code: 'leave_management', route: '/hr/leaves', orderNo: 3 },
+          { name: 'Biometric Integration', code: 'biometric_integration', route: '/hr/biometric', orderNo: 4 },
+        ],
+      },
+      {
+        name: 'Payroll & Compensation',
+        code: 'payroll',
+        icon: 'dollar-sign',
+        description: 'Salary structures, monthly payroll runs, statutory deductions, and payslips.',
+        orderNo: 3,
+        status: 'ACTIVE',
+        subModules: [
+          { name: 'Salary Structure', code: 'salary_structure', route: '/payroll/structure', orderNo: 1 },
+          { name: 'Monthly Payroll', code: 'monthly_payroll', route: '/payroll/process', orderNo: 2 },
+          { name: 'Statutory (PF/ESI/TDS)', code: 'statutory_compliance', route: '/payroll/statutory', orderNo: 3 },
+          { name: 'Payslips', code: 'employee_payslips', route: '/payroll/payslips', orderNo: 4 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Solar Monitoring',
+    code: 'solar_monitoring',
+    description: 'Solar power plant setup, inverter telemetry, generation analytics, performance ratio (PR), and O&M maintenance.',
+    orderNo: 9,
+    status: 'ACTIVE',
+    modules: [
+      {
+        name: 'Solar Plant Master',
+        code: 'solar_master',
+        icon: 'sun',
+        description: 'Solar plant profiles, inverter capacity configuration, and panel string layout.',
+        orderNo: 1,
+        status: 'ACTIVE',
+        subModules: [
+          { name: 'Solar Plants', code: 'solar_plants', route: '/solar/plants', orderNo: 1 },
+          { name: 'Inverter Configuration', code: 'inverter_config', route: '/solar/inverters', orderNo: 2 },
+          { name: 'Panel Layout', code: 'panel_layout', route: '/solar/panels', orderNo: 3 },
+        ],
+      },
+      {
+        name: 'Generation & Analytics',
+        code: 'solar_generation',
+        icon: 'activity',
+        description: 'Real-time telemetry, daily/monthly yield, performance ratio (PR), and inverter alarms.',
+        orderNo: 2,
+        status: 'ACTIVE',
+        subModules: [
+          { name: 'Live Generation', code: 'live_generation', route: '/solar/generation-live', orderNo: 1 },
+          { name: 'Yield Analytics & PR', code: 'yield_analytics', route: '/solar/yield-analytics', orderNo: 2 },
+          { name: 'Inverter Alarms & Faults', code: 'inverter_alarms', route: '/solar/alarms', orderNo: 3 },
+        ],
+      },
+      {
+        name: 'Solar Maintenance & O&M',
+        code: 'solar_maintenance',
+        icon: 'tool',
+        description: 'Module cleaning schedules, maintenance work orders, and O&M spare parts tracking.',
+        orderNo: 3,
+        status: 'ACTIVE',
+        subModules: [
+          { name: 'Cleaning Schedules', code: 'cleaning_schedules', route: '/solar/cleaning', orderNo: 1 },
+          { name: 'Maintenance Tickets', code: 'maintenance_tickets', route: '/solar/maintenance-tickets', orderNo: 2 },
+          { name: 'O&M Spares Tracking', code: 'om_spares', route: '/solar/spares', orderNo: 3 },
+        ],
+      },
+    ],
   }
+
 ];
 
+// Nine-service suite placeholder
 export async function seedDatabase() {
   console.log('🌱 Starting idempotent database seeding...');
 
@@ -278,7 +379,7 @@ export async function seedDatabase() {
   });
   console.log(`✅ Initial Super Admin ensured: ${initialSuperAdmin.email}`);
 
-  // 2. Seed Fixed Seven-Service Catalogue
+  // 2. Seed Fixed Nine-Service Catalogue
   for (const s of SEED_CATALOG) {
     const service = await prisma.service.upsert({
       where: { code: s.code },
