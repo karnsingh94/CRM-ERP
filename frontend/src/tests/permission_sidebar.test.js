@@ -434,6 +434,98 @@ const emptyModuleCompany = {
 const res3 = resolveCompanyAccess(emptyModuleCompany);
 assert(res3.permittedServices.length === 0, 'Module with 0 permitted screens is not rendered as an empty section');
 
+
+// Scenario 4: Company provisioned with HRMS & Payroll Service
+const hrmsCompany = {
+  id: 'comp-4',
+  access: {
+    services: [
+      {
+        code: 'hrms_payroll',
+        name: 'HRMS & Payroll',
+        isAllowed: true,
+        status: 'ACTIVE',
+        modules: [
+          {
+            code: 'hr_employee',
+            name: 'HR & Employees',
+            isAllowed: true,
+            status: 'ACTIVE',
+            subModules: [
+              { code: 'employee_master', name: 'Employee Master', route: '/hr/employees', isAllowed: true, status: 'ACTIVE' },
+              { code: 'employee_onboarding', name: 'Onboarding & KYC', route: '/hr/onboarding', isAllowed: true, status: 'ACTIVE' },
+              { code: 'employee_documents', name: 'Document Vault', route: '/hr/documents', isAllowed: true, status: 'ACTIVE' },
+            ],
+          },
+          {
+            code: 'payroll',
+            name: 'Payroll & Compensation',
+            isAllowed: true,
+            status: 'ACTIVE',
+            subModules: [
+              { code: 'salary_structure', name: 'Salary Structure', route: '/payroll/structure', isAllowed: true, status: 'ACTIVE' },
+              { code: 'monthly_payroll', name: 'Monthly Payroll', route: '/payroll/process', isAllowed: true, status: 'ACTIVE' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const res4 = resolveCompanyAccess(hrmsCompany);
+assert(res4.hasServiceAccess('hrms_payroll'), 'Permits HRMS & Payroll service access');
+assert(res4.hasModuleAccess('hr_employee'), 'Permits HR & Employees module access');
+assert(res4.hasModuleAccess('payroll'), 'Permits Payroll module access');
+assert(!res4.hasModuleAccess('solar_master'), 'Blocks unauthorized Solar service module');
+assert(res4.hasSubModuleAccess('employee_master'), 'Permits Employee Master code');
+assert(res4.hasSubModuleAccess('/hr/employees'), 'Permits /hr/employees route');
+assert(res4.hasSubModuleAccess('/payroll/process'), 'Permits /payroll/process route');
+assert(!res4.hasSubModuleAccess('/solar/plants'), 'Blocks unauthorized /solar/plants route');
+
+const hrMod = res4.permittedServices[0].modules.find(m => m.code === 'hr_employee');
+const hrPages = getPagesForModule(hrMod, res4.hasSubModuleAccess);
+assert(hrPages.length === 3, `Sidebar displays all 3 HR & Employee screens (got ${hrPages.length})`);
+
+// Scenario 5: Company provisioned with Solar Monitoring Service
+const solarCompany = {
+  id: 'comp-5',
+  access: {
+    services: [
+      {
+        code: 'solar_monitoring',
+        name: 'Solar Monitoring',
+        isAllowed: true,
+        status: 'ACTIVE',
+        modules: [
+          {
+            code: 'solar_generation',
+            name: 'Generation & Analytics',
+            isAllowed: true,
+            status: 'ACTIVE',
+            subModules: [
+              { code: 'live_generation', name: 'Live Generation', route: '/solar/generation-live', isAllowed: true, status: 'ACTIVE' },
+              { code: 'yield_analytics', name: 'Yield Analytics & PR', route: '/solar/yield-analytics', isAllowed: true, status: 'ACTIVE' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const res5 = resolveCompanyAccess(solarCompany);
+assert(res5.hasServiceAccess('solar_monitoring'), 'Permits Solar Monitoring service access');
+assert(res5.hasModuleAccess('solar_generation'), 'Permits Generation & Analytics module access');
+assert(!res5.hasServiceAccess('hrms_payroll'), 'Blocks unauthorized HRMS service');
+assert(res5.hasSubModuleAccess('live_generation'), 'Permits Live Generation code');
+assert(res5.hasSubModuleAccess('/solar/generation-live'), 'Permits /solar/generation-live route');
+assert(!res5.hasSubModuleAccess('/hr/employees'), 'Blocks unauthorized /hr/employees route');
+
+const solarMod = res5.permittedServices[0].modules.find(m => m.code === 'solar_generation');
+const solarPages = getPagesForModule(solarMod, res5.hasSubModuleAccess);
+assert(solarPages.length === 2, `Sidebar displays only 2 permitted Solar screens (got ${solarPages.length})`);
+
 console.log('\n========================================================================');
 console.log(`Frontend Permission & Sidebar Tests: ${passed} PASSED, ${failed} FAILED`);
 console.log('========================================================================\n');

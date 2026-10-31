@@ -14,6 +14,7 @@ import {
   IconBuilding,
   IconUsers,
 } from '../ui/Icons';
+import { CORE_SERVICES } from '@/constants/services';
 
 export default function CompanyDashboard({
   activeCompany,
@@ -181,7 +182,7 @@ export default function CompanyDashboard({
               Authorized Services
             </div>
             <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#7f22fe', margin: '0.2rem 0' }}>
-              {permittedServices.length} / 7
+              {permittedServices.length} / {CORE_SERVICES?.length || 9}
             </div>
             <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>
               Assigned by Super Admin

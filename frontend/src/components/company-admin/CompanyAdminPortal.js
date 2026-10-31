@@ -37,6 +37,8 @@ const ProductionModule = lazyFeature(() => import('@/components/modules/Producti
 const DispatchModule = lazyFeature(() => import('@/components/modules/DispatchModule'));
 const AccountsModule = lazyFeature(() => import('@/components/modules/AccountsModule'));
 const TeamModule = lazyFeature(() => import('@/components/modules/TeamModule'));
+const HrmsModule = lazyFeature(() => import('@/components/modules/HrmsModule'));
+const SolarModule = lazyFeature(() => import('@/components/modules/SolarModule'));
 const SettingsModule = lazyFeature(() => import('@/components/modules/SettingsModule'));
 const ServiceDepartments = lazyFeature(() => import('@/components/departments/ServiceDepartments'));
 

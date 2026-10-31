@@ -29,6 +29,12 @@ const moduleRouteRoots = {
   returns: '/returns',
   accounts_banking: '/accounts',
   permission_controls: '/team',
+  hr_employee: '/hr',
+  hr_attendance: '/hr',
+  payroll: '/payroll',
+  solar_master: '/solar',
+  solar_generation: '/solar',
+  solar_maintenance: '/solar',
 };
 
 const subModuleRouteSuffixes = {

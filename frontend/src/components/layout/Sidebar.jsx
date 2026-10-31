@@ -17,6 +17,7 @@ import {
   IconChevronRight,
   IconBuilding,
   IconUsers,
+  IconSun,
 } from '../ui/Icons';
 import { getHierarchyFromPathname } from '@/config/routes.config';
 import { MODULE_ALIASES, SUBMODULE_ALIASES } from '../../hooks/useCompanyAccess';
@@ -295,6 +296,8 @@ export default function Sidebar({
       case 'dispatch_returns': return <IconPackage size={17} style={{ color: iconColor }} />;
       case 'accounts_banking': return <IconCreditCard size={17} style={{ color: iconColor }} />;
       case 'permission_controls': return <IconShield size={17} style={{ color: iconColor }} />;
+      case 'hrms_payroll': return <IconUsers size={17} style={{ color: iconColor }} />;
+      case 'solar_monitoring': return <IconSun size={17} style={{ color: iconColor }} />;
       default: return <IconLayers size={17} style={{ color: iconColor }} />;
     }
   };
