@@ -1,0 +1,1109 @@
+{
+  "backupCounts": {
+    "_prisma_migrations": 13,
+    "admin_module_access": 20,
+    "admin_service_access": 9,
+    "admin_sub_module_access": 68,
+    "admins": 1,
+    "approval_decisions": 18,
+    "approval_requests": 60,
+    "audit_logs": 719,
+    "company_employees": 5,
+    "company_lead_integrations": 1,
+    "company_service_teams": 2,
+    "crm_communications": 12,
+    "crm_contacts": 13,
+    "crm_customers": 6,
+    "crm_leads": 44,
+    "crm_opportunities": 1,
+    "departments": 1,
+    "document_versions": 71,
+    "integration_jobs": 7,
+    "inventory_movements": 2,
+    "inventory_stocks": 11,
+    "inventory_warehouses": 1,
+    "modules": 20,
+    "notifications": 193,
+    "product_categories": 2,
+    "product_pricings": 4,
+    "products": 4,
+    "purchase_deviations": 1,
+    "purchase_orders": 1,
+    "purchase_quotations": 4,
+    "purchase_receipts": 2,
+    "purchase_requests": 4,
+    "sales_orders": 2,
+    "sales_proforma_invoices": 36,
+    "sales_quotations": 2,
+    "service_work_items": 3,
+    "services": 11,
+    "sub_modules": 68,
+    "super_admins": 1,
+    "vendors": 3
+  },
+  "liveCounts": {
+    "admins": 1,
+    "admin_module_access": 20,
+    "admin_service_access": 9,
+    "admin_sub_module_access": 68,
+    "approval_decisions": 33,
+    "approval_requests": 135,
+    "attachments": 0,
+    "audit_logs": 1129,
+    "company_employees": 5,
+    "company_lead_integrations": 1,
+    "company_service_teams": 2,
+    "crm_communications": 15,
+    "crm_contacts": 16,
+    "crm_customers": 6,
+    "crm_leads": 44,
+    "crm_opportunities": 1,
+    "customer_advances": 0,
+    "departments": 1,
+    "document_versions": 131,
+    "integration_jobs": 12,
+    "inventory_adjustments": 4,
+    "inventory_batches": 24,
+    "inventory_bins": 4,
+    "inventory_fulfillments": 0,
+    "inventory_gate_passes": 4,
+    "inventory_material_requests": 0,
+    "inventory_movements": 54,
+    "inventory_physical_verifications": 4,
+    "inventory_physical_verification_items": 10,
+    "inventory_procurement_requests": 0,
+    "inventory_production_receipts": 0,
+    "inventory_reservations": 4,
+    "inventory_samplings": 4,
+    "inventory_stocks": 19,
+    "inventory_transfers": 0,
+    "inventory_warehouses": 6,
+    "modules": 20,
+    "notifications": 399,
+    "products": 4,
+    "product_categories": 2,
+    "product_pricings": 4,
+    "purchase_artwork_proofs": 0,
+    "purchase_bills": 0,
+    "purchase_deviations": 1,
+    "purchase_orders": 5,
+    "purchase_quotations": 11,
+    "purchase_receipts": 5,
+    "purchase_requests": 10,
+    "purchase_returns": 0,
+    "sales_orders": 2,
+    "sales_proforma_invoices": 36,
+    "sales_quotations": 2,
+    "services": 11,
+    "service_work_items": 6,
+    "service_work_updates": 0,
+    "sub_modules": 68,
+    "super_admins": 1,
+    "vendors": 9,
+    "_prisma_migrations": 13
+  },
+  "allProducts": [
+    {
+      "id": "85be8fd9-6f09-4798-b974-63d58799dbc9",
+      "companyId": "75a69805-cea5-11f1-9511-b05cda618678",
+      "sku": "CHECKED-001",
+      "name": "Check Product",
+      "description": "this prodcut is for checking",
+      "imageUrl": null,
+      "category": "check",
+      "uom": "KG",
+      "sellingPrice": "199",
+      "purchasePrice": "170",
+      "taxRate": "18",
+      "stock": 0,
+      "status": "ACTIVE",
+      "length": null,
+      "width": null,
+      "height": null,
+      "dimensionUnit": "MM",
+      "netWeight": null,
+      "grossWeight": null,
+      "weightUnit": "KG",
+      "materialDetails": null,
+      "packagingInstructions": null,
+      "dieMouldRef": null,
+      "printingSpecs": null,
+      "batchPrefix": null,
+      "requiresMfgDate": false,
+      "requiresExpDate": false,
+      "mrp": null,
+      "createdAt": "2026-10-28T10:31:39.905Z",
+      "updatedAt": "2026-10-28T10:31:39.905Z"
+    },
+    {
+      "id": "cf6d39a1-b005-444e-9cc1-f2c96886813a",
+      "companyId": "75a69805-cea5-11f1-9511-b05cda618678",
+      "sku": "NAME",
+      "name": "casd",
+      "description": "adfasd",
+      "imageUrl": null,
+      "category": "check",
+      "uom": "PCS",
+      "sellingPrice": "199",
+      "purchasePrice": "129",
+      "taxRate": "12",
+      "stock": 0,
+      "status": "ACTIVE",
+      "length": null,
+      "width": null,
+      "height": null,
+      "dimensionUnit": "MM",
+      "netWeight": null,
+      "grossWeight": null,
+      "weightUnit": "KG",
+      "materialDetails": null,
+      "packagingInstructions": null,
+      "dieMouldRef": null,
+      "printingSpecs": null,
+      "batchPrefix": null,
+      "requiresMfgDate": false,
+      "requiresExpDate": false,
+      "mrp": null,
+      "createdAt": "2026-10-29T05:36:03.377Z",
+      "updatedAt": "2026-10-29T05:36:15.588Z"
+    },
+    {
+      "id": "cfa3ea12-ad6b-4f6f-b5cc-d8dac0e60478",
+      "companyId": "75a69805-cea5-11f1-9511-b05cda618678",
+      "sku": "SKU-DEL-1793440858414",
+      "name": "Delete Me Product",
+      "description": null,
+      "imageUrl": "/uploads/tenants/75a69805-cea5-11f1-9511-b05cda618678/products/prod-1793440860704-9bdd8237a5d4ac45.png",
+      "category": "Image Category 1793440858414",
+      "uom": "PCS",
+      "sellingPrice": "0",
+      "purchasePrice": "0",
+      "taxRate": "18",
+      "stock": 0,
+      "status": "ACTIVE",
+      "length": null,
+      "width": null,
+      "height": null,
+      "dimensionUnit": "MM",
+      "netWeight": null,
+      "grossWeight": null,
+      "weightUnit": "KG",
+      "materialDetails": null,
+      "packagingInstructions": null,
+      "dieMouldRef": null,
+      "printingSpecs": null,
+      "batchPrefix": null,
+      "requiresMfgDate": false,
+      "requiresExpDate": false,
+      "mrp": null,
+      "createdAt": "2026-10-31T10:01:00.738Z",
+      "updatedAt": "2026-10-31T10:01:00.738Z"
+    },
+    {
+      "id": "f9549ce3-ceac-42b2-86d0-9a524c548202",
+      "companyId": "75a69805-cea5-11f1-9511-b05cda618678",
+      "sku": "SKU-DEL-1793424725117",
+      "name": "Delete Me Product",
+      "description": null,
+      "imageUrl": "/uploads/tenants/75a69805-cea5-11f1-9511-b05cda618678/products/prod-1793424726103-3fdf5d4628e96b98.png",
+      "category": "Image Category 1793424725117",
+      "uom": "PCS",
+      "sellingPrice": "0",
+      "purchasePrice": "0",
+      "taxRate": "18",
+      "stock": 0,
+      "status": "ACTIVE",
+      "length": null,
+      "width": null,
+      "height": null,
+      "dimensionUnit": "MM",
+      "netWeight": null,
+      "grossWeight": null,
+      "weightUnit": "KG",
+      "materialDetails": null,
+      "packagingInstructions": null,
+      "dieMouldRef": null,
+      "printingSpecs": null,
+      "batchPrefix": null,
+      "requiresMfgDate": false,
+      "requiresExpDate": false,
+      "mrp": null,
+      "createdAt": "2026-10-31T05:32:06.118Z",
+      "updatedAt": "2026-10-31T05:32:06.118Z"
+    }
+  ],
+  "allStocksCount": 19,
+  "allBatchesCount": 24,
+  "allMovementsCount": 54,
+  "allPOsCount": 5,
+  "allGRNsCount": 5,
+  "allSOsCount": 2,
+  "orphanCounts": {
+    "orphanStocks": 0,
+    "orphanBatches": 0,
+    "orphanMovements": 0,
+    "orphanPOs": 0,
+    "orphanGRNs": 0,
+    "orphanSOs": 0
+  },
+  "samplePOs": [
+    {
+      "id": "075df501-d8df-4811-88ef-7a2887f47b95",
+      "poNumber": "PO-261031111546-0C035FE3",
+      "vendorId": "4dd18615-dc60-44c8-ab5a-b5c0e23901a7",
+      "createdAt": "2026-10-31T11:15:46.044Z"
+    },
+    {
+      "id": "0fa59e27-9341-469c-ae50-f41f58d47892",
+      "poNumber": "PO-261031111421-9F7D59BE",
+      "vendorId": "76668a63-7aa9-4cc7-a578-4f88131063ff",
+      "createdAt": "2026-10-31T11:14:21.701Z"
+    },
+    {
+      "id": "693c3a01-5a7c-427c-9ba7-6a624c831762",
+      "poNumber": "PO-261102051144-F6BFD983",
+      "vendorId": "583a323f-dc78-4715-8515-f370b3ad466b",
+      "createdAt": "2026-11-02T05:11:44.781Z"
+    },
+    {
+      "id": "c4a7c6e9-8475-4c9f-a461-237dd8ebe490",
+      "poNumber": "PO-261031111516-2278B287",
+      "vendorId": "74e0cce9-c686-4bdd-8165-0aa7b7e149c7",
+      "createdAt": "2026-10-31T11:15:16.998Z"
+    },
+    {
+      "id": "cfebd900-e7ee-4bea-9668-abe730d80a13",
+      "poNumber": "PO-261031104358-849BCDD4",
+      "vendorId": "0dfebfc4-da7f-4997-ae13-40ab6bb0a851",
+      "createdAt": "2026-10-31T10:43:58.943Z"
+    }
+  ],
+  "sampleGRNs": [
+    {
+      "id": "6097d36e-c68c-4271-86ef-5e45760c88c5",
+      "grnNo": "GRN-261031111546-98368B20",
+      "orderId": "075df501-d8df-4811-88ef-7a2887f47b95",
+      "createdAt": "2026-10-31T11:15:46.112Z"
+    },
+    {
+      "id": "81bbdc6e-2593-4c85-96ee-e7c9869ad496",
+      "grnNo": "GRN-261031104359-E1285C8A",
+      "orderId": "cfebd900-e7ee-4bea-9668-abe730d80a13",
+      "createdAt": "2026-10-31T10:43:59.211Z"
+    },
+    {
+      "id": "a45fa75e-f87e-4ab5-9fe2-1d536d854afe",
+      "grnNo": "GRN-261031111517-19C8B954",
+      "orderId": "c4a7c6e9-8475-4c9f-a461-237dd8ebe490",
+      "createdAt": "2026-10-31T11:15:17.086Z"
+    },
+    {
+      "id": "d12e9bc7-ebc1-4263-affa-1bf8a73e3b7a",
+      "grnNo": "GRN-261031111421-BA805DDA",
+      "orderId": "0fa59e27-9341-469c-ae50-f41f58d47892",
+      "createdAt": "2026-10-31T11:14:21.796Z"
+    },
+    {
+      "id": "f41a36e8-8c14-4d42-be34-68704b4cb36c",
+      "grnNo": "GRN-261031104359-A8DED446",
+      "orderId": "cfebd900-e7ee-4bea-9668-abe730d80a13",
+      "createdAt": "2026-10-31T10:43:59.122Z"
+    }
+  ],
+  "sampleSOs": [
+    {
+      "id": "30811690-d4d7-41b6-8999-99dea8e8d15d",
+      "orderNo": "SO-2026-9728",
+      "customerId": null,
+      "createdAt": "2026-10-26T09:57:55.504Z"
+    },
+    {
+      "id": "cd6ac1d2-2d97-4027-af88-176b09a65c4b",
+      "orderNo": "SO-2026-2948",
+      "customerId": null,
+      "createdAt": "2026-10-26T07:45:28.396Z"
+    }
+  ],
+  "stockSKUs": [
+    {
+      "id": "08c7de44-e125-40c9-bad9-460777156588",
+      "sku": "SKU-IMG-1793441774292",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "1f8e8081-be1f-4182-b232-122f55bd73f8",
+      "sku": "BOX-CORR-1793596609958",
+      "name": "7-Ply Heavy Duty Corrugated Boxes",
+      "stock": 950,
+      "availableQty": 950,
+      "productId": null
+    },
+    {
+      "id": "45ec8c9e-a9f9-4e66-8ec4-82f7f593b56d",
+      "sku": "SKU-IMG-1793424843553",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "763d15ec-e51b-42cb-ab89-6a6d33e2c91b",
+      "sku": "PROD-TEST-1793445260816",
+      "name": "Standard Export Master Carton Box",
+      "stock": 2690,
+      "availableQty": 2498,
+      "productId": null
+    },
+    {
+      "id": "79d669b0-2221-4793-9010-4a5285ad9c55",
+      "sku": "SKU-IMG-1793255672064",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "8e464adb-9349-498e-824a-c5044c378551",
+      "sku": "PROD-TEST-1793445345189",
+      "name": "Standard Export Master Carton Box",
+      "stock": 2690,
+      "availableQty": 2498,
+      "productId": null
+    },
+    {
+      "id": "91153d12-177e-4a1c-858f-b0655a6d3701",
+      "sku": "SKU-IMG-1793424725117",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "9557e787-d2cb-4a61-bda3-2f8f56f01b0d",
+      "sku": "SKU-IMG-1793255460245",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "96f13c8e-fc9d-40d9-aac5-7b518f61793a",
+      "sku": "BOX-CORR-1793597590747",
+      "name": "7-Ply Heavy Duty Corrugated Boxes",
+      "stock": 950,
+      "availableQty": 950,
+      "productId": null
+    },
+    {
+      "id": "9e5c91eb-3a30-49c0-a8a8-f20f451b0ebe",
+      "sku": "SKU-IMG-1793440858414",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "a6b8af9e-4305-4187-ae5b-216411f3d27c",
+      "sku": "SKU-IMG-1793441257034",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "ab80460f-b490-4a1a-acd2-39fef845ffa5",
+      "sku": "BOX-CORR-1793443438356",
+      "name": "7-Ply Heavy Duty Corrugated Boxes",
+      "stock": 950,
+      "availableQty": 950,
+      "productId": null
+    },
+    {
+      "id": "bc3def8b-1e29-4fa8-9056-cf73d9730f8b",
+      "sku": "BOX-CORR-1793446632310",
+      "name": "7-Ply Heavy Duty Corrugated Boxes",
+      "stock": 950,
+      "availableQty": 950,
+      "productId": null
+    },
+    {
+      "id": "c8831baf-64e9-410d-bc30-1ef328ffffbb",
+      "sku": "BOX-CORR-1793445410701",
+      "name": "7-Ply Heavy Duty Corrugated Boxes",
+      "stock": 950,
+      "availableQty": 950,
+      "productId": null
+    },
+    {
+      "id": "cee9c7d9-a654-4e6e-81d2-87d3b93d98b6",
+      "sku": "PROD-TEST-1793445172449",
+      "name": "Standard Export Master Carton Box",
+      "stock": 2690,
+      "availableQty": 2498,
+      "productId": null
+    },
+    {
+      "id": "e78acd35-56b7-4bce-8a3b-bf6444ed075c",
+      "sku": "SKU-IMG-1793255688240",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "ecf115d1-0c6f-4303-a1a0-9eaaa0e998a5",
+      "sku": "SKU-IMG-1793438016501",
+      "name": "Industrial CNC Flange with Image",
+      "stock": 50,
+      "availableQty": 50,
+      "productId": null
+    },
+    {
+      "id": "edd3643c-288d-4fc5-a8a4-e2a818efa232",
+      "sku": "BOX-CORR-1793443491860",
+      "name": "7-Ply Heavy Duty Corrugated Boxes",
+      "stock": 950,
+      "availableQty": 950,
+      "productId": null
+    },
+    {
+      "id": "ffaca282-a229-4e81-a66a-49b6144e7f1b",
+      "sku": "PROD-TEST-1793445316022",
+      "name": "Standard Export Master Carton Box",
+      "stock": 2690,
+      "availableQty": 2498,
+      "productId": null
+    }
+  ],
+  "batchSKUs": [
+    {
+      "id": "0ab02eb2-40b6-4769-b637-ad55b0dcdb53",
+      "batchNo": "BATCH-GRN-261102051651-BD35426E-BOX-CORR-1793596609958",
+      "sku": "BOX-CORR-1793596609958",
+      "availableQty": 600,
+      "grnNo": "GRN-261102051651-BD35426E",
+      "createdAt": "2026-11-02T05:16:51.740Z"
+    },
+    {
+      "id": "11cc4914-1e5f-4c11-a5e5-02567ee7568a",
+      "batchNo": "LOT-2026-B1-1793445172567",
+      "sku": "PROD-TEST-1793445172449",
+      "availableQty": 300,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:12:52.576Z"
+    },
+    {
+      "id": "1d2feab2-e9b0-48bc-b580-fec2f3e67d82",
+      "batchNo": "BATCH-GRN-261102053312-A51E6C27-BOX-CORR-1793597590747",
+      "sku": "BOX-CORR-1793597590747",
+      "availableQty": 350,
+      "grnNo": "GRN-261102053312-A51E6C27",
+      "createdAt": "2026-11-02T05:33:12.403Z"
+    },
+    {
+      "id": "26cf39eb-1463-4c40-b427-2b998edda5e9",
+      "batchNo": "LOT-2026-B3-1793445316250",
+      "sku": "PROD-TEST-1793445316022",
+      "availableQty": 500,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:15:16.259Z"
+    },
+    {
+      "id": "30e3a920-f904-4953-8cec-562f8fa71f83",
+      "batchNo": "LOT-2026-B2-1793445172596",
+      "sku": "PROD-TEST-1793445172449",
+      "availableQty": 400,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:12:52.605Z"
+    },
+    {
+      "id": "4e022e9d-3729-42a0-8caa-7ab7b3ddd3c0",
+      "batchNo": "BATCH-GRN-261031111651-1274266F-BOX-CORR-1793445410701",
+      "sku": "BOX-CORR-1793445410701",
+      "availableQty": 350,
+      "grnNo": "GRN-261031111651-1274266F",
+      "createdAt": "2026-10-31T11:16:51.625Z"
+    },
+    {
+      "id": "538191a8-c88e-445e-9b75-aeb800a59063",
+      "batchNo": "BATCH-GRN-261102053312-D16A9ABE-BOX-CORR-1793597590747",
+      "sku": "BOX-CORR-1793597590747",
+      "availableQty": 600,
+      "grnNo": "GRN-261102053312-D16A9ABE",
+      "createdAt": "2026-11-02T05:33:12.240Z"
+    },
+    {
+      "id": "5dd521aa-8305-44f8-9ea9-277b938a47d6",
+      "batchNo": "LOT-2026-B2-1793445261002",
+      "sku": "PROD-TEST-1793445260816",
+      "availableQty": 400,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:14:21.013Z"
+    },
+    {
+      "id": "5dede88c-b236-40ad-ad30-d0d242f47f69",
+      "batchNo": "BATCH-GRN-261031111651-916D9212-BOX-CORR-1793445410701",
+      "sku": "BOX-CORR-1793445410701",
+      "availableQty": 600,
+      "grnNo": "GRN-261031111651-916D9212",
+      "createdAt": "2026-10-31T11:16:51.566Z"
+    },
+    {
+      "id": "5f6f5005-3ca1-4cd4-9ad3-fd34984bebd0",
+      "batchNo": "BATCH-GRN-261102051651-F0460A60-BOX-CORR-1793596609958",
+      "sku": "BOX-CORR-1793596609958",
+      "availableQty": 350,
+      "grnNo": "GRN-261102051651-F0460A60",
+      "createdAt": "2026-11-02T05:16:51.881Z"
+    },
+    {
+      "id": "69655138-f532-48d6-9ab9-b1f08e5c905f",
+      "batchNo": "LOT-2026-B3-1793445261036",
+      "sku": "PROD-TEST-1793445260816",
+      "availableQty": 500,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:14:21.045Z"
+    },
+    {
+      "id": "6b0dc581-f779-46a1-b635-8447fd1c931e",
+      "batchNo": "BATCH-GRN-261031111546-98368B20-PROD-TEST-1793445345189",
+      "sku": "PROD-TEST-1793445345189",
+      "availableQty": 500,
+      "grnNo": "GRN-261031111546-98368B20",
+      "createdAt": "2026-10-31T11:15:46.132Z"
+    },
+    {
+      "id": "75f8dcc2-30f1-401f-9bf4-3725f00553fc",
+      "batchNo": "BATCH-GRN-261031113713-00237F1A-BOX-CORR-1793446632310",
+      "sku": "BOX-CORR-1793446632310",
+      "availableQty": 350,
+      "grnNo": "GRN-261031113713-00237F1A",
+      "createdAt": "2026-10-31T11:37:13.359Z"
+    },
+    {
+      "id": "788b5a5b-04ad-4e2a-9b09-fb33be70c233",
+      "batchNo": "LOT-2026-B1-1793445316164",
+      "sku": "PROD-TEST-1793445316022",
+      "availableQty": 300,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:15:16.179Z"
+    },
+    {
+      "id": "83c72399-585d-4c0c-99e6-0dde774f1b31",
+      "batchNo": "BATCH-GRN-261031113713-441C3336-BOX-CORR-1793446632310",
+      "sku": "BOX-CORR-1793446632310",
+      "availableQty": 600,
+      "grnNo": "GRN-261031113713-441C3336",
+      "createdAt": "2026-10-31T11:37:13.289Z"
+    },
+    {
+      "id": "846c447a-847c-4749-9154-e8869ede77d9",
+      "batchNo": "LOT-2026-B2-1793445316209",
+      "sku": "PROD-TEST-1793445316022",
+      "availableQty": 400,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:15:16.223Z"
+    },
+    {
+      "id": "baa49e32-2622-4961-8c6c-b35af14c829c",
+      "batchNo": "LOT-2026-B3-1793445345385",
+      "sku": "PROD-TEST-1793445345189",
+      "availableQty": 500,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:15:45.393Z"
+    },
+    {
+      "id": "c3ebef92-001c-4c55-ae48-be9e777fa52f",
+      "batchNo": "BATCH-GRN-261031111517-19C8B954-PROD-TEST-1793445316022",
+      "sku": "PROD-TEST-1793445316022",
+      "availableQty": 500,
+      "grnNo": "GRN-261031111517-19C8B954",
+      "createdAt": "2026-10-31T11:15:17.119Z"
+    },
+    {
+      "id": "c4e27079-c868-4949-bfa6-21732245e0f6",
+      "batchNo": "LOT-2026-B3-1793445172623",
+      "sku": "PROD-TEST-1793445172449",
+      "availableQty": 500,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:12:52.632Z"
+    },
+    {
+      "id": "c7f73f21-1048-4628-9e8c-81ff892c5c0b",
+      "batchNo": "LOT-2026-B2-1793445345353",
+      "sku": "PROD-TEST-1793445345189",
+      "availableQty": 400,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:15:45.361Z"
+    },
+    {
+      "id": "da9b31c2-1b45-4735-a1ec-3dafdb2efe5d",
+      "batchNo": "LOT-2026-B1-1793445260964",
+      "sku": "PROD-TEST-1793445260816",
+      "availableQty": 300,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:14:20.975Z"
+    },
+    {
+      "id": "df73af6d-296f-4808-8b34-cc445acab5e6",
+      "batchNo": "LOT-2026-B1-1793445345322",
+      "sku": "PROD-TEST-1793445345189",
+      "availableQty": 300,
+      "grnNo": null,
+      "createdAt": "2026-10-31T11:15:45.332Z"
+    },
+    {
+      "id": "ec76fa38-7ba8-4d84-bbff-67caaa38e905",
+      "batchNo": "BATCH-GRN-261031111253-8B3CE698-PROD-TEST-1793445172449",
+      "sku": "PROD-TEST-1793445172449",
+      "availableQty": 500,
+      "grnNo": "GRN-261031111253-8B3CE698",
+      "createdAt": "2026-10-31T11:12:53.435Z"
+    },
+    {
+      "id": "f3481cb9-c604-4819-9afc-4126b36587c2",
+      "batchNo": "BATCH-GRN-261031111421-BA805DDA-PROD-TEST-1793445260816",
+      "sku": "PROD-TEST-1793445260816",
+      "availableQty": 500,
+      "grnNo": "GRN-261031111421-BA805DDA",
+      "createdAt": "2026-10-31T11:14:21.826Z"
+    }
+  ],
+  "movementSKUs": [
+    {
+      "id": "0aad9500-96ac-4420-92b7-38651b993e86",
+      "movementNo": "MOV-261031111252-E36CB0A4",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 25,
+      "createdAt": "2026-10-31T11:12:52.733Z"
+    },
+    {
+      "id": "0c3f9d11-76ef-49bf-bea3-7a2cfbfb5e10",
+      "movementNo": "MOV-261031111421-BE49B44A",
+      "movementType": "STOCK_RESERVATION",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 150,
+      "createdAt": "2026-10-31T11:14:21.099Z"
+    },
+    {
+      "id": "179f8036-d7e2-482a-a20a-954dfd508ab0",
+      "movementNo": "MOV-261031111420-ED439C3B",
+      "movementType": "OPENING_STOCK",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 1000,
+      "createdAt": "2026-10-31T11:14:20.845Z"
+    },
+    {
+      "id": "248b4800-8426-4e58-a5f4-f1c2e223f7fb",
+      "movementNo": "MOV-261031111516-6CA0FFF8",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 25,
+      "createdAt": "2026-10-31T11:15:16.416Z"
+    },
+    {
+      "id": "2da6716f-8a6c-4e6f-85a8-47e995b5ebdb",
+      "movementNo": "MOV-261031111516-9369A3AC",
+      "movementType": "SAMPLE_ISSUE",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 10,
+      "createdAt": "2026-10-31T11:15:16.471Z"
+    },
+    {
+      "id": "2f161d44-9b05-4710-bb3c-51dee4c1cecd",
+      "movementNo": "MOV-261031104359-0425FAE6",
+      "movementType": "INWARD",
+      "sku": "BOX-CORR-1793443438356",
+      "quantity": 600,
+      "createdAt": "2026-10-31T10:43:59.163Z"
+    },
+    {
+      "id": "30b55514-e0dd-46a3-b377-1c989b1b8d53",
+      "movementNo": "MOV-261031111516-01601A87",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 50,
+      "createdAt": "2026-10-31T11:15:16.116Z"
+    },
+    {
+      "id": "316dc6f1-58ed-465d-b9f7-6fad7c97abd6",
+      "movementNo": "MOV-261031111421-088C26A5",
+      "movementType": "SAMPLE_ISSUE",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 10,
+      "createdAt": "2026-10-31T11:14:21.178Z"
+    },
+    {
+      "id": "34375f42-c38f-4cbf-bf60-c237257a2b89",
+      "movementNo": "MOV-261031111545-9A7E037F",
+      "movementType": "RESERVATION_RELEASE",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 150,
+      "createdAt": "2026-10-31T11:15:45.497Z"
+    },
+    {
+      "id": "36f979f6-7a75-4b36-b2ac-e8869f71a0c1",
+      "movementNo": "MOV-261031111516-BC3FC01A",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 300,
+      "createdAt": "2026-10-31T11:15:16.192Z"
+    },
+    {
+      "id": "38eb911d-71b3-47ee-8bf3-fd345e612f5f",
+      "movementNo": "MOV-261031111545-403CA682",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 400,
+      "createdAt": "2026-10-31T11:15:45.374Z"
+    },
+    {
+      "id": "38edb22c-d22d-41f1-8e97-898a0b3c11cb",
+      "movementNo": "MOV-261031111516-B9EAC6C5",
+      "movementType": "SAMPLE_ISSUE_WAIVED",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 15,
+      "createdAt": "2026-10-31T11:15:16.591Z"
+    },
+    {
+      "id": "393bd3cd-79e6-4f75-b90e-775625fdaafb",
+      "movementNo": "MOV-261031111545-A3717AA8",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 25,
+      "createdAt": "2026-10-31T11:15:45.512Z"
+    },
+    {
+      "id": "3f2ab3f1-e1b8-4be2-ac56-8fdbdd7bd293",
+      "movementNo": "MOV-261031111252-781898C1",
+      "movementType": "STOCK_RESERVATION",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 150,
+      "createdAt": "2026-10-31T11:12:52.692Z"
+    },
+    {
+      "id": "41c51d14-bc00-449c-b9e8-6184ea09c77c",
+      "movementNo": "MOV-261031111516-A82E1F5C",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 500,
+      "createdAt": "2026-10-31T11:15:16.273Z"
+    },
+    {
+      "id": "48d0409f-0301-428b-af79-473f8053e8ef",
+      "movementNo": "MOV-261031111545-ACD66CFC",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 500,
+      "createdAt": "2026-10-31T11:15:45.401Z"
+    },
+    {
+      "id": "57c06567-3d30-4050-a811-577f7cfe06b7",
+      "movementNo": "MOV-261031111252-91137010",
+      "movementType": "SAMPLE_ISSUE_WAIVED",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 15,
+      "createdAt": "2026-10-31T11:12:52.880Z"
+    },
+    {
+      "id": "58b6cf02-2358-4386-9eab-5385c663639f",
+      "movementNo": "MOV-261031111421-DD250C40",
+      "movementType": "SAMPLE_RETURN",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 8,
+      "createdAt": "2026-10-31T11:14:21.200Z"
+    },
+    {
+      "id": "5998b936-e8c0-4770-aa1e-92b81fd45b1c",
+      "movementNo": "MOV-261031111421-E069A939",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 400,
+      "createdAt": "2026-10-31T11:14:21.022Z"
+    },
+    {
+      "id": "653bda04-d38a-4f6f-8a26-1c932510de0c",
+      "movementNo": "MOV-261031111516-D6DC7C16",
+      "movementType": "ADJUSTMENT_DAMAGE",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 10,
+      "createdAt": "2026-10-31T11:15:16.804Z"
+    },
+    {
+      "id": "6d000c88-2e79-413b-834c-55b6548ed52e",
+      "movementNo": "MOV-261031111420-AD3AD1BD",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 50,
+      "createdAt": "2026-10-31T11:14:20.910Z"
+    },
+    {
+      "id": "758e3632-05c8-42df-b53d-d87bb3ef3955",
+      "movementNo": "MOV-261031111252-D0420D53",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 50,
+      "createdAt": "2026-10-31T11:12:52.531Z"
+    },
+    {
+      "id": "76be3bb8-273e-45b9-afca-1fab2a54a887",
+      "movementNo": "MOV-261031111253-F9BDCB45",
+      "movementType": "ADJUSTMENT_DAMAGE",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 10,
+      "createdAt": "2026-10-31T11:12:53.049Z"
+    },
+    {
+      "id": "77c6437a-b65c-4f7d-a8d1-45c39b17272d",
+      "movementNo": "MOV-261031111420-A7A65D20",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 100,
+      "createdAt": "2026-10-31T11:14:20.873Z"
+    },
+    {
+      "id": "7dc80457-a1c9-43e7-979a-d7114ac0a60f",
+      "movementNo": "MOV-261031111252-952719A6",
+      "movementType": "OPENING_STOCK",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 1000,
+      "createdAt": "2026-10-31T11:12:52.472Z"
+    },
+    {
+      "id": "7e38f12f-742a-49e0-a32c-edef0b584a43",
+      "movementNo": "MOV-261031111252-4000D67B",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 300,
+      "createdAt": "2026-10-31T11:12:52.586Z"
+    },
+    {
+      "id": "7ffc227a-f92a-41ad-bef2-ae313131c9f3",
+      "movementNo": "MOV-261031111545-94BA7092",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 100,
+      "createdAt": "2026-10-31T11:15:45.249Z"
+    },
+    {
+      "id": "814639a0-a143-4765-84d9-416a46393337",
+      "movementNo": "MOV-261031111421-F5D1946A",
+      "movementType": "ADJUSTMENT_DAMAGE",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 10,
+      "createdAt": "2026-10-31T11:14:21.394Z"
+    },
+    {
+      "id": "8a9cefbc-47a0-4ba1-9753-f4dd86a62dd1",
+      "movementNo": "MOV-261031111516-C7578D56",
+      "movementType": "SAMPLE_RETURN",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 8,
+      "createdAt": "2026-10-31T11:15:16.515Z"
+    },
+    {
+      "id": "8b1aa36b-3295-441d-b171-e83df39c38a5",
+      "movementNo": "MOV-261031111252-D44B603D",
+      "movementType": "SAMPLE_ISSUE",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 10,
+      "createdAt": "2026-10-31T11:12:52.778Z"
+    },
+    {
+      "id": "8b55c24e-3c81-4a19-9c92-8264be4e5e62",
+      "movementNo": "MOV-261031111516-4EE2AFB8",
+      "movementType": "OPENING_STOCK",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 1000,
+      "createdAt": "2026-10-31T11:15:16.048Z"
+    },
+    {
+      "id": "94e24d5b-3e84-4f0e-85bb-62a48a52554e",
+      "movementNo": "MOV-261031111516-15CAFFEB",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 400,
+      "createdAt": "2026-10-31T11:15:16.233Z"
+    },
+    {
+      "id": "9b2356e1-fcaf-4498-8110-71711174968a",
+      "movementNo": "MOV-261031111516-866FB7FA",
+      "movementType": "STOCK_RESERVATION",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 150,
+      "createdAt": "2026-10-31T11:15:16.352Z"
+    },
+    {
+      "id": "a4b35278-1186-457c-849d-4de1572161ee",
+      "movementNo": "MOV-261031111545-48B9A64D",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 300,
+      "createdAt": "2026-10-31T11:15:45.341Z"
+    },
+    {
+      "id": "a76e1c44-4526-4aa1-ad0a-8b2e4faa381c",
+      "movementNo": "MOV-261031111421-249435FC",
+      "movementType": "RESERVATION_RELEASE",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 150,
+      "createdAt": "2026-10-31T11:14:21.133Z"
+    },
+    {
+      "id": "a828de89-aadd-4411-b5d1-912e3db0cf8f",
+      "movementNo": "MOV-261031111545-3ACD45D0",
+      "movementType": "SAMPLE_ISSUE",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 10,
+      "createdAt": "2026-10-31T11:15:45.551Z"
+    },
+    {
+      "id": "ac0183b0-6ee2-4ac2-8655-218b9e4e4d49",
+      "movementNo": "MOV-261031111421-824FA7C9",
+      "movementType": "SAMPLE_ISSUE_WAIVED",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 15,
+      "createdAt": "2026-10-31T11:14:21.259Z"
+    },
+    {
+      "id": "aca4f7e9-b655-47b0-a65f-771b6f725f94",
+      "movementNo": "MOV-261031111545-40A673D0",
+      "movementType": "ADJUSTMENT_DAMAGE",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 10,
+      "createdAt": "2026-10-31T11:15:45.831Z"
+    },
+    {
+      "id": "af5253af-2a6d-473f-b045-7e8de23fdccd",
+      "movementNo": "MOV-261031111420-F44AE1D8",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 300,
+      "createdAt": "2026-10-31T11:14:20.988Z"
+    },
+    {
+      "id": "b160631d-fe31-45a3-99cc-721126c14331",
+      "movementNo": "MOV-261031111516-E919F611",
+      "movementType": "RESERVATION_RELEASE",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 150,
+      "createdAt": "2026-10-31T11:15:16.395Z"
+    },
+    {
+      "id": "be378520-916f-4447-a784-af3f8ab641ff",
+      "movementNo": "MOV-261031111516-E86C6EA1",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445316022",
+      "quantity": 100,
+      "createdAt": "2026-10-31T11:15:16.078Z"
+    },
+    {
+      "id": "c34afab4-026b-4129-b171-dd14b30d20af",
+      "movementNo": "MOV-261031111252-7B84FDEA",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 400,
+      "createdAt": "2026-10-31T11:12:52.613Z"
+    },
+    {
+      "id": "cf35e115-1a9a-4964-a78c-d0db124266c8",
+      "movementNo": "MOV-261031111421-7582A6CE",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 500,
+      "createdAt": "2026-10-31T11:14:21.051Z"
+    },
+    {
+      "id": "d6f241a4-b9de-4df5-85df-01e02eefa9e9",
+      "movementNo": "MOV-261031111545-CBBD94BA",
+      "movementType": "STOCK_RESERVATION",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 150,
+      "createdAt": "2026-10-31T11:15:45.460Z"
+    },
+    {
+      "id": "d7acee6a-af10-4f07-a2d0-7e9a246bd92c",
+      "movementNo": "MOV-261031111252-1E03CC13",
+      "movementType": "RESERVATION_RELEASE",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 150,
+      "createdAt": "2026-10-31T11:12:52.720Z"
+    },
+    {
+      "id": "db281742-3109-4fec-b8a9-e5ec310bdb27",
+      "movementNo": "MOV-261031111421-63284A76",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445260816",
+      "quantity": 25,
+      "createdAt": "2026-10-31T11:14:21.147Z"
+    },
+    {
+      "id": "e609cdc9-3342-46ef-8fc0-5b94e8506968",
+      "movementNo": "MOV-261031111252-9DB42A20",
+      "movementType": "BATCH_INITIALIZATION",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 500,
+      "createdAt": "2026-10-31T11:12:52.640Z"
+    },
+    {
+      "id": "ed487de3-07f4-45dc-90e2-2aecfee55a64",
+      "movementNo": "MOV-261031111545-C58763D2",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 50,
+      "createdAt": "2026-10-31T11:15:45.287Z"
+    },
+    {
+      "id": "f10d6b2d-ac80-4da8-a690-ad37c07d2008",
+      "movementNo": "MOV-261031111252-135DFB1B",
+      "movementType": "BUCKET_TRANSFER",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 100,
+      "createdAt": "2026-10-31T11:12:52.499Z"
+    },
+    {
+      "id": "f9670be6-feea-4585-b318-7d37f8312003",
+      "movementNo": "MOV-261031111545-1B1014AD",
+      "movementType": "OPENING_STOCK",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 1000,
+      "createdAt": "2026-10-31T11:15:45.215Z"
+    },
+    {
+      "id": "fa288a45-894d-4278-ad7a-682eae1fda13",
+      "movementNo": "MOV-261031111545-2F950837",
+      "movementType": "SAMPLE_RETURN",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 8,
+      "createdAt": "2026-10-31T11:15:45.586Z"
+    },
+    {
+      "id": "fa3fbac9-9186-4cb7-a68e-5d15a727aafa",
+      "movementNo": "MOV-261031104359-12B5352D",
+      "movementType": "INWARD",
+      "sku": "BOX-CORR-1793443438356",
+      "quantity": 350,
+      "createdAt": "2026-10-31T10:43:59.233Z"
+    },
+    {
+      "id": "fba3f856-d3b7-4269-a304-1de6b143c9c8",
+      "movementNo": "MOV-261031111252-F8F6C867",
+      "movementType": "SAMPLE_RETURN",
+      "sku": "PROD-TEST-1793445172449",
+      "quantity": 8,
+      "createdAt": "2026-10-31T11:12:52.806Z"
+    },
+    {
+      "id": "fbef9ca0-a1ea-4348-bb82-4cef090788b0",
+      "movementNo": "MOV-261031111545-762CE9C4",
+      "movementType": "SAMPLE_ISSUE_WAIVED",
+      "sku": "PROD-TEST-1793445345189",
+      "quantity": 15,
+      "createdAt": "2026-10-31T11:15:45.662Z"
+    }
+  ]
+}

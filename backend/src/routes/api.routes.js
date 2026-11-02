@@ -14,6 +14,8 @@ import versionRoutes from './version.routes.js';
 import attachmentRoutes from './attachment.routes.js';
 import notificationRoutes from './notification.routes.js';
 import integrationRoutes from './integration.routes.js';
+import productionRoutes from './production.routes.js';
+import jobWorkRoutes from './jobWork.routes.js';
 
 import { publicWebhookRouter, protectedIntegrationRouter } from './lead-integration.routes.js';
 
@@ -33,6 +35,8 @@ router.use(catalogRoutes);
 router.use(companyRoutes);
 router.use(inventoryRoutes);
 router.use(purchaseRoutes);
+router.use(productionRoutes);
+router.use(jobWorkRoutes);
 router.use(departmentRoutes);
 router.use(auditRoutes);
 router.use(approvalRoutes);

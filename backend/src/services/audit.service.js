@@ -79,7 +79,13 @@ export const auditService = {
         } else {
           resolvedUserId = String(actor.userId || actor.id || 'company-user');
           resolvedUserName = actor.name || actor.organizationName || 'User';
+          // Foreign key actorId strictly belongs to SuperAdmin; ensure company actors don't populate actorId
+          resolvedActorId = null;
         }
+      } else if (resolvedActorId && resolvedActorId !== 'super-admin') {
+        // Fallback safety if actorId was passed but actor object wasn't provided or wasn't super admin
+        resolvedUserId = resolvedUserId || resolvedActorId;
+        resolvedActorId = null;
       }
 
       const resolvedEntityType = entityType || (action ? String(action).split('_')[0] : 'GENERAL');

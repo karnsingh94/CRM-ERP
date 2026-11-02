@@ -26,15 +26,19 @@ export async function runPhase2CrmSalesTests() {
   }
 
   // 1. Identify primary and secondary tenants
+  const crmAccess = await prisma.clientServiceAccess.findFirst({
+    where: { service: { name: { contains: 'CRM' } } },
+  });
+
   const clients = await prisma.clientAdmin.findMany({
     where: { deletedAt: null },
     take: 2,
     orderBy: { createdAt: 'desc' },
   });
-  if (clients.length < 1) throw new Error('At least one tenant required for Phase 2 test.');
+  if (clients.length < 1 && !crmAccess) throw new Error('At least one tenant required for Phase 2 test.');
 
-  const companyA = clients[0].id;
-  const companyB = clients.length > 1 ? clients[1].id : 'secondary-tenant-id';
+  const companyA = crmAccess?.adminId || clients[0].id;
+  const companyB = clients.find(c => c.id !== companyA)?.id || 'secondary-tenant-id';
 
   const tokenA = signToken({ userId: companyA, companyId: companyA, role: 'COMPANY_ADMIN' });
   const tokenB = signToken({ userId: companyB, companyId: companyB, role: 'COMPANY_ADMIN' });
