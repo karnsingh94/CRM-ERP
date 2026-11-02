@@ -47,51 +47,62 @@ export const auditService = {
     beforeState = null,
     afterState = null,
     reason = null,
+    details = null,
+    ipAddress = null,
+    userAgent = null,
+    userId = null,
+    actorId = null,
+    userName = null,
+    oldValue = null,
+    newValue = null,
     req = null,
-  }) {
+  } = {}) {
     try {
-      let ipAddress = '127.0.0.1';
-      let userAgent = 'System / API';
+      let resolvedIp = ipAddress || '127.0.0.1';
+      let resolvedUserAgent = userAgent || 'System / API';
 
       if (req) {
-        ipAddress = normalizeClientIp(req.ip || req.socket?.remoteAddress) || req.meta?.ip || '127.0.0.1';
-        userAgent = req.headers?.['user-agent'] || req.meta?.userAgent || 'API Client';
+        resolvedIp = normalizeClientIp(req.ip || req.socket?.remoteAddress) || req.meta?.ip || resolvedIp;
+        resolvedUserAgent = req.headers?.['user-agent'] || req.meta?.userAgent || resolvedUserAgent;
       }
 
-      let actorId = null;
-      let userId = null;
-      let userName = null;
+      let resolvedActorId = actorId ? String(actorId) : null;
+      let resolvedUserId = userId ? String(userId) : null;
+      let resolvedUserName = userName || null;
 
       if (actor) {
         if (typeof actor === 'string') {
-          userName = actor;
+          resolvedUserName = actor;
         } else if (actor.role === 'SUPER_ADMIN') {
-          actorId = String(actor.id || actor.userId || 'super-admin');
-          userName = actor.name || 'Super Admin';
+          resolvedActorId = String(actor.id || actor.userId || 'super-admin');
+          resolvedUserName = actor.name || 'Super Admin';
         } else {
-          userId = String(actor.userId || actor.id || 'company-user');
-          userName = actor.name || actor.organizationName || 'User';
+          resolvedUserId = String(actor.userId || actor.id || 'company-user');
+          resolvedUserName = actor.name || actor.organizationName || 'User';
         }
       }
 
       const resolvedEntityType = entityType || (action ? String(action).split('_')[0] : 'GENERAL');
+      const resolvedReason = reason || details || null;
+      const resolvedBefore = beforeState ?? oldValue;
+      const resolvedAfter = afterState ?? newValue;
 
       const log = await prisma.auditLog.create({
         data: {
           companyId: companyId ? String(companyId) : null,
-          actorId,
-          userId,
-          userName: userName || 'System',
+          actorId: resolvedActorId,
+          userId: resolvedUserId,
+          userName: resolvedUserName || 'System',
           serviceCode,
           moduleCode,
-          action,
+          action: action || 'ACTION',
           entityType: resolvedEntityType,
           entityId: entityId ? String(entityId) : null,
-          beforeState: sanitizeAuditPayload(beforeState),
-          afterState: sanitizeAuditPayload(afterState),
-          reason: reason ? String(reason).trim() : null,
-          ipAddress: String(ipAddress).slice(0, 64),
-          userAgent: String(userAgent).slice(0, 255),
+          beforeState: sanitizeAuditPayload(resolvedBefore),
+          afterState: sanitizeAuditPayload(resolvedAfter),
+          reason: resolvedReason ? String(resolvedReason).trim() : null,
+          ipAddress: String(resolvedIp).slice(0, 64),
+          userAgent: String(resolvedUserAgent).slice(0, 255),
         },
       });
 
@@ -100,6 +111,13 @@ export const auditService = {
       logger.error('Failed to write audit log:', err.message);
       return null;
     }
+  },
+
+  /**
+   * Backward-compatible alias for existing service modules
+   */
+  async logAudit(params = {}) {
+    return this.logAction(params);
   },
 
   /**
