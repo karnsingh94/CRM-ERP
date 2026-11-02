@@ -197,6 +197,21 @@ model ClientAdmin {
   inventoryGatePasses          InventoryGatePass[]
   inventoryPhysicalVerifications InventoryPhysicalVerification[]
   inventoryAdjustments         InventoryAdjustment[]
+  bomMasters                   BomMaster[]
+  bomItems                     BomItem[]
+  productionPlans              ProductionPlan[]
+  productionOrders             ProductionOrder[]
+  productionMaterialRequirements ProductionMaterialRequirement[]
+  manufacturingBatches         ManufacturingBatch[]
+  manufacturingBatchMaterials  ManufacturingBatchMaterial[]
+  manufacturingProcessSteps    ManufacturingProcessStep[]
+  dailyProductionReports       DailyProductionReport[]
+  manufacturingQcs             ManufacturingQC[]
+  manufacturingReprocessings   ManufacturingReprocessing[]
+  jobWorkOrders                JobWorkOrder[]
+  jobWorkChallans              JobWorkChallan[]
+  jobWorkReceipts              JobWorkReceipt[]
+  jobWorkReconciliations       JobWorkReconciliation[]
 
   @@map("Admins")
 }
@@ -607,6 +622,18 @@ model Product {
   pricings      ProductPricing[]
   inventoryStocks InventoryStock[]
   batches       InventoryBatch[]
+  outputBoms    BomMaster[]      @relation("ProductOutputBom")
+  bomItems      BomItem[]
+  productionPlans ProductionPlan[]
+  productionOrders ProductionOrder[]
+  materialRequirements ProductionMaterialRequirement[]
+  manufacturingBatches ManufacturingBatch[]
+  manufacturingBatchMaterials ManufacturingBatchMaterial[]
+  manufacturingQcs ManufacturingQC[]
+  jobWorkOutputOrders JobWorkOrder[] @relation("JobWorkOutputProduct")
+  jobWorkOrderItems JobWorkOrderItem[]
+  jobWorkChallanItems JobWorkChallanItem[]
+  jobWorkReconciliationItems JobWorkReconciliationItem[]
 
   @@unique([companyId, sku])
   @@index([companyId, category, status])
@@ -677,6 +704,7 @@ model SalesOrder {
 
   clientAdmin          ClientAdmin           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   inventoryFulfillment InventoryFulfillment?
+  productionOrders     ProductionOrder[]
 
   @@unique([companyId, orderNo])
   @@index([companyId, status, date])
@@ -820,6 +848,9 @@ model Vendor {
   purchaseOrders PurchaseOrder[]
   artworkProofs  PurchaseArtworkProof[]
   deviations     PurchaseDeviation[]
+  jobWorkOrders  JobWorkOrder[]
+  jobWorkChallans JobWorkChallan[]
+  jobWorkMaterialReturns JobWorkMaterialReturn[]
 
   @@unique([companyId, vendorCode])
   @@index([companyId, category, status, createdAt])
@@ -1166,6 +1197,8 @@ model InventoryWarehouse {
 
   clientAdmin ClientAdmin    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   bins        InventoryBin[]
+  jobWorkChallans JobWorkChallan[]
+  jobWorkReceipts JobWorkReceipt[]
 
   @@unique([companyId, code])
   @@unique([companyId, name])
@@ -1245,6 +1278,7 @@ model InventoryMovement {
 
   clientAdmin ClientAdmin     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   stock       InventoryStock? @relation(fields: [stockId], references: [id], onDelete: SetNull)
+  manufacturingBatchMaterials ManufacturingBatchMaterial[]
 
   @@unique([companyId, movementNo])
   @@index([companyId, sku, createdAt])
@@ -1552,6 +1586,10 @@ model InventoryBatch {
   clientAdmin ClientAdmin     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   stock       InventoryStock? @relation(fields: [stockId], references: [id], onDelete: SetNull)
   product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  manufacturingBatchMaterials ManufacturingBatchMaterial[]
+  jobWorkChallanItems         JobWorkChallanItem[]
+  jobWorkReceipts             JobWorkReceipt[] @relation("JobWorkReceiptInventoryBatch")
+  jobWorkMaterialReturns      JobWorkMaterialReturn[]
 
   @@unique([companyId, sku, batchNo, warehouse])
   @@index([companyId, batchNo])
@@ -1737,4 +1775,660 @@ model InventoryAdjustment {
   @@index([companyId, sku, status])
   @@index([companyId, adjustmentType, status])
   @@map("inventory_adjustments")
+}
+
+// ==========================================
+// PHASE 5: MANUFACTURING & PRODUCTION ENUMS
+// ==========================================
+
+enum BomStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum ProductionOrderStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  MATERIAL_PENDING
+  READY_FOR_PRODUCTION
+  IN_PROGRESS
+  PARTIALLY_COMPLETED
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum ProcessStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  FAILED
+}
+
+enum ManufacturingQcStatus {
+  PENDING
+  IN_PROGRESS
+  PASSED
+  FAILED
+  QUALITY_HOLD
+}
+
+enum ReprocessingStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+// ==========================================
+// PHASE 5: MANUFACTURING & PRODUCTION MODELS
+// ==========================================
+
+model BomMaster {
+  id               String      @id @default(uuid()) @db.Char(36)
+  companyId        String      @map("company_id") @db.Char(36)
+  bomCode          String      @map("bom_code") @db.VarChar(60)
+  bomName          String      @map("bom_name") @db.VarChar(180)
+  outputProductId  String      @map("output_product_id") @db.Char(36)
+  outputProductSku String      @map("output_product_sku") @db.VarChar(60)
+  version          String      @default("1.0") @db.VarChar(20)
+  revisionNumber   Int         @default(1) @map("revision_number")
+  parentBomId      String?     @map("parent_bom_id") @db.Char(36)
+  revisionReason   String?     @map("revision_reason") @db.VarChar(255)
+  batchSize        Decimal     @default(1.0000) @map("batch_size") @db.Decimal(14, 4)
+  uom              String      @default("KG") @db.VarChar(20)
+  description      String?     @db.Text
+  totalPercentage  Decimal     @default(100.0000) @map("total_percentage") @db.Decimal(7, 4)
+  standardCost     Decimal     @default(0.00) @map("standard_cost") @db.Decimal(14, 2)
+  liveCost         Decimal?    @map("live_cost") @db.Decimal(14, 2)
+  status           BomStatus   @default(DRAFT)
+  isLocked         Boolean     @default(false) @map("is_locked")
+  createdById      String?     @map("created_by_id") @db.Char(36)
+  approvedById     String?     @map("approved_by_id") @db.Char(36)
+  approvedAt       DateTime?   @map("approved_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  clientAdmin      ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  outputProduct    Product     @relation("ProductOutputBom", fields: [outputProductId], references: [id], onDelete: Restrict)
+  parentBom        BomMaster?  @relation("BomRevisionLineage", fields: [parentBomId], references: [id], onDelete: Restrict)
+  childRevisions   BomMaster[] @relation("BomRevisionLineage")
+  items            BomItem[]
+  productionPlans  ProductionPlan[]
+  productionOrders ProductionOrder[]
+  jobWorkOrders    JobWorkOrder[]
+
+  @@unique([companyId, bomCode, version])
+  @@index([companyId, outputProductId])
+  @@index([companyId, parentBomId])
+  @@map("bom_masters")
+}
+
+model BomItem {
+  id                String    @id @default(uuid()) @db.Char(36)
+  companyId         String    @map("company_id") @db.Char(36)
+  bomId             String    @map("bom_id") @db.Char(36)
+  productId         String    @map("product_id") @db.Char(36)
+  itemType          String    @default("RAW_MATERIAL") @map("item_type") @db.VarChar(30) // RAW_MATERIAL, PACKAGING
+  percentage        Decimal   @map("percentage") @db.Decimal(7, 4)
+  quantityPerBatch   Decimal   @map("quantity_per_batch") @db.Decimal(14, 4)
+  uom               String    @default("KG") @db.VarChar(20)
+  scrapTolerancePct Decimal   @default(0.00) @map("scrap_tolerance_pct") @db.Decimal(5, 2)
+  standardUnitCost  Decimal   @default(0.00) @map("standard_unit_cost") @db.Decimal(14, 2)
+  sequenceOrder     Int       @default(1) @map("sequence_order")
+  notes             String?   @db.VarChar(255)
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  clientAdmin       ClientAdmin @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bom               BomMaster   @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, bomId])
+  @@index([companyId, productId])
+  @@map("bom_items")
+}
+
+model ProductionPlan {
+  id              String    @id @default(uuid()) @db.Char(36)
+  companyId       String    @map("company_id") @db.Char(36)
+  planNo          String    @map("plan_no") @db.VarChar(60)
+  planName        String    @map("plan_name") @db.VarChar(180)
+  outputProductId String    @map("output_product_id") @db.Char(36)
+  bomId           String    @map("bom_id") @db.Char(36)
+  plannedQuantity Decimal   @map("planned_quantity") @db.Decimal(14, 4)
+  plannedBatches  Int       @default(1) @map("planned_batches")
+  uom             String    @default("KG") @db.VarChar(20)
+  priority        String    @default("MEDIUM") @db.VarChar(20)
+  startDate       DateTime  @map("start_date")
+  targetDate      DateTime  @map("target_date")
+  status          String    @default("DRAFT") @db.VarChar(30)
+  notes           String?   @db.Text
+  createdById     String?   @map("created_by_id") @db.Char(36)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  clientAdmin     ClientAdmin       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  outputProduct   Product           @relation(fields: [outputProductId], references: [id], onDelete: Restrict)
+  bom             BomMaster         @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  orders          ProductionOrder[]
+
+  @@unique([companyId, planNo])
+  @@index([companyId, outputProductId])
+  @@map("production_plans")
+}
+
+model ProductionOrder {
+  id               String                @id @default(uuid()) @db.Char(36)
+  companyId        String                @map("company_id") @db.Char(36)
+  orderNo          String                @map("order_no") @db.VarChar(60)
+  planId           String?               @map("plan_id") @db.Char(36)
+  salesOrderId     String?               @map("sales_order_id") @db.Char(36)
+  outputProductId  String                @map("output_product_id") @db.Char(36)
+  bomId            String                @map("bom_id") @db.Char(36)
+  targetQuantity   Decimal               @map("target_quantity") @db.Decimal(14, 4)
+  producedQuantity Decimal               @default(0.0000) @map("produced_quantity") @db.Decimal(14, 4)
+  rejectedQuantity Decimal               @default(0.0000) @map("rejected_quantity") @db.Decimal(14, 4)
+  uom              String                @default("KG") @db.VarChar(20)
+  priority         String                @default("MEDIUM") @db.VarChar(20)
+  status           ProductionOrderStatus @default(DRAFT)
+  scheduledStart   DateTime?             @map("scheduled_start")
+  scheduledEnd     DateTime?             @map("scheduled_end")
+  actualStart      DateTime?             @map("actual_start")
+  actualEnd        DateTime?             @map("actual_end")
+  notes            String?               @db.Text
+  createdById      String?               @map("created_by_id") @db.Char(36)
+  approvedById     String?               @map("approved_by_id") @db.Char(36)
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  clientAdmin      ClientAdmin       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan             ProductionPlan?   @relation(fields: [planId], references: [id], onDelete: SetNull)
+  salesOrder       SalesOrder?       @relation(fields: [salesOrderId], references: [id], onDelete: SetNull)
+  outputProduct    Product           @relation(fields: [outputProductId], references: [id], onDelete: Restrict)
+  bom              BomMaster         @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  materialReqs     ProductionMaterialRequirement[]
+  batches          ManufacturingBatch[]
+  dprs             DailyProductionReport[]
+  qcInspections    ManufacturingQC[]
+  jobWorkOrders    JobWorkOrder[]
+
+  @@unique([companyId, orderNo])
+  @@index([companyId, status])
+  @@index([companyId, salesOrderId])
+  @@map("production_orders")
+}
+
+model ProductionMaterialRequirement {
+  id          String   @id @default(uuid()) @db.Char(36)
+  companyId   String   @map("company_id") @db.Char(36)
+  orderId     String   @map("order_id") @db.Char(36)
+  productId   String   @map("product_id") @db.Char(36)
+  requiredQty Decimal  @map("required_qty") @db.Decimal(14, 4)
+  reservedQty Decimal  @default(0.0000) @map("reserved_qty") @db.Decimal(14, 4)
+  issuedQty   Decimal  @default(0.0000) @map("issued_qty") @db.Decimal(14, 4)
+  consumedQty Decimal  @default(0.0000) @map("consumed_qty") @db.Decimal(14, 4)
+  returnedQty Decimal  @default(0.0000) @map("returned_qty") @db.Decimal(14, 4)
+  uom         String   @default("KG") @db.VarChar(20)
+  status      String   @default("PENDING") @db.VarChar(30)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  clientAdmin ClientAdmin     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order       ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, orderId])
+  @@index([companyId, productId])
+  @@map("production_material_requirements")
+}
+
+model ManufacturingBatch {
+  id              String    @id @default(uuid()) @db.Char(36)
+  companyId       String    @map("company_id") @db.Char(36)
+  batchNo         String    @map("batch_no") @db.VarChar(60)
+  orderId         String    @map("order_id") @db.Char(36)
+  outputProductId String    @map("output_product_id") @db.Char(36)
+  batchQuantity   Decimal   @map("batch_quantity") @db.Decimal(14, 4)
+  actualOutputQty Decimal   @default(0.0000) @map("actual_output_qty") @db.Decimal(14, 4)
+  wastageQty      Decimal   @default(0.0000) @map("wastage_qty") @db.Decimal(14, 4)
+  uom             String    @default("KG") @db.VarChar(20)
+  machineName     String?   @map("machine_name") @db.VarChar(100)
+  shift           String    @default("Shift A") @db.VarChar(30)
+  supervisorName  String?   @map("supervisor_name") @db.VarChar(100)
+  status          String    @default("PLANNED") @db.VarChar(30)
+  genealogyData   Json?     @map("genealogy_data")
+  mfgDate         DateTime? @map("mfg_date")
+  expDate         DateTime? @map("exp_date")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  clientAdmin     ClientAdmin       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order           ProductionOrder   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  outputProduct   Product           @relation(fields: [outputProductId], references: [id], onDelete: Restrict)
+  steps           ManufacturingProcessStep[]
+  materials       ManufacturingBatchMaterial[]
+  qcInspections   ManufacturingQC[]
+  reprocessings   ManufacturingReprocessing[]
+
+  @@unique([companyId, batchNo])
+  @@index([companyId, orderId])
+  @@index([companyId, outputProductId])
+  @@map("manufacturing_batches")
+}
+
+model ManufacturingBatchMaterial {
+  id              String    @id @default(uuid()) @db.Char(36)
+  companyId       String    @map("company_id") @db.Char(36)
+  batchId         String    @map("batch_id") @db.Char(36)
+  rmBatchId       String    @map("rm_batch_id") @db.Char(36)
+  productId       String    @map("product_id") @db.Char(36)
+  movementId      String?   @map("movement_id") @db.Char(36)
+  sku             String    @db.VarChar(60)
+  rmBatchNo       String    @map("rm_batch_no") @db.VarChar(60)
+  issuedQty       Decimal   @map("issued_qty") @db.Decimal(14, 4)
+  consumedQty     Decimal   @default(0.0000) @map("consumed_qty") @db.Decimal(14, 4)
+  returnedQty     Decimal   @default(0.0000) @map("returned_qty") @db.Decimal(14, 4)
+  uom             String    @default("KG") @db.VarChar(20)
+  unitCost        Decimal   @default(0.00) @map("unit_cost") @db.Decimal(14, 2)
+  issuedAt        DateTime  @default(now()) @map("issued_at")
+  issuedById      String?   @map("issued_by_id") @db.Char(36)
+  notes           String?   @db.VarChar(255)
+
+  clientAdmin        ClientAdmin        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manufacturingBatch ManufacturingBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  rmBatch            InventoryBatch     @relation(fields: [rmBatchId], references: [id], onDelete: Restrict)
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  movement           InventoryMovement? @relation(fields: [movementId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, batchId])
+  @@index([companyId, rmBatchId])
+  @@index([companyId, productId])
+  @@map("manufacturing_batch_materials")
+}
+
+model ManufacturingProcessStep {
+  id              String            @id @default(uuid()) @db.Char(36)
+  companyId       String            @map("company_id") @db.Char(36)
+  batchId         String            @map("batch_id") @db.Char(36)
+  stepNumber      Int               @map("step_number")
+  stageName       String            @map("stage_name") @db.VarChar(80)
+  ingredientNotes String?           @map("ingredient_notes") @db.Text
+  targetDuration  Int?              @map("target_duration")
+  actualDuration  Int?              @map("actual_duration")
+  targetTempC     Decimal?          @map("target_temp_c") @db.Decimal(6, 2)
+  actualTempC     Decimal?          @map("actual_temp_c") @db.Decimal(6, 2)
+  operatorName    String?           @map("operator_name") @db.VarChar(100)
+  status          ProcessStepStatus @default(PENDING)
+  notes           String?           @db.Text
+  verifiedAt      DateTime?         @map("verified_at")
+  verifiedById    String?           @map("verified_by_id") @db.Char(36)
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  clientAdmin     ClientAdmin        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  batch           ManufacturingBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, stepNumber])
+  @@index([companyId, batchId])
+  @@map("manufacturing_process_steps")
+}
+
+model DailyProductionReport {
+  id              String    @id @default(uuid()) @db.Char(36)
+  companyId       String    @map("company_id") @db.Char(36)
+  dprNo           String    @map("dpr_no") @db.VarChar(60)
+  dprDate         DateTime  @map("dpr_date")
+  shift           String    @default("Shift A") @db.VarChar(30)
+  orderId         String?   @map("order_id") @db.Char(36)
+  machineName     String?   @map("machine_name") @db.VarChar(100)
+  plannedQty      Decimal   @map("planned_qty") @db.Decimal(14, 4)
+  actualQty       Decimal   @map("actual_qty") @db.Decimal(14, 4)
+  wastageQty      Decimal   @default(0.0000) @map("wastage_qty") @db.Decimal(14, 4)
+  efficiencyPct   Decimal   @default(0.00) @map("efficiency_pct") @db.Decimal(5, 2)
+  downtimeMinutes Int       @default(0) @map("downtime_minutes")
+  downtimeReason  String?   @map("downtime_reason") @db.VarChar(180)
+  supervisorName  String?   @map("supervisor_name") @db.VarChar(100)
+  isVerified      Boolean   @default(false) @map("is_verified")
+  verifiedById    String?   @map("verified_by_id") @db.Char(36)
+  verifiedAt      DateTime? @map("verified_at")
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  clientAdmin     ClientAdmin      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order           ProductionOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, dprNo])
+  @@index([companyId, dprDate])
+  @@map("daily_production_reports")
+}
+
+model ManufacturingQC {
+  id               String                @id @default(uuid()) @db.Char(36)
+  companyId        String                @map("company_id") @db.Char(36)
+  qcNo             String                @map("qc_no") @db.VarChar(60)
+  qcType           String                @default("FINISHED_GOODS") @map("qc_type") @db.VarChar(30) // IN_PROCESS, FINISHED_GOODS
+  orderId          String?               @map("order_id") @db.Char(36)
+  batchId          String                @map("batch_id") @db.Char(36)
+  productId        String                @map("product_id") @db.Char(36)
+  testedQty        Decimal               @map("tested_qty") @db.Decimal(14, 4)
+  passedQty        Decimal               @default(0.0000) @map("passed_qty") @db.Decimal(14, 4)
+  rejectedQty      Decimal               @default(0.0000) @map("rejected_qty") @db.Decimal(14, 4)
+  parameterResults Json?                 @map("parameter_results")
+  status           ManufacturingQcStatus @default(PENDING)
+  disposition      String?               @db.VarChar(50)
+  inspectorName    String?               @map("inspector_name") @db.VarChar(100)
+  testedAt         DateTime?             @map("tested_at")
+  remarks          String?               @db.Text
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  clientAdmin      ClientAdmin        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order            ProductionOrder?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  batch            ManufacturingBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  product          Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  reprocessingRepaired ManufacturingReprocessing? @relation("PostReworkQc")
+
+  @@unique([companyId, qcNo])
+  @@index([companyId, batchId])
+  @@index([companyId, productId])
+  @@map("manufacturing_qc_inspections")
+}
+
+model ManufacturingReprocessing {
+  id               String             @id @default(uuid()) @db.Char(36)
+  companyId        String             @map("company_id") @db.Char(36)
+  reprocessNo      String             @map("reprocess_no") @db.VarChar(60)
+  originalBatchId  String             @map("original_batch_id") @db.Char(36)
+  reason           String             @db.Text
+  reworkPlan       String             @map("rework_plan") @db.Text
+  additionalInputs Json?              @map("additional_inputs")
+  quantity         Decimal            @map("quantity") @db.Decimal(14, 4)
+  status           ReprocessingStatus @default(DRAFT)
+  approvedById     String?            @map("approved_by_id") @db.Char(36)
+  approvedAt       DateTime?          @map("approved_at")
+  postReworkQcId   String?            @unique @map("post_rework_qc_id") @db.Char(36)
+  completedAt      DateTime?          @map("completed_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  clientAdmin      ClientAdmin        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  originalBatch    ManufacturingBatch @relation(fields: [originalBatchId], references: [id], onDelete: Restrict)
+  postReworkQc     ManufacturingQC?   @relation("PostReworkQc", fields: [postReworkQcId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, reprocessNo])
+  @@index([companyId, originalBatchId])
+  @@map("manufacturing_reprocessings")
+}
+
+// ====================================================================
+// PHASE 6: CONTRACT MANUFACTURING / EXTERNAL SUPPLIER PRODUCTION
+// ====================================================================
+
+model JobWorkOrder {
+  id                 String                   @id @default(uuid()) @db.Char(36)
+  companyId          String                   @map("company_id") @db.Char(36)
+  orderNo            String                   @map("order_no") @db.VarChar(60)
+  vendorId           String                   @map("vendor_id") @db.Char(36)
+  productionOrderId  String?                  @map("production_order_id") @db.Char(36)
+  outputProductId    String                   @map("output_product_id") @db.Char(36)
+  bomId              String                   @map("bom_id") @db.Char(36)
+  targetQuantity     Decimal                  @map("target_quantity") @db.Decimal(14, 4)
+  receivedQuantity   Decimal                  @default(0.0000) @map("received_quantity") @db.Decimal(14, 4)
+  rejectedQuantity   Decimal                  @default(0.0000) @map("rejected_quantity") @db.Decimal(14, 4)
+  uom                String                   @default("KG") @db.VarChar(20)
+  conversionRate     Decimal                  @default(0.00) @map("conversion_rate") @db.Decimal(14, 2)
+  estimatedTotalCost Decimal                  @default(0.00) @map("estimated_total_cost") @db.Decimal(14, 2)
+  taxableValue       Decimal                  @default(0.00) @map("taxable_value") @db.Decimal(14, 2)
+  status             String                   @default("DRAFT") @db.VarChar(30)
+  issueDate          DateTime                 @default(now()) @map("issue_date")
+  expectedReturnDate DateTime?                @map("expected_return_date")
+  deliveryAddress    String?                  @map("delivery_address") @db.Text
+  termsAndConditions String?                  @map("terms_and_conditions") @db.Text
+  versionNumber      Int                      @default(1) @map("version_number")
+  isLocked           Boolean                  @default(false) @map("is_locked")
+  createdById        String?                  @map("created_by_id") @db.Char(36)
+  approvedById       String?                  @map("approved_by_id") @db.Char(36)
+  approvedAt         DateTime?                @map("approved_at")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+
+  clientAdmin        ClientAdmin              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendor             Vendor                   @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  productionOrder    ProductionOrder?         @relation(fields: [productionOrderId], references: [id], onDelete: SetNull)
+  outputProduct      Product                  @relation("JobWorkOutputProduct", fields: [outputProductId], references: [id], onDelete: Restrict)
+  bom                BomMaster                @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  items              JobWorkOrderItem[]
+  challans           JobWorkChallan[]
+  milestones         JobWorkMilestone[]
+  receipts           JobWorkReceipt[]
+  materialReturns    JobWorkMaterialReturn[]
+  reconciliations    JobWorkReconciliation[]
+
+  @@unique([companyId, orderNo])
+  @@index([companyId, vendorId])
+  @@index([companyId, outputProductId])
+  @@index([companyId, status])
+  @@map("job_work_orders")
+}
+
+model JobWorkOrderItem {
+  id                 String       @id @default(uuid()) @db.Char(36)
+  companyId          String       @map("company_id") @db.Char(36)
+  jobWorkOrderId     String       @map("job_work_order_id") @db.Char(36)
+  productId          String       @map("product_id") @db.Char(36)
+  itemType           String       @default("RAW_MATERIAL") @map("item_type") @db.VarChar(30)
+  requiredQuantity   Decimal      @map("required_quantity") @db.Decimal(14, 4)
+  dispatchedQuantity Decimal      @default(0.0000) @map("dispatched_quantity") @db.Decimal(14, 4)
+  consumedQuantity   Decimal      @default(0.0000) @map("consumed_quantity") @db.Decimal(14, 4)
+  returnedQuantity   Decimal      @default(0.0000) @map("returned_quantity") @db.Decimal(14, 4)
+  uom                String       @default("KG") @db.VarChar(20)
+  scrapTolerancePct  Decimal      @default(0.00) @map("scrap_tolerance_pct") @db.Decimal(5, 2)
+  standardUnitCost   Decimal      @default(0.00) @map("standard_unit_cost") @db.Decimal(14, 2)
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  jobWorkOrder       JobWorkOrder @relation(fields: [jobWorkOrderId], references: [id], onDelete: Cascade)
+  product            Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, jobWorkOrderId])
+  @@index([companyId, productId])
+  @@map("job_work_order_items")
+}
+
+model JobWorkChallan {
+  id                    String               @id @default(uuid()) @db.Char(36)
+  companyId             String               @map("company_id") @db.Char(36)
+  challanNo             String               @map("challan_no") @db.VarChar(60)
+  jobWorkOrderId        String               @map("job_work_order_id") @db.Char(36)
+  vendorId              String               @map("vendor_id") @db.Char(36)
+  warehouseId           String               @map("warehouse_id") @db.Char(36)
+  dispatchDate          DateTime             @default(now()) @map("dispatch_date")
+  statutory1YearDueDate DateTime?            @map("statutory_1_year_due_date")
+  transporterName       String?              @map("transporter_name") @db.VarChar(120)
+  vehicleNo             String?              @map("vehicle_no") @db.VarChar(40)
+  lrNumber              String?              @map("lr_number") @db.VarChar(60)
+  eWayBillNo            String?              @map("eway_bill_no") @db.VarChar(60)
+  destinationAddress    String               @map("destination_address") @db.Text
+  totalTaxableValue     Decimal              @default(0.00) @map("total_taxable_value") @db.Decimal(14, 2)
+  status                String               @default("DISPATCHED") @db.VarChar(30)
+  acknowledgedAt        DateTime?            @map("acknowledged_at")
+  acknowledgedBy        String?              @map("acknowledged_by") @db.VarChar(150)
+  statutoryDeclaration  String?              @map("statutory_declaration") @db.VarChar(255)
+  notes                 String?              @db.Text
+  createdById           String?              @map("created_by_id") @db.Char(36)
+  createdAt             DateTime             @default(now()) @map("created_at")
+
+  clientAdmin           ClientAdmin          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobWorkOrder          JobWorkOrder         @relation(fields: [jobWorkOrderId], references: [id], onDelete: Restrict)
+  vendor                Vendor               @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  warehouse             InventoryWarehouse   @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  items                 JobWorkChallanItem[]
+
+  @@unique([companyId, challanNo])
+  @@index([companyId, jobWorkOrderId])
+  @@index([companyId, vendorId])
+  @@map("job_work_challans")
+}
+
+model JobWorkChallanItem {
+  id                 String             @id @default(uuid()) @db.Char(36)
+  companyId          String             @map("company_id") @db.Char(36)
+  challanId          String             @map("challan_id") @db.Char(36)
+  productId          String             @map("product_id") @db.Char(36)
+  rmBatchId          String             @map("rm_batch_id") @db.Char(36)
+  rmBatchNo          String             @map("rm_batch_no") @db.VarChar(60)
+  sku                String             @db.VarChar(60)
+  hsnCode            String?            @map("hsn_code") @db.VarChar(20)
+  quantityDispatched Decimal            @map("quantity_dispatched") @db.Decimal(14, 4)
+  uom                String             @default("KG") @db.VarChar(20)
+  unitCost           Decimal            @default(0.00) @map("unit_cost") @db.Decimal(14, 2)
+  taxableValue       Decimal            @default(0.00) @map("taxable_value") @db.Decimal(14, 2)
+  movementId         String?            @map("movement_id") @db.Char(36)
+
+  challan            JobWorkChallan     @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  rmBatch            InventoryBatch     @relation(fields: [rmBatchId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, challanId])
+  @@index([companyId, productId])
+  @@index([companyId, rmBatchId])
+  @@map("job_work_challan_items")
+}
+
+model JobWorkMilestone {
+  id                String       @id @default(uuid()) @db.Char(36)
+  companyId         String       @map("company_id") @db.Char(36)
+  jobWorkOrderId    String       @map("job_work_order_id") @db.Char(36)
+  milestoneType     String       @map("milestone_type") @db.VarChar(50)
+  statusDate        DateTime     @default(now()) @map("status_date")
+  reportedOutputQty Decimal?     @map("reported_output_qty") @db.Decimal(14, 4)
+  reportedScrapQty  Decimal?     @map("reported_scrap_qty") @db.Decimal(14, 4)
+  remarks           String?      @db.Text
+  attachmentUri     String?      @map("attachment_uri") @db.VarChar(255)
+  createdById       String?      @map("created_by_id") @db.Char(36)
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  jobWorkOrder      JobWorkOrder @relation(fields: [jobWorkOrderId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, jobWorkOrderId])
+  @@map("job_work_milestones")
+}
+
+model JobWorkReceipt {
+  id                      String              @id @default(uuid()) @db.Char(36)
+  companyId               String              @map("company_id") @db.Char(36)
+  receiptNo               String              @map("receipt_no") @db.VarChar(60)
+  jobWorkOrderId          String              @map("job_work_order_id") @db.Char(36)
+  challanNo               String?             @map("challan_no") @db.VarChar(60)
+  vendorDeliveryNote      String?             @map("vendor_delivery_note") @db.VarChar(60)
+  warehouseId             String              @map("warehouse_id") @db.Char(36)
+  receivedQty             Decimal             @map("received_qty") @db.Decimal(14, 4)
+  acceptedQty             Decimal             @default(0.0000) @map("accepted_qty") @db.Decimal(14, 4)
+  rejectedQty             Decimal             @default(0.0000) @map("rejected_qty") @db.Decimal(14, 4)
+  uom                     String              @default("KG") @db.VarChar(20)
+  vendorBatchNo           String?             @map("vendor_batch_no") @db.VarChar(60)
+  createdInventoryBatchId String?             @map("created_inventory_batch_id") @db.Char(36)
+  qcStatus                String              @default("PENDING_QC") @map("qc_status") @db.VarChar(30)
+  qcInspectionId          String?             @map("qc_inspection_id") @db.Char(36)
+  qcRemarks               String?             @map("qc_remarks") @db.Text
+  isRework                Boolean             @default(false) @map("is_rework")
+  originalReceiptId       String?             @map("original_receipt_id") @db.Char(36)
+  receivedById            String?             @map("received_by_id") @db.Char(36)
+  receivedAt              DateTime            @default(now()) @map("received_at")
+
+  clientAdmin             ClientAdmin         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobWorkOrder            JobWorkOrder        @relation(fields: [jobWorkOrderId], references: [id], onDelete: Restrict)
+  warehouse               InventoryWarehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdInventoryBatch   InventoryBatch?     @relation("JobWorkReceiptInventoryBatch", fields: [createdInventoryBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, receiptNo])
+  @@index([companyId, jobWorkOrderId])
+  @@index([companyId, qcStatus])
+  @@map("job_work_receipts")
+}
+
+model JobWorkMaterialReturn {
+  id               String          @id @default(uuid()) @db.Char(36)
+  companyId        String          @map("company_id") @db.Char(36)
+  returnNo         String          @map("return_no") @db.VarChar(60)
+  jobWorkOrderId   String          @map("job_work_order_id") @db.Char(36)
+  vendorId         String          @map("vendor_id") @db.Char(36)
+  warehouseId      String          @map("warehouse_id") @db.Char(36)
+  productId        String          @map("product_id") @db.Char(36)
+  rmBatchId        String          @map("rm_batch_id") @db.Char(36)
+  rmBatchNo        String          @map("rm_batch_no") @db.VarChar(60)
+  sku              String          @db.VarChar(60)
+  quantityReturned Decimal         @map("quantity_returned") @db.Decimal(14, 4)
+  uom              String          @default("KG") @db.VarChar(20)
+  reason           String?         @db.VarChar(255)
+  returnedAt       DateTime        @default(now()) @map("returned_at")
+  receivedById     String?         @map("received_by_id") @db.Char(36)
+
+  jobWorkOrder     JobWorkOrder    @relation(fields: [jobWorkOrderId], references: [id], onDelete: Restrict)
+  vendor           Vendor          @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  rmBatch          InventoryBatch  @relation(fields: [rmBatchId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, returnNo])
+  @@index([companyId, jobWorkOrderId])
+  @@index([companyId, vendorId])
+  @@map("job_work_material_returns")
+}
+
+model JobWorkReconciliation {
+  id                  String                        @id @default(uuid()) @db.Char(36)
+  companyId           String                        @map("company_id") @db.Char(36)
+  reconciliationNo    String                        @map("reconciliation_no") @db.VarChar(60)
+  jobWorkOrderId      String                        @map("job_work_order_id") @db.Char(36)
+  vendorId            String                        @map("vendor_id") @db.Char(36)
+  outputProductId     String                        @map("output_product_id") @db.Char(36)
+  plannedOutputQty    Decimal                       @map("planned_output_qty") @db.Decimal(14, 4)
+  actualOutputQty     Decimal                       @map("actual_output_qty") @db.Decimal(14, 4)
+  rejectedOutputQty   Decimal                       @default(0.0000) @map("rejected_output_qty") @db.Decimal(14, 4)
+  grossJobWorkCharges Decimal                       @default(0.00) @map("gross_job_work_charges") @db.Decimal(14, 2)
+  excessWastageDebit  Decimal                       @default(0.00) @map("excess_wastage_debit") @db.Decimal(14, 2)
+  rejectionDebit      Decimal                       @default(0.00) @map("rejection_debit") @db.Decimal(14, 2)
+  netPayableToVendor  Decimal                       @default(0.00) @map("net_payable_to_vendor") @db.Decimal(14, 2)
+  settlementStatus    String                        @default("PENDING_AUDIT") @map("settlement_status") @db.VarChar(30)
+  isPaymentHold       Boolean                       @default(false) @map("is_payment_hold")
+  holdReason          String?                       @map("hold_reason") @db.VarChar(255)
+  auditedById         String?                       @map("audited_by_id") @db.Char(36)
+  auditedAt           DateTime?                     @map("audited_at")
+  notes               String?                       @db.Text
+  createdAt           DateTime                      @default(now()) @map("created_at")
+
+  clientAdmin         ClientAdmin                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobWorkOrder        JobWorkOrder                  @relation(fields: [jobWorkOrderId], references: [id], onDelete: Restrict)
+  items               JobWorkReconciliationItem[]
+
+  @@unique([companyId, reconciliationNo])
+  @@index([companyId, jobWorkOrderId])
+  @@index([companyId, vendorId])
+  @@map("job_work_reconciliations")
+}
+
+model JobWorkReconciliationItem {
+  id                  String                @id @default(uuid()) @db.Char(36)
+  companyId           String                @map("company_id") @db.Char(36)
+  reconciliationId    String                @map("reconciliation_id") @db.Char(36)
+  productId           String                @map("product_id") @db.Char(36)
+  sku                 String                @db.VarChar(60)
+  dispatchedQty       Decimal               @map("dispatched_qty") @db.Decimal(14, 4)
+  consumedQty         Decimal               @map("consumed_qty") @db.Decimal(14, 4)
+  returnedQty         Decimal               @default(0.0000) @map("returned_qty") @db.Decimal(14, 4)
+  permissibleScrapQty Decimal               @default(0.0000) @map("permissible_scrap_qty") @db.Decimal(14, 4)
+  actualScrapQty      Decimal               @default(0.0000) @map("actual_scrap_qty") @db.Decimal(14, 4)
+  varianceQty         Decimal               @default(0.0000) @map("variance_qty") @db.Decimal(14, 4)
+  unitCost            Decimal               @default(0.00) @map("unit_cost") @db.Decimal(14, 2)
+  debitAmount         Decimal               @default(0.00) @map("debit_amount") @db.Decimal(14, 2)
+  uom                 String                @default("KG") @db.VarChar(20)
+
+  reconciliation      JobWorkReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  product             Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, reconciliationId])
+  @@index([companyId, productId])
+  @@map("job_work_reconciliation_items")
 }

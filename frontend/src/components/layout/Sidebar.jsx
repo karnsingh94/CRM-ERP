@@ -95,6 +95,7 @@ const SUBMODULE_PAGES = {
     { label: 'Production Batching', href: '/production/orders', code: 'production_batching' },
     { label: 'Yield Tracking', href: '/production/consumption', code: 'yield_tracking' },
     { label: 'Machine Logs', href: '/production/machines', code: 'machine_logs' },
+    { label: 'Contract Manufacturing', href: '/contract-manufacturing', code: 'contract_manufacturing' },
   ],
 
   // 5. Dispatch & Returns

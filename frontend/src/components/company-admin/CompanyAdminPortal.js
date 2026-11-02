@@ -34,6 +34,7 @@ const GrnModule = lazyFeature(() => import('@/components/modules/GrnModule'));
 const InventoryModule = lazyFeature(() => import('@/components/modules/InventoryModule'));
 const GatePassModule = lazyFeature(() => import('@/components/modules/GatePassModule'));
 const ProductionModule = lazyFeature(() => import('@/components/modules/ProductionModule'));
+const ContractManufacturingModule = lazyFeature(() => import('@/components/modules/ContractManufacturingModule'));
 const DispatchModule = lazyFeature(() => import('@/components/modules/DispatchModule'));
 const AccountsModule = lazyFeature(() => import('@/components/modules/AccountsModule'));
 const TeamModule = lazyFeature(() => import('@/components/modules/TeamModule'));
@@ -60,6 +61,7 @@ export function resolveTabFromPathname(pathname) {
   if (pathname.startsWith('/gate-pass')) return 'inventory_warehouse:gate_pass';
   if (pathname.startsWith('/inventory')) return 'inventory_warehouse:inventory_mgmt';
   if (pathname.startsWith('/bom')) return 'manufacturing_production:bom';
+  if (pathname.startsWith('/contract-manufacturing') || pathname.startsWith('/job-work')) return 'manufacturing_production:contract_manufacturing';
   if (pathname.startsWith('/production')) return 'manufacturing_production:production';
   if (pathname.startsWith('/returns')) return 'dispatch_returns:returns';
   if (pathname.startsWith('/dispatch')) return 'dispatch_returns:dispatch';
@@ -687,8 +689,14 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
         return <InventoryModule key="module-inventory" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} />;
 
       case 'manufacturing_production':
+        if (subModuleCode === 'contract_manufacturing' || subModuleCode === 'job_work') {
+          return <ContractManufacturingModule key="module-contract-mfg" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+        }
         if (!hasModuleAccess('production') && !hasModuleAccess('manufacturing')) return renderModuleRestricted('Manufacturing & Production');
         return <ProductionModule key="module-production" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
+
+      case 'contract_manufacturing':
+        return <ContractManufacturingModule key="module-contract-mfg" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} />;
 
       case 'dispatch_returns':
         if (!hasModuleAccess('dispatch')) return renderModuleRestricted('Dispatch & Logistics');

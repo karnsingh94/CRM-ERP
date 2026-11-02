@@ -1,0 +1,372 @@
+{
+  "allPreExistingMatched": true,
+  "newTables": [
+    "bom_items",
+    "bom_masters",
+    "daily_production_reports",
+    "manufacturing_batches",
+    "manufacturing_batch_materials",
+    "manufacturing_process_steps",
+    "manufacturing_qc_inspections",
+    "manufacturing_reprocessings",
+    "production_material_requirements",
+    "production_orders",
+    "production_plans"
+  ],
+  "comparison": [
+    {
+      "table": "_prisma_migrations",
+      "preStep1Count": 13,
+      "postStep1Count": 13,
+      "match": true
+    },
+    {
+      "table": "admin_module_access",
+      "preStep1Count": 20,
+      "postStep1Count": 20,
+      "match": true
+    },
+    {
+      "table": "admin_service_access",
+      "preStep1Count": 9,
+      "postStep1Count": 9,
+      "match": true
+    },
+    {
+      "table": "admin_sub_module_access",
+      "preStep1Count": 68,
+      "postStep1Count": 68,
+      "match": true
+    },
+    {
+      "table": "admins",
+      "preStep1Count": 1,
+      "postStep1Count": 1,
+      "match": true
+    },
+    {
+      "table": "approval_decisions",
+      "preStep1Count": 33,
+      "postStep1Count": 33,
+      "match": true
+    },
+    {
+      "table": "approval_requests",
+      "preStep1Count": 135,
+      "postStep1Count": 135,
+      "match": true
+    },
+    {
+      "table": "attachments",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "audit_logs",
+      "preStep1Count": 1129,
+      "postStep1Count": 1129,
+      "match": true
+    },
+    {
+      "table": "company_employees",
+      "preStep1Count": 5,
+      "postStep1Count": 5,
+      "match": true
+    },
+    {
+      "table": "company_lead_integrations",
+      "preStep1Count": 1,
+      "postStep1Count": 1,
+      "match": true
+    },
+    {
+      "table": "company_service_teams",
+      "preStep1Count": 2,
+      "postStep1Count": 2,
+      "match": true
+    },
+    {
+      "table": "crm_communications",
+      "preStep1Count": 15,
+      "postStep1Count": 15,
+      "match": true
+    },
+    {
+      "table": "crm_contacts",
+      "preStep1Count": 16,
+      "postStep1Count": 16,
+      "match": true
+    },
+    {
+      "table": "crm_customers",
+      "preStep1Count": 6,
+      "postStep1Count": 6,
+      "match": true
+    },
+    {
+      "table": "crm_leads",
+      "preStep1Count": 44,
+      "postStep1Count": 44,
+      "match": true
+    },
+    {
+      "table": "crm_opportunities",
+      "preStep1Count": 1,
+      "postStep1Count": 1,
+      "match": true
+    },
+    {
+      "table": "customer_advances",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "departments",
+      "preStep1Count": 1,
+      "postStep1Count": 1,
+      "match": true
+    },
+    {
+      "table": "document_versions",
+      "preStep1Count": 131,
+      "postStep1Count": 131,
+      "match": true
+    },
+    {
+      "table": "integration_jobs",
+      "preStep1Count": 12,
+      "postStep1Count": 12,
+      "match": true
+    },
+    {
+      "table": "inventory_adjustments",
+      "preStep1Count": 4,
+      "postStep1Count": 4,
+      "match": true
+    },
+    {
+      "table": "inventory_batches",
+      "preStep1Count": 24,
+      "postStep1Count": 24,
+      "match": true
+    },
+    {
+      "table": "inventory_bins",
+      "preStep1Count": 4,
+      "postStep1Count": 4,
+      "match": true
+    },
+    {
+      "table": "inventory_fulfillments",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "inventory_gate_passes",
+      "preStep1Count": 4,
+      "postStep1Count": 4,
+      "match": true
+    },
+    {
+      "table": "inventory_material_requests",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "inventory_movements",
+      "preStep1Count": 54,
+      "postStep1Count": 54,
+      "match": true
+    },
+    {
+      "table": "inventory_physical_verification_items",
+      "preStep1Count": 10,
+      "postStep1Count": 10,
+      "match": true
+    },
+    {
+      "table": "inventory_physical_verifications",
+      "preStep1Count": 4,
+      "postStep1Count": 4,
+      "match": true
+    },
+    {
+      "table": "inventory_procurement_requests",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "inventory_production_receipts",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "inventory_reservations",
+      "preStep1Count": 4,
+      "postStep1Count": 4,
+      "match": true
+    },
+    {
+      "table": "inventory_samplings",
+      "preStep1Count": 4,
+      "postStep1Count": 4,
+      "match": true
+    },
+    {
+      "table": "inventory_stocks",
+      "preStep1Count": 19,
+      "postStep1Count": 19,
+      "match": true
+    },
+    {
+      "table": "inventory_transfers",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "inventory_warehouses",
+      "preStep1Count": 6,
+      "postStep1Count": 6,
+      "match": true
+    },
+    {
+      "table": "modules",
+      "preStep1Count": 20,
+      "postStep1Count": 20,
+      "match": true
+    },
+    {
+      "table": "notifications",
+      "preStep1Count": 399,
+      "postStep1Count": 399,
+      "match": true
+    },
+    {
+      "table": "product_categories",
+      "preStep1Count": 2,
+      "postStep1Count": 2,
+      "match": true
+    },
+    {
+      "table": "product_pricings",
+      "preStep1Count": 4,
+      "postStep1Count": 4,
+      "match": true
+    },
+    {
+      "table": "products",
+      "preStep1Count": 4,
+      "postStep1Count": 4,
+      "match": true
+    },
+    {
+      "table": "purchase_artwork_proofs",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "purchase_bills",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "purchase_deviations",
+      "preStep1Count": 1,
+      "postStep1Count": 1,
+      "match": true
+    },
+    {
+      "table": "purchase_orders",
+      "preStep1Count": 5,
+      "postStep1Count": 5,
+      "match": true
+    },
+    {
+      "table": "purchase_quotations",
+      "preStep1Count": 11,
+      "postStep1Count": 11,
+      "match": true
+    },
+    {
+      "table": "purchase_receipts",
+      "preStep1Count": 5,
+      "postStep1Count": 5,
+      "match": true
+    },
+    {
+      "table": "purchase_requests",
+      "preStep1Count": 10,
+      "postStep1Count": 10,
+      "match": true
+    },
+    {
+      "table": "purchase_returns",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "sales_orders",
+      "preStep1Count": 2,
+      "postStep1Count": 2,
+      "match": true
+    },
+    {
+      "table": "sales_proforma_invoices",
+      "preStep1Count": 36,
+      "postStep1Count": 36,
+      "match": true
+    },
+    {
+      "table": "sales_quotations",
+      "preStep1Count": 2,
+      "postStep1Count": 2,
+      "match": true
+    },
+    {
+      "table": "service_work_items",
+      "preStep1Count": 6,
+      "postStep1Count": 6,
+      "match": true
+    },
+    {
+      "table": "service_work_updates",
+      "preStep1Count": 0,
+      "postStep1Count": 0,
+      "match": true
+    },
+    {
+      "table": "services",
+      "preStep1Count": 11,
+      "postStep1Count": 11,
+      "match": true
+    },
+    {
+      "table": "sub_modules",
+      "preStep1Count": 68,
+      "postStep1Count": 68,
+      "match": true
+    },
+    {
+      "table": "super_admins",
+      "preStep1Count": 1,
+      "postStep1Count": 1,
+      "match": true
+    },
+    {
+      "table": "vendors",
+      "preStep1Count": 9,
+      "postStep1Count": 9,
+      "match": true
+    }
+  ]
+}
