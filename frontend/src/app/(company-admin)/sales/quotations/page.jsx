@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Quotations — AZZUNIQE Company Admin',
+  title: 'Quotations — AZZUNIQUE Company Admin',
   description: 'Formal commercial quotation drafts and customer pricing proposals',
 };
 

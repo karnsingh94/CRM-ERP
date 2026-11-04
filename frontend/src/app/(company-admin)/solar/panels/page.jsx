@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Panel Layout — AZZUNIQE Company Admin',
+  title: 'Panel Layout — AZZUNIQUE Company Admin',
   description: 'Photovoltaic panel strings and array tilt configuration',
 };
 

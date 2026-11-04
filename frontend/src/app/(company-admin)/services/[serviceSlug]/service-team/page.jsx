@@ -24,7 +24,7 @@ export async function generateMetadata({ params }) {
   const { serviceSlug = 'service' } = await params;
   const formatted = serviceSlug.replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
   return {
-    title: `${formatted} Department Head — AZZUNIQE Company Admin`,
+    title: `${formatted} Department Head — AZZUNIQUE Company Admin`,
     description: `Manage department heads, teams, and staff allocations for ${formatted}`,
   };
 }

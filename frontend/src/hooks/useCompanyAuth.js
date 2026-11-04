@@ -72,7 +72,9 @@ export function useCompanyAuth() {
   const getStoredToken = () => {
     if (typeof window === 'undefined') return null;
     return (
+      localStorage.getItem('azzunique_client_token') ||
       localStorage.getItem('azzuniqe_client_token') ||
+      sessionStorage.getItem('azzunique_client_token') ||
       sessionStorage.getItem('azzuniqe_client_token')
     );
   };

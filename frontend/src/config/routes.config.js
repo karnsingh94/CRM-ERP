@@ -1,5 +1,5 @@
 /**
- * AZZUNIQE CRM & ERP — Company Admin Route Configuration & Metadata
+ * AZZUNIQUE CRM & ERP — Company Admin Route Configuration & Metadata
  * Centralized, scalable route directory for Company Admin tenant workspaces.
  * Synchronized with the fixed 7 enterprise core services and implemented feature screens.
  */

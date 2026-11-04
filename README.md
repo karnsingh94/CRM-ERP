@@ -1,4 +1,4 @@
-# AZZUNIQE CRM & ERP System
+# AZZUNIQUE CRM & ERP System
 
 An enterprise-grade, multi-tenant CRM & ERP management platform designed with a multi-tier permission architecture: **Service ➔ Main Module ➔ Sub-Module**.
 
@@ -6,7 +6,7 @@ An enterprise-grade, multi-tenant CRM & ERP management platform designed with a 
 
 ## 📌 Project Overview
 
-AZZUNIQE CRM & ERP decouples platform administration from tenant management:
+AZZUNIQUE CRM & ERP decouples platform administration from tenant management:
 * **Super Admin (Platform Owner)**: Manages global Service catalogues, Main Modules, Sub-Module feature screens, and provisions distinct tenant companies.
 * **Company / Client Admin (Tenant)**: Manages day-to-day CRM and ERP operations (leads, quotations, inventory, invoicing, production) based strictly on permissions granted by Super Admin.
 * **Dynamic Permission Engine**: Granular access control allowing Full Service, Full Module, or Custom Sub-Module feature screen assignment per tenant.
@@ -57,7 +57,7 @@ CRM & ERP/
 
 ## 📦 Fixed 7-Service Catalogue Specification
 
-AZZUNIQE is designed around seven fixed core enterprise services:
+AZZUNIQUE is designed around seven fixed core enterprise services:
 
 | # | Service Name | Main Modules | Feature Scope |
 | :-: | :--- | :--- | :--- |
@@ -213,4 +213,4 @@ npm run dev
 
 ## 🛡️ License
 
-Proprietary — Developed for **AZZUNIQE CRM & ERP SOFTWARE**.
+Proprietary — Developed for **AZZUNIQUE CRM & ERP SOFTWARE**.

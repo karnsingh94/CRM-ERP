@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Vendor Quotation Comparison — AZZUNIQE Company Admin',
+  title: 'Vendor Quotation Comparison — AZZUNIQUE Company Admin',
   description: 'Compare supplier prices, delivery time, freight, taxes, and payment terms',
 };
 

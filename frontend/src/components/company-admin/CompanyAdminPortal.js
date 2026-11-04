@@ -145,7 +145,7 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       : ['DEPARTMENT_HEAD', 'SERVICE_HEAD'].includes(currentUser?.role)
         ? 'department'
         : 'company';
-  const preferencesKey = `azzuniqe_${preferencesScope}_preferences_${currentUser?.id || effectiveCompany?.id || 'default'}`;
+  const preferencesKey = `azzunique_${preferencesScope}_preferences_${currentUser?.id || effectiveCompany?.id || 'default'}`;
   const resolvedTheme = adminPreferences.themeMode === 'system'
     ? (systemIsDark ? 'dark' : 'light')
     : adminPreferences.themeMode;
@@ -189,8 +189,8 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       if (event.detail?.key !== preferencesKey || !event.detail?.preferences) return;
       setAdminPreferences(event.detail.preferences);
     };
-    window.addEventListener('azzuniqe-preferences-changed', syncDepartmentPreferences);
-    return () => window.removeEventListener('azzuniqe-preferences-changed', syncDepartmentPreferences);
+    window.addEventListener('azzunique-preferences-changed', syncDepartmentPreferences);
+    return () => window.removeEventListener('azzunique-preferences-changed', syncDepartmentPreferences);
   }, [preferencesKey]);
 
   useEffect(() => {

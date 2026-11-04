@@ -58,14 +58,14 @@ function LoginForm() {
             if (user) {
               clearStoredSession();
               if (user.role === 'SUPER_ADMIN') {
-                sessionStorage.setItem('azzuniqe_super_token', authTokenParam);
+                sessionStorage.setItem('azzunique_super_token', authTokenParam);
                 sessionStorage.setItem('auth_user', JSON.stringify(user));
                 const target = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/super-admin';
                 rememberVerifiedSession(authTokenParam, user);
                 router.replace(target);
                 return;
               } else {
-                sessionStorage.setItem('azzuniqe_client_token', authTokenParam);
+                sessionStorage.setItem('azzunique_client_token', authTokenParam);
                 sessionStorage.setItem('company_user', JSON.stringify(user));
                 const target = resolveCompanyDestination(user, redirectParam);
                 rememberVerifiedSession(authTokenParam, user);
@@ -158,10 +158,10 @@ function LoginForm() {
       // 2. Persist fresh session
       const storage = sessionStorage;
       if (user.role === 'SUPER_ADMIN') {
-        storage.setItem('azzuniqe_super_token', token);
+        storage.setItem('azzunique_super_token', token);
         storage.setItem('auth_user', JSON.stringify(user));
       } else {
-        storage.setItem('azzuniqe_client_token', token);
+        storage.setItem('azzunique_client_token', token);
         storage.setItem('company_user', JSON.stringify(user));
         storage.setItem('auth_user', JSON.stringify(user));
         if (user.companyId) {
@@ -345,7 +345,7 @@ function LoginForm() {
                 <line x1="12" y1="17" x2="12" y2="21" />
               </svg>
               <span style={{ fontSize: '0.74rem', fontWeight: 800, letterSpacing: '0.05em' }}>
-                AZZUNIQE CRM &amp; ERP
+                AZZUNIQUE CRM &amp; ERP
               </span>
             </div>
 
@@ -457,7 +457,7 @@ function LoginForm() {
                 letterSpacing: '-0.02em',
               }}
             >
-              Sign In to AZZUNIQE
+              Sign In to AZZUNIQUE
             </h1>
             <p style={{ fontSize: '0.84rem', color: 'slategray', margin: 0 }}>
               Unified access point for all platform and company accounts
@@ -530,7 +530,7 @@ function LoginForm() {
                 type="email"
                 autoComplete="email"
                 required
-                placeholder="admin@azzuniqe.com or name@company.com"
+                placeholder="admin@azzunique.com or name@company.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 disabled={loading}

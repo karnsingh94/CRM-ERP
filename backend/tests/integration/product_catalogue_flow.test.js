@@ -16,7 +16,7 @@ export async function runProductCatalogueFlowTests() {
   };
   const uploadsBase = fs.existsSync(path.resolve(process.cwd(), 'backend', 'uploads')) ? path.resolve(process.cwd(), 'backend') : process.cwd();
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Product Catalogue, Categories & Pricing Test Suite');
+  console.log('AZZUNIQUE CRM & ERP — Product Catalogue, Categories & Pricing Test Suite');
   console.log('Target API:', API_BASE);
   console.log('========================================================================\n');
 

@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'CRM Management — AZZUNIQE Company Admin',
+  title: 'CRM Management — AZZUNIQUE Company Admin',
   description: 'Customer relationship and sales pipeline workspace',
 };
 

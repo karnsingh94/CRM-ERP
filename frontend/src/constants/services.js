@@ -1,6 +1,6 @@
 /**
  * Fixed 9-Service Catalogue Definition
- * Synchronized with AZZUNIQE Backend Catalogue Specification & Prisma Models.
+ * Synchronized with AZZUNIQUE Backend Catalogue Specification & Prisma Models.
  */
 
 export const CORE_SERVICES = [

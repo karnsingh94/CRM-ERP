@@ -1,7 +1,7 @@
 import { normalizeTeamPermissions } from './team-permissions.js';
 
 /**
- * Data transformation and formatting utilities for AZZUNIQE CRM & ERP.
+ * Data transformation and formatting utilities for AZZUNIQUE CRM & ERP.
  * Ensures consistent, backward-compatible API payloads across frontends and tests.
  */
 

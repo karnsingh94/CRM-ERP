@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Commercial Tax Invoices — AZZUNIQE Company Admin',
+  title: 'Commercial Tax Invoices — AZZUNIQUE Company Admin',
   description: 'Final sales invoices, tax breakdown schedules, and client payment tracking',
 };
 

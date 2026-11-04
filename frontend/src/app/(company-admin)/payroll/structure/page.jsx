@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Salary Structure — AZZUNIQE Company Admin',
+  title: 'Salary Structure — AZZUNIQUE Company Admin',
   description: 'Salary heads, basic pay, allowances and perquisites',
 };
 

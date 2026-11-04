@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Outward Dispatch Queue — AZZUNIQE Company Admin',
+  title: 'Outward Dispatch Queue — AZZUNIQUE Company Admin',
   description: 'Ready-to-ship order staging, courier assignment, and shipping labels',
 };
 

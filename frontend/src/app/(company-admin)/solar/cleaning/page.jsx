@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Panel Cleaning Schedules — AZZUNIQE Company Admin',
+  title: 'Panel Cleaning Schedules — AZZUNIQUE Company Admin',
   description: 'Solar module wash rosters and soiling loss prevention',
 };
 

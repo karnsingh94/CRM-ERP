@@ -8,7 +8,7 @@ export const systemController = {
   getHealth(req, res) {
     res.json({
       status: 'OK',
-      message: 'Azzuniqe CRM & ERP Super Admin API is operational',
+      message: 'Azzunique CRM & ERP Super Admin API is operational',
       timestamp: new Date().toISOString(),
       authIntegration: 'PENDING_SEPARATE_MODULE',
     });

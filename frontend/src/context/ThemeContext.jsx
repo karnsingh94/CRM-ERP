@@ -19,8 +19,8 @@ export function ThemeProvider({ children }) {
     if (typeof window === 'undefined') return;
 
     try {
-      const savedTheme = localStorage.getItem('azzuniqe_theme') || 'system';
-      const savedAccent = localStorage.getItem('azzuniqe_accent') || '#7f22fe';
+      const savedTheme = localStorage.getItem('azzunique_theme') || localStorage.getItem('azzuniqe_theme') || 'system';
+      const savedAccent = localStorage.getItem('azzunique_accent') || localStorage.getItem('azzuniqe_accent') || '#7f22fe';
       setThemeState(savedTheme);
       setAccentColorState(savedAccent);
 
@@ -61,14 +61,14 @@ export function ThemeProvider({ children }) {
   const setTheme = (newTheme) => {
     setThemeState(newTheme);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('azzuniqe_theme', newTheme);
+      localStorage.setItem('azzunique_theme', newTheme);
     }
   };
 
   const setAccentColor = (newAccent) => {
     setAccentColorState(newAccent);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('azzuniqe_accent', newAccent);
+      localStorage.setItem('azzunique_accent', newAccent);
     }
   };
 

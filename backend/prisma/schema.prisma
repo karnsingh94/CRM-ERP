@@ -1,4 +1,4 @@
-// Prisma schema for AZZUNIQE CRM & ERP - Super Admin & Hierarchy Architecture
+// Prisma schema for AZZUNIQUE CRM & ERP - Super Admin & Hierarchy Architecture
 // Based on Super Admin & Service -> Module -> Sub-Module specification
 
 generator client {

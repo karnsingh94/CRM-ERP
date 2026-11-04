@@ -288,7 +288,7 @@ export function CompanyAuthProvider({ children }) {
 
       // ONLY revalidate on storage event if the auth token itself changed from another tab
       const handleStorage = (event) => {
-        if (event.key === 'azzuniqe_client_token') {
+        if (event.key === 'azzunique_client_token' || event.key === 'azzuniqe_client_token') {
           loadCompanySession();
         }
       };

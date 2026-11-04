@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Activity Audit Trail — AZZUNIQE Company Admin',
+  title: 'Activity Audit Trail — AZZUNIQUE Company Admin',
   description: 'Tenant staff operational audit trail and security timestamp logs',
 };
 

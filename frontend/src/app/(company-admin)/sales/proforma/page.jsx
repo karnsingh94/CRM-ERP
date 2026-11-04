@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Proforma Invoices — AZZUNIQE Company Admin',
+  title: 'Proforma Invoices — AZZUNIQUE Company Admin',
   description: 'Advance payment notices and proforma commercial invoices',
 };
 

@@ -7,7 +7,7 @@ const API_BASE = process.env.API_BASE || 'http://127.0.0.1:5000/api';
 
 export async function runDepartmentVerification() {
   console.log('\n======================================================');
-  console.log('AZZUNIQE CRM & ERP — Service Team Tests');
+  console.log('AZZUNIQUE CRM & ERP — Service Team Tests');
   console.log('Target API:', API_BASE);
   console.log('======================================================\n');
 

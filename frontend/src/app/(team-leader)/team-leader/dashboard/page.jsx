@@ -1,7 +1,7 @@
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
 
 export const metadata = {
-  title: 'Team Leader Dashboard — AZZUNIQE CRM & ERP',
+  title: 'Team Leader Dashboard — AZZUNIQUE CRM & ERP',
   description: 'Team overview, assigned modules, screens, and work summary',
 };
 

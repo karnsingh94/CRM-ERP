@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Stock Movement Ledger — AZZUNIQE Company Admin',
+  title: 'Stock Movement Ledger — AZZUNIQUE Company Admin',
   description: 'Chronological transaction ledger of all stock in and out events',
 };
 

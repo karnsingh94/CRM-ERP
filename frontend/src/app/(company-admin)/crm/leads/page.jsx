@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Leads Pipeline — AZZUNIQE Company Admin',
+  title: 'Leads Pipeline — AZZUNIQUE Company Admin',
   description: 'Inquiry capture, qualification stages, and lead conversion pipeline',
 };
 

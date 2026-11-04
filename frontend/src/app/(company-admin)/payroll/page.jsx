@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Payroll & Compensation — AZZUNIQE Company Admin',
+  title: 'Payroll & Compensation — AZZUNIQUE Company Admin',
   description: 'Salary calculation, statutory deductions and employee payslips',
 };
 

@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Purchase Deviations & Vendor Returns — AZZUNIQE Company Admin',
+  title: 'Purchase Deviations & Vendor Returns — AZZUNIQUE Company Admin',
   description: 'Track rejected GRN quantities, quality deviations, and material returned to vendors',
 };
 

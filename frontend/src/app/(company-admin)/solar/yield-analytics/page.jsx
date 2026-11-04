@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Yield Analytics & PR — AZZUNIQE Company Admin',
+  title: 'Yield Analytics & PR — AZZUNIQUE Company Admin',
   description: 'Daily and monthly kWh yield analytics and PR benchmark',
 };
 

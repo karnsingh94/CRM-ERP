@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Deal Opportunities — AZZUNIQE Company Admin',
+  title: 'Deal Opportunities — AZZUNIQUE Company Admin',
   description: 'High-value enterprise sales pipelines and win-rate forecasting',
 };
 

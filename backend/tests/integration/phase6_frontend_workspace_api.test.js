@@ -12,7 +12,7 @@ if (!dbUrl.includes('crm_erp_test_db')) {
 
 export async function runPhase6FrontendWorkspaceApiTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Phase 6: Frontend Workspace API Test Suite');
+  console.log('AZZUNIQUE CRM & ERP — Phase 6: Frontend Workspace API Test Suite');
   console.log('Target Database: crm_erp_test_db (ISOLATED TEST DATABASE)');
   console.log('Testing: All 10 Workspace Tabs Backend Endpoints & Data Payloads');
   console.log('========================================================================\n');

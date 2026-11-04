@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Bill of Materials (BOM) — AZZUNIQE Company Admin',
+  title: 'Bill of Materials (BOM) — AZZUNIQUE Company Admin',
   description: 'Engineering recipe structures, child components, and raw material formulas',
 };
 

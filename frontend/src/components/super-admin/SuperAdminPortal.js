@@ -33,6 +33,18 @@ const SEEDED_SERVICE_CODES = new Set([
   'solar_monitoring',
 ]);
 
+const formatAuditDateTime = (dateVal) => {
+  if (!dateVal) return '—';
+  const d = new Date(dateVal);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+};
+
+const formatAuditTimeOnly = (dateVal) => {
+  if (!dateVal) return '—';
+  const d = new Date(dateVal);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
 // ============================================================================
 // CONSISTENT ENTERPRISE SVG ICONS (Consistent stroke weight, dimensions & a11y)
 // ============================================================================
@@ -427,10 +439,10 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
 
   // General Platform Settings State
   const [platformSettings, setPlatformSettings] = useState({
-    platformName: 'AZZUNIQE CRM & ERP',
+    platformName: 'AZZUNIQUE CRM & ERP',
     brandBadge: 'AZ',
     tagline: 'Super Admin',
-    supportEmail: 'support@azzuniqe.com',
+    supportEmail: 'support@azzunique.com',
     supportPhone: '+91 98765 43210',
     defaultTheme: 'system',
   });
@@ -473,12 +485,12 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
     if (typeof window === 'undefined') return;
 
     try {
-      const savedTheme = localStorage.getItem('azzuniqe_super_theme') || 'system';
-      const savedAccent = localStorage.getItem('azzuniqe_super_accent') || '#7f22fe';
+      const savedTheme = localStorage.getItem('azzunique_super_theme') || localStorage.getItem('azzuniqe_super_theme') || 'system';
+      const savedAccent = localStorage.getItem('azzunique_super_accent') || localStorage.getItem('azzuniqe_super_accent') || '#7f22fe';
       setThemeMode(savedTheme);
       setAccentColor(savedAccent);
 
-      const savedGeneral = localStorage.getItem('azzuniqe_platform_settings');
+      const savedGeneral = localStorage.getItem('azzunique_platform_settings') || localStorage.getItem('azzuniqe_platform_settings');
       if (savedGeneral) {
         try {
           const parsed = JSON.parse(savedGeneral);
@@ -527,7 +539,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
   const handleThemeChange = (mode) => {
     setThemeMode(mode);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('azzuniqe_super_theme', mode);
+      localStorage.setItem('azzunique_super_theme', mode);
       const isSysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const targetTheme = mode === 'system' ? (isSysDark ? 'dark' : 'light') : mode;
       document.documentElement.setAttribute('data-theme', targetTheme);
@@ -538,7 +550,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
   const handleAccentChange = (hex) => {
     setAccentColor(hex);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('azzuniqe_super_accent', hex);
+      localStorage.setItem('azzunique_super_accent', hex);
       document.documentElement.style.setProperty('--primary', hex);
       document.documentElement.style.setProperty('--primary-hover', hex === '#7f22fe' ? '#6b12df' : hex);
       document.documentElement.style.setProperty('--primary-glow', `${hex}40`);
@@ -550,8 +562,8 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
     setThemeMode('system');
     setAccentColor('#7f22fe');
     if (typeof window !== 'undefined') {
-      localStorage.setItem('azzuniqe_super_theme', 'system');
-      localStorage.setItem('azzuniqe_super_accent', '#7f22fe');
+      localStorage.setItem('azzunique_super_theme', 'system');
+      localStorage.setItem('azzunique_super_accent', '#7f22fe');
       const isSysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       document.documentElement.setAttribute('data-theme', isSysDark ? 'dark' : 'light');
       document.documentElement.style.setProperty('--primary', '#7f22fe');
@@ -566,7 +578,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
     setIsSavingGeneral(true);
     setTimeout(() => {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('azzuniqe_platform_settings', JSON.stringify(platformSettings));
+        localStorage.setItem('azzunique_platform_settings', JSON.stringify(platformSettings));
       }
       setIsSavingGeneral(false);
       showToast('Settings Saved ⚙️', 'Global platform preferences updated successfully.', 'success');
@@ -581,7 +593,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
     }
     setIsSavingProfile(true);
     try {
-      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('azzuniqe_super_token') || sessionStorage.getItem('azzuniqe_super_token') : null;
+      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('azzunique_super_token') || sessionStorage.getItem('azzunique_super_token') : null;
       const headers = { 'Content-Type': 'application/json' };
       if (storedToken) headers.Authorization = `Bearer ${storedToken}`;
 
@@ -632,7 +644,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
 
     setIsSavingPassword(true);
     try {
-      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('azzuniqe_super_token') || sessionStorage.getItem('azzuniqe_super_token') : null;
+      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('azzunique_super_token') || sessionStorage.getItem('azzunique_super_token') : null;
       const headers = { 'Content-Type': 'application/json' };
       if (storedToken) headers.Authorization = `Bearer ${storedToken}`;
 
@@ -668,12 +680,15 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
 
     const storedToken =
       typeof window !== 'undefined'
-        ? localStorage.getItem('azzuniqe_super_token') || sessionStorage.getItem('azzuniqe_super_token')
+        ? localStorage.getItem('azzunique_super_token') ||
+          sessionStorage.getItem('azzunique_super_token') ||
+          localStorage.getItem('azzuniqe_super_token') ||
+          sessionStorage.getItem('azzuniqe_super_token')
         : null;
 
     // Check storage first for instant response
     if (!resolvedUser && typeof window !== 'undefined') {
-      const storageKeys = ['auth_user', 'azzuniqe_auth_user', 'super_admin_user'];
+      const storageKeys = ['auth_user', 'azzunique_auth_user', 'azzuniqe_auth_user', 'super_admin_user'];
       for (const key of storageKeys) {
         try {
           const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
@@ -683,7 +698,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
             if (candidate && (candidate.role === 'SUPER_ADMIN' || candidate.role === 'Super Admin')) {
               resolvedUser = {
                 name: candidate.name || 'Platform Super Admin',
-                email: candidate.email || 'admin@azzuniqe.com',
+                email: candidate.email || 'admin@azzunique.com',
                 role: 'Super Admin',
               };
               break;
@@ -720,7 +735,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
           if (candidate && (candidate.role === 'SUPER_ADMIN' || candidate.role === 'Super Admin')) {
             const freshUser = {
               name: candidate.name || 'Platform Super Admin',
-              email: candidate.email || 'admin@azzuniqe.com',
+              email: candidate.email || 'admin@azzunique.com',
               role: 'Super Admin',
             };
             globalSuperAdminUser = freshUser;
@@ -738,7 +753,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
     if (!resolvedUser) {
       setIsProfileLoading(false);
       if (typeof window !== 'undefined') {
-        const clientToken = localStorage.getItem('azzuniqe_client_token');
+        const clientToken = localStorage.getItem('azzunique_client_token');
         if (clientToken && (pathname === '/dashboard' || pathname === '/')) {
           return;
         }
@@ -883,7 +898,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
         if (typeof window !== 'undefined') {
           try {
             localStorage.removeItem('cached_company_data');
-            localStorage.setItem('azzuniqe_catalog_updated', String(Date.now()));
+            localStorage.setItem('azzunique_catalog_updated', String(Date.now()));
           } catch {}
         }
         fetchData(true);
@@ -991,7 +1006,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
 
     setIsDeletingService(true);
     try {
-      const storedToken = localStorage.getItem('azzuniqe_super_token') || sessionStorage.getItem('azzuniqe_super_token');
+      const storedToken = localStorage.getItem('azzunique_super_token') || sessionStorage.getItem('azzunique_super_token');
       const headers = storedToken ? { Authorization: `Bearer ${storedToken}` } : {};
       const res = await fetch(`${API_BASE}/services/${serviceToDelete.id}`, {
         method: 'DELETE',
@@ -1012,7 +1027,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
       }
       if (typeof window !== 'undefined') {
         localStorage.removeItem('cached_company_data');
-        localStorage.setItem('azzuniqe_catalog_updated', String(Date.now()));
+        localStorage.setItem('azzunique_catalog_updated', String(Date.now()));
       }
       showToast('Service Deleted', `"${serviceToDelete.name}" and its modules have been permanently deleted.`, 'success');
       setServiceToDelete(null);
@@ -1059,7 +1074,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
         if (typeof window !== 'undefined') {
           try {
             localStorage.removeItem('cached_company_data');
-            localStorage.setItem('azzuniqe_catalog_updated', String(Date.now()));
+            localStorage.setItem('azzunique_catalog_updated', String(Date.now()));
           } catch {}
         }
         fetchData(true);
@@ -1111,7 +1126,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
         if (typeof window !== 'undefined') {
           try {
             localStorage.removeItem('cached_company_data');
-            localStorage.setItem('azzuniqe_catalog_updated', String(Date.now()));
+            localStorage.setItem('azzunique_catalog_updated', String(Date.now()));
           } catch {}
         }
         fetchData(true);
@@ -1441,14 +1456,14 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
       if (res.ok && json.success && json.data) {
         const { token, user } = json.data;
         // 1. Back up Super Admin token so we can easily return anytime
-        const currentSuperToken = localStorage.getItem('azzuniqe_super_token') || sessionStorage.getItem('azzuniqe_super_token');
+        const currentSuperToken = localStorage.getItem('azzunique_super_token') || sessionStorage.getItem('azzunique_super_token');
         if (currentSuperToken) {
-          localStorage.setItem('azzuniqe_super_token_backup', currentSuperToken);
-          localStorage.removeItem('azzuniqe_super_token');
-          sessionStorage.removeItem('azzuniqe_super_token');
+          localStorage.setItem('azzunique_super_token_backup', currentSuperToken);
+          localStorage.removeItem('azzunique_super_token');
+          sessionStorage.removeItem('azzunique_super_token');
         }
         // 2. Set active client credentials
-        localStorage.setItem('azzuniqe_client_token', token);
+        localStorage.setItem('azzunique_client_token', token);
         localStorage.setItem('company_user', JSON.stringify(user));
         localStorage.setItem('auth_user', JSON.stringify(user));
         localStorage.setItem('active_company_id', String(user.companyId || client.id));
@@ -1552,7 +1567,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
         <div className={styles.sidebarBrand}>
           <div className={styles.brandLogo}>{platformSettings.brandBadge || 'AZ'}</div>
           <div className={styles.brandInfo}>
-            <h2>{platformSettings.platformName || 'AZZUNIQE'}</h2>
+            <h2>{platformSettings.platformName || 'AZZUNIQUE'}</h2>
             <span>{platformSettings.tagline || 'Super Admin'}</span>
           </div>
         </div>
@@ -1939,25 +1954,44 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {auditLogs.slice(0, 10).map(log => (
-                        <tr key={log.id}>
-                          <td className={styles.colAuditAction}>
-                            <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.55rem', borderRadius: '4px', background: '#eff6ff', color: '#1e40af' }}>
-                              {log.action}
-                            </span>
-                          </td>
-                          <td className={styles.colAuditEntity}>{log.entity_type}</td>
-                          <td className={styles.colAuditTarget} title={log.entity_name}>
-                            <strong>{log.entity_name}</strong>
-                          </td>
-                          <td className={styles.colAuditDetails} title={log.details}>
-                            {log.details}
-                          </td>
-                          <td className={styles.colAuditTime} title={new Date(log.created_at).toLocaleString()}>
-                            {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {auditLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                            No recent platform audit activity found.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        auditLogs.slice(0, 10).map(log => {
+                          const action = log.action || 'ACTION';
+                          const entity = log.entity_type || log.entityType || 'SYSTEM';
+                          const target = log.entity_name || log.entityName || log.target || (log.entity_id || log.entityId ? `#${String(log.entity_id || log.entityId).slice(0, 8)}` : '—');
+                          const details = log.details || log.reason || log.after_state || log.afterState || log.action || '—';
+                          const dateVal = log.created_at || log.createdAt;
+                          return (
+                            <tr key={log.id}>
+                              <td className={styles.colAuditAction}>
+                                <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.55rem', borderRadius: '4px', background: '#eff6ff', color: '#1e40af' }}>
+                                  {action}
+                                </span>
+                              </td>
+                              <td className={styles.colAuditEntity}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.15rem 0.45rem', borderRadius: '4px', background: '#f1f5f9', color: '#475569' }}>
+                                  {entity}
+                                </span>
+                              </td>
+                              <td className={styles.colAuditTarget} title={target}>
+                                <strong>{target}</strong>
+                              </td>
+                              <td className={styles.colAuditDetails} title={details}>
+                                {details}
+                              </td>
+                              <td className={styles.colAuditTime} title={formatAuditDateTime(dateVal)}>
+                                {formatAuditTimeOnly(dateVal)}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2451,62 +2485,114 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
           {/* ==================================================== */}
           {/* TAB 5: AUDIT LOGS                                   */}
           {/* ==================================================== */}
-          {activeTab === 'audit-logs' && (
-            <div>
-              <div className={styles.sectionHeader}>
-                <div>
-                  <h3>System Audit Trail</h3>
-                  <p>Comprehensive tracking of service changes, module updates, client creations, and permission modifications.</p>
-                </div>
-              </div>
+          {activeTab === 'audit-logs' && (() => {
+            const q = (searchQuery || '').toLowerCase().trim();
+            const filteredAuditLogs = auditLogs.filter(log => {
+              if (!q) return true;
+              const actor = (log.actor_name || log.actorName || log.userName || log.actor || '').toLowerCase();
+              const action = (log.action || '').toLowerCase();
+              const entity = (log.entity_type || log.entityType || '').toLowerCase();
+              const target = (log.entity_name || log.entityName || log.target || '').toLowerCase();
+              const details = (log.details || log.reason || '').toLowerCase();
+              const ip = (log.ip_address || log.ipAddress || '').toLowerCase();
+              return actor.includes(q) || action.includes(q) || entity.includes(q) || target.includes(q) || details.includes(q) || ip.includes(q);
+            });
 
-              <div className={styles.tableCard}>
-                <div className={styles.tableHeader}>
-                  <span className={styles.tableTitle}>Audit Records ({auditLogs.length})</span>
+            return (
+              <div>
+                <div className={styles.sectionHeader}>
+                  <div>
+                    <h3>System Audit Trail</h3>
+                    <p>Comprehensive tracking of service changes, module updates, client creations, and permission modifications.</p>
+                  </div>
                 </div>
-                <div className={styles.tableScrollContainer}>
-                  <table className={styles.dataTable}>
-                    <thead>
-                      <tr>
-                        <th style={{ minWidth: '150px' }}>Time</th>
-                        <th style={{ minWidth: '130px' }}>Actor</th>
-                        <th style={{ minWidth: '110px' }}>Action</th>
-                        <th style={{ minWidth: '130px' }}>Entity Type</th>
-                        <th style={{ minWidth: '180px' }}>Target</th>
-                        <th style={{ minWidth: '280px' }}>Details</th>
-                        <th style={{ minWidth: '110px' }}>IP</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {auditLogs.map(log => (
-                        <tr key={log.id}>
-                          <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', color: '#64748b' }}>
-                            {new Date(log.created_at).toLocaleString()}
-                          </td>
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            <strong>{log.actor_name || log.actor || 'System / Platform Admin'}</strong>
-                          </td>
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.55rem', borderRadius: '4px', background: '#eff6ff', color: '#1e40af' }}>
-                              {log.action}
-                            </span>
-                          </td>
-                          <td style={{ whiteSpace: 'nowrap' }}>{log.entity_type}</td>
-                          <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.entity_name || log.entity_id || '—'}>
-                            <strong>{log.entity_name || (log.entity_id ? `#${log.entity_id}` : '—')}</strong>
-                          </td>
-                          <td style={{ maxWidth: '440px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.details}>
-                            {log.details}
-                          </td>
-                          <td style={{ fontFamily: 'monospace', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{log.ip_address || 'Unknown'}</td>
+
+                <div className={styles.tableCard}>
+                  <div className={styles.tableHeader}>
+                    <span className={styles.tableTitle}>Audit Records ({filteredAuditLogs.length})</span>
+                    {q && (
+                      <button
+                        type="button"
+                        className={styles.btnSecondary}
+                        onClick={() => setSearchQuery('')}
+                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.65rem' }}
+                      >
+                        Clear Search
+                      </button>
+                    )}
+                  </div>
+                  <div className={styles.tableScrollContainer}>
+                    <table className={styles.dataTable}>
+                      <thead>
+                        <tr>
+                          <th style={{ minWidth: '150px' }}>Time</th>
+                          <th style={{ minWidth: '150px' }}>Actor</th>
+                          <th style={{ minWidth: '110px' }}>Action</th>
+                          <th style={{ minWidth: '130px' }}>Entity Type</th>
+                          <th style={{ minWidth: '180px' }}>Target</th>
+                          <th style={{ minWidth: '280px' }}>Details</th>
+                          <th style={{ minWidth: '110px' }}>IP</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredAuditLogs.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
+                              {q ? (
+                                <>No audit records match &ldquo;<strong>{searchQuery}</strong>&rdquo;.</>
+                              ) : (
+                                'No audit records found.'
+                              )}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredAuditLogs.map(log => {
+                            const action = log.action || 'ACTION';
+                            const actor = log.actor_name || log.actorName || log.userName || log.actor || 'Platform Super Admin';
+                            const entity = log.entity_type || log.entityType || 'SYSTEM';
+                            const target = log.entity_name || log.entityName || log.target || (log.entity_id || log.entityId ? `#${String(log.entity_id || log.entityId).slice(0, 8)}` : '—');
+                            const details = log.details || log.reason || log.after_state || log.afterState || log.action || '—';
+                            const ip = log.ip_address || log.ipAddress || '127.0.0.1';
+                            const dateVal = log.created_at || log.createdAt;
+
+                            return (
+                              <tr key={log.id}>
+                                <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', color: '#64748b' }} title={formatAuditDateTime(dateVal)}>
+                                  {formatAuditDateTime(dateVal)}
+                                </td>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  <strong>{actor}</strong>
+                                </td>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.55rem', borderRadius: '4px', background: '#eff6ff', color: '#1e40af' }}>
+                                    {action}
+                                  </span>
+                                </td>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.15rem 0.45rem', borderRadius: '4px', background: '#f1f5f9', color: '#475569' }}>
+                                    {entity}
+                                  </span>
+                                </td>
+                                <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={target}>
+                                  <strong>{target}</strong>
+                                </td>
+                                <td style={{ maxWidth: '440px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={details}>
+                                  {details}
+                                </td>
+                                <td style={{ fontFamily: 'monospace', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                  {ip}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ==================================================== */}
           {/* TAB 5: SETTINGS                                     */}
@@ -2760,7 +2846,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                               {platformSettings.brandBadge || 'AZ'}
                             </div>
                             <span style={{ fontWeight: 800, fontSize: '0.85rem', color: resolvedTheme === 'dark' ? '#f8fafc' : '#0f172a' }}>
-                              {platformSettings.platformName || 'AZZUNIQE'}
+                              {platformSettings.platformName || 'AZZUNIQUE'}
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -2884,7 +2970,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                             className={styles.formInput}
                             value={platformSettings.platformName}
                             onChange={(e) => setPlatformSettings({ ...platformSettings, platformName: e.target.value })}
-                            placeholder="e.g. AZZUNIQE CRM & ERP"
+                            placeholder="e.g. AZZUNIQUE CRM & ERP"
                             required
                           />
                           <p className={styles.formHelper}>Displayed in the sidebar, browser title, and platform headers.</p>
@@ -2937,7 +3023,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                             className={styles.formInput}
                             value={platformSettings.supportEmail}
                             onChange={(e) => setPlatformSettings({ ...platformSettings, supportEmail: e.target.value })}
-                            placeholder="e.g. support@azzuniQE.com"
+                            placeholder="e.g. support@azzunique.com"
                           />
                           <p className={styles.formHelper}>Official support contact presented in system logs and platform alerts.</p>
                         </div>
@@ -3037,7 +3123,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                             </span>
                           </div>
                           <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '0.2rem' }}>
-                            {currentUser.email || 'admin@azzuniqe.com'}
+                            {currentUser.email || 'admin@azzunique.com'}
                           </p>
                         </div>
                       </div>
@@ -3058,7 +3144,7 @@ export default function SuperAdminPortal({ initialTab, initialServiceId }) {
                           <label className={styles.formLabel}>Registered Platform Email</label>
                           <input
                             className={styles.formInput}
-                            value={currentUser.email || 'admin@azzuniqe.com'}
+                            value={currentUser.email || 'admin@azzunique.com'}
                             readOnly
                             style={{ opacity: 0.8, cursor: 'not-allowed' }}
                           />

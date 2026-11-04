@@ -147,7 +147,7 @@ function ResetPasswordForm() {
               <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
             <span style={{ fontSize: '0.74rem', fontWeight: 800, letterSpacing: '0.04em' }}>
-              AZZUNIQE CRM &amp; ERP
+              AZZUNIQUE CRM &amp; ERP
             </span>
           </div>
 

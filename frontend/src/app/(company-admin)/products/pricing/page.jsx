@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Price Lists & Management — AZZUNIQE Company Admin',
+  title: 'Price Lists & Management — AZZUNIQUE Company Admin',
   description: 'Wholesale tiers, currency catalogs, and retail pricing schedules',
 };
 

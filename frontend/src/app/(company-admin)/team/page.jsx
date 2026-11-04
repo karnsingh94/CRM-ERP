@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Company Employees & Staff — AZZUNIQE Company Admin',
+  title: 'Company Employees & Staff — AZZUNIQUE Company Admin',
   description: 'Internal employees, department allocations, and staff user accounts',
 };
 

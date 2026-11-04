@@ -1,5 +1,5 @@
 /**
- * AZZUNIQE SVG Icon System
+ * AZZUNIQUE SVG Icon System
  * Clean, accessible inline SVGs matching the Super Admin styling.
  */
 

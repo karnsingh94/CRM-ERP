@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Returnable Asset Tracking — AZZUNIQE Company Admin',
+  title: 'Returnable Asset Tracking — AZZUNIQUE Company Admin',
   description: 'Sub-contracting tools, calibration instruments, and return tracking register',
 };
 

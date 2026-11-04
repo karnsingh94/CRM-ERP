@@ -23,7 +23,7 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 // 4. Root information endpoint
 app.get('/', (req, res) => {
   res.json({
-    project: 'AZZUNIQE CRM & ERP Super Admin API',
+    project: 'AZZUNIQUE CRM & ERP Super Admin API',
     version: '1.0.0',
     documentation: '/api/health',
     authStatus: 'Integration Pending (Developed separately)',

@@ -1901,7 +1901,7 @@ export default function InventoryModule({ activeCompany, showToast, initialSubTa
       {/* Header */}
       <header className={styles.header}>
         <div>
-          <span className={styles.eyebrow}>AZZUNIQE Stock &amp; Warehouse Control</span>
+          <span className={styles.eyebrow}>AZZUNIQUE Stock &amp; Warehouse Control</span>
           <h2>Inventory &amp; Warehouse Management</h2>
           <p>
             {activeCompany?.organizationName || 'Client Workspace'}: Real-time 8-bucket stock control,

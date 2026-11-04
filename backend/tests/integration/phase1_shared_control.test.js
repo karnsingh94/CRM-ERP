@@ -9,7 +9,7 @@ import { requireAction } from '../../src/middlewares/actionPermission.middleware
 
 export async function runPhase1SharedControlTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Phase 1: Shared Control Layer Integration Test Suite');
+  console.log('AZZUNIQUE CRM & ERP — Phase 1: Shared Control Layer Integration Test Suite');
   console.log('Testing: Approvals, SoD, Versioning, Attachments, Notifications, Jobs, Audit');
   console.log('========================================================================\n');
 

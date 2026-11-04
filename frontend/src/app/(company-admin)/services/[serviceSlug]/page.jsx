@@ -34,7 +34,7 @@ export async function generateMetadata({ params }) {
   const slug = resolvedParams?.serviceSlug || 'service';
   const formatted = slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   return {
-    title: `${formatted} — AZZUNIQE Workspace`,
+    title: `${formatted} — AZZUNIQUE Workspace`,
     description: `Service management and details for ${formatted}`,
   };
 }

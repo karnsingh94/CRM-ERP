@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 const initialSuperAdmin = {
   name: process.env.SUPER_ADMIN_NAME?.trim() || 'Platform Super Admin',
-  email: (process.env.SUPER_ADMIN_EMAIL || 'admin@azzuniqe.com').trim().toLowerCase(),
+  email: (process.env.SUPER_ADMIN_EMAIL || 'admin@azzunique.com').trim().toLowerCase(),
   password: process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@2026!',
 };
 

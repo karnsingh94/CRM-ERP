@@ -1,7 +1,7 @@
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
 
 export const metadata = {
-  title: 'Department Settings — AZZUNIQE CRM & ERP',
+  title: 'Department Settings — AZZUNIQUE CRM & ERP',
   description: 'Department Head appearance, account, profile, and notification preferences',
 };
 

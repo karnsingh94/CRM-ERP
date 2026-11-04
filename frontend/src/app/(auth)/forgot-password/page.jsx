@@ -96,7 +96,7 @@ export default function SuperAdminForgotPasswordPage() {
               <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
             <span style={{ fontSize: '0.74rem', fontWeight: 800, letterSpacing: '0.04em' }}>
-              AZZUNIQE CRM &amp; ERP
+              AZZUNIQUE CRM &amp; ERP
             </span>
           </div>
 
@@ -252,7 +252,7 @@ export default function SuperAdminForgotPasswordPage() {
                 required
                 autoFocus
                 autoComplete="email"
-                placeholder="admin@azzuniqe.com or name@company.com"
+                placeholder="admin@azzunique.com or name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}

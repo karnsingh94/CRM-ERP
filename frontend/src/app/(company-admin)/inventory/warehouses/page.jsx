@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Warehouse Locations — AZZUNIQE Company Admin',
+  title: 'Warehouse Locations — AZZUNIQUE Company Admin',
   description: 'Physical warehouse godowns, aisle numbers, and rack allocations',
 };
 

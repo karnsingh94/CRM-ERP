@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'O&M Spares Tracking — AZZUNIQE Company Admin',
+  title: 'O&M Spares Tracking — AZZUNIQUE Company Admin',
   description: 'Solar replacement spares and consumables inventory',
 };
 

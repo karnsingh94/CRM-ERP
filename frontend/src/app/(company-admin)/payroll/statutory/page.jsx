@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Statutory Deductions (PF/ESI/TDS) — AZZUNIQE Company Admin',
+  title: 'Statutory Deductions (PF/ESI/TDS) — AZZUNIQUE Company Admin',
   description: 'Provident Fund, ESIC and TDS compliance reporting',
 };
 

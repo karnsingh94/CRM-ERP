@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Customer Sales Returns (RMA) — AZZUNIQE Company Admin',
+  title: 'Customer Sales Returns (RMA) — AZZUNIQUE Company Admin',
   description: 'Inbound customer returns, RMA approvals, and defect analysis',
 };
 

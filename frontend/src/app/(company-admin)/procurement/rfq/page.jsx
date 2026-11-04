@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Request for Quotation (RFQ) — AZZUNIQE Company Admin',
+  title: 'Request for Quotation (RFQ) — AZZUNIQUE Company Admin',
   description: 'Vendor RFQ records, supplier bid comparison matrix, and quotation evaluations',
 };
 

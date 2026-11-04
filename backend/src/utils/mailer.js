@@ -9,7 +9,7 @@ export async function sendPasswordResetEmail({ to, resetUrl }) {
   const smtpPort = process.env.SMTP_PORT || '587';
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
-  const smtpFrom = process.env.SMTP_FROM || 'AZZUNIQE Security <no-reply@azzuniqe.com>';
+  const smtpFrom = process.env.SMTP_FROM || 'AZZUNIQUE Security <no-reply@azzunique.com>';
 
   if (!smtpHost || !smtpUser || !smtpPass) {
     logger.info(`[Mailer] SMTP not configured. Reset instructions for ${to} deferred to secure out-of-band delivery.`);

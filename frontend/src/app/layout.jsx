@@ -3,7 +3,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { CompanyAuthProvider } from '@/context/CompanyAuthContext';
 
 export const metadata = {
-  title: 'AZZUNIQE CRM & ERP',
+  title: 'AZZUNIQUE CRM & ERP',
   description: 'Enterprise Multi-Tier Multi-Tenant CRM & ERP Platform',
   icons: {
     icon: '/favicon.ico',

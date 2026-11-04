@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Monthly Payroll Run — AZZUNIQE Company Admin',
+  title: 'Monthly Payroll Run — AZZUNIQUE Company Admin',
   description: 'Gross-to-net salary batch calculation and disbursement',
 };
 

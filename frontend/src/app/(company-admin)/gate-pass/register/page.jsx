@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Gate Pass Register — AZZUNIQE Company Admin',
+  title: 'Gate Pass Register — AZZUNIQUE Company Admin',
   description: 'Chronological inward, outward, and returnable gate pass audit registry',
 };
 

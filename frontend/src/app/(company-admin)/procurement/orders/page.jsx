@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Purchase Orders (PO) — AZZUNIQE Company Admin',
+  title: 'Purchase Orders (PO) — AZZUNIQUE Company Admin',
   description: 'Authorized purchase order register and supplier delivery tracking',
 };
 

@@ -7,7 +7,7 @@ export const auditController = {
   async getAuditLogs(req, res, next) {
     try {
       const limit = req.query.limit || 100;
-      const logs = await auditService.getAuditLogs(limit);
+      const logs = await auditService.getAuditLogs(limit, req.query);
       res.json({ success: true, data: logs });
     } catch (err) {
       next(err);

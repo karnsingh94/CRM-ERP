@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Return Restocking Ledger — AZZUNIQE Company Admin',
+  title: 'Return Restocking Ledger — AZZUNIQUE Company Admin',
   description: 'QC return disposition, warehouse restocking, and credit note issuance',
 };
 

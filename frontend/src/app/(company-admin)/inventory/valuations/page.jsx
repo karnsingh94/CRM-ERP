@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Stock Valuations — AZZUNIQE Company Admin',
+  title: 'Stock Valuations — AZZUNIQUE Company Admin',
   description: 'FIFO, Weighted Average valuations and historical movement valuation ledger',
 };
 
