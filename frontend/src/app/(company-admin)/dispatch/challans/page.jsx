@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Delivery Challans & Packing Lists — AZZUNIQE Company Admin',
+  title: 'Delivery Challans & Packing Lists — AZZUNIQUE Company Admin',
   description: 'Official transport delivery challans, package counts, and gross shipping weights',
 };
 

@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Live Generation Telemetry — AZZUNIQE Company Admin',
+  title: 'Live Generation Telemetry — AZZUNIQUE Company Admin',
   description: 'Real-time power generation (kW) and irradiation levels',
 };
 

@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Shift Management — AZZUNIQE Company Admin',
+  title: 'Shift Management — AZZUNIQUE Company Admin',
   description: 'Rotational shift patterns and employee rosters',
 };
 

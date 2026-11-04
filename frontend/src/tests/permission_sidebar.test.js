@@ -249,7 +249,7 @@ function getPagesForModule(mod, hasSubModuleAccess) {
 
 // Execute tests
 console.log('\n========================================================================');
-console.log('AZZUNIQE CRM & ERP — Frontend Permission & Sidebar Resolution Tests');
+console.log('AZZUNIQUE CRM & ERP — Frontend Permission & Sidebar Resolution Tests');
 console.log('========================================================================\n');
 
 let passed = 0;

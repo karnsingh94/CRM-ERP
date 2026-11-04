@@ -2,6 +2,9 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const AUTH_STORAGE_KEYS = [
+  'azzunique_super_token',
+  'azzunique_super_token_backup',
+  'azzunique_client_token',
   'azzuniqe_super_token',
   'azzuniqe_super_token_backup',
   'azzuniqe_client_token',
@@ -36,8 +39,8 @@ export function getStoredToken() {
   };
 
   const tokenKeys = isImpersonating
-    ? ['azzuniqe_client_token', 'azzuniqe_super_token']
-    : ['azzuniqe_super_token', 'azzuniqe_client_token'];
+    ? ['azzunique_client_token', 'azzuniqe_client_token', 'azzunique_super_token', 'azzuniqe_super_token']
+    : ['azzunique_super_token', 'azzuniqe_super_token', 'azzunique_client_token', 'azzuniqe_client_token'];
   return tokenKeys.map(getTabToken).find(Boolean) || null;
 }
 
@@ -53,6 +56,8 @@ export function clearStoredSession() {
     localStorage.removeItem(key);
     sessionStorage.removeItem(key);
   });
+  document.cookie = 'azzunique_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
+  document.cookie = 'azzunique_super_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
   document.cookie = 'azzuniqe_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
   document.cookie = 'azzuniqe_super_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;';
 }
@@ -64,16 +69,16 @@ export function restoreSuperAdminSession() {
     localStorage.getItem('is_super_admin_impersonating') === 'true' ||
     sessionStorage.getItem('is_super_admin_impersonating') === 'true';
   const backupToken =
-    localStorage.getItem('azzuniqe_super_token_backup') ||
-    sessionStorage.getItem('azzuniqe_super_token_backup');
+    localStorage.getItem('azzunique_super_token_backup') ||
+    sessionStorage.getItem('azzunique_super_token_backup');
 
   if (!isImpersonating || !backupToken) return false;
 
-  sessionStorage.setItem('azzuniqe_super_token', backupToken);
+  sessionStorage.setItem('azzunique_super_token', backupToken);
   for (const storage of [localStorage, sessionStorage]) {
     [
-      'azzuniqe_super_token_backup',
-      'azzuniqe_client_token',
+      'azzunique_super_token_backup',
+      'azzunique_client_token',
       'company_user',
       'auth_user',
       'active_company_id',
@@ -97,7 +102,7 @@ export function rememberVerifiedSession(token, user) {
   cachedSessionUser = user;
   cachedSessionAt = Date.now();
   if (typeof window !== 'undefined') {
-    sessionStorage.removeItem('azzuniqe_login_redirect_pending');
+    sessionStorage.removeItem('azzunique_login_redirect_pending');
   }
 }
 

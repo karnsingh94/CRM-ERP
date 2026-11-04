@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Maintenance Tickets — AZZUNIQE Company Admin',
+  title: 'Maintenance Tickets — AZZUNIQUE Company Admin',
   description: 'O&M breakdown and preventive work orders',
 };
 

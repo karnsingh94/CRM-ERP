@@ -41,7 +41,7 @@ export const companyService = {
    * Provision a new tenant company with initial permissions
    */
   async createClient(data, meta = {}, assignedBy = null) {
-    const passwordHash = hashPassword(data.password || 'Azzuniqe@2026!');
+    const passwordHash = hashPassword(data.password || 'Azzunique@2026!');
 
     return await prisma.$transaction(async (tx) => {
       const client = await tx.clientAdmin.create({

@@ -7,7 +7,7 @@ const API_BASE = process.env.API_BASE || 'http://127.0.0.1:5000/api';
 
 export async function runPhase2CrmSalesTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Phase 2: CRM & Sales Comprehensive Verification');
+  console.log('AZZUNIQUE CRM & ERP — Phase 2: CRM & Sales Comprehensive Verification');
   console.log('Target API:', API_BASE);
   console.log('========================================================================\n');
 

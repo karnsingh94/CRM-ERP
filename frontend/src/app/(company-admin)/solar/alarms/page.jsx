@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Inverter Alarms — AZZUNIQE Company Admin',
+  title: 'Inverter Alarms — AZZUNIQUE Company Admin',
   description: 'Grid dropouts, inverter faults and telemetry alerts',
 };
 

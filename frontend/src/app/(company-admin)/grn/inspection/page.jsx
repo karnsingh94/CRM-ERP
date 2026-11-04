@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Quality Inspection (QC) — AZZUNIQE Company Admin',
+  title: 'Quality Inspection (QC) — AZZUNIQUE Company Admin',
   description: 'Material acceptance sampling, batch verification, and rejection reports',
 };
 

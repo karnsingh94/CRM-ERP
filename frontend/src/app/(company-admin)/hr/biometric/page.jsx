@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Biometric Integration — AZZUNIQE Company Admin',
+  title: 'Biometric Integration — AZZUNIQUE Company Admin',
   description: 'Biometric devices integration and real-time punch ingestion',
 };
 

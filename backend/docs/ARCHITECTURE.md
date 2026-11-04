@@ -1,8 +1,8 @@
-# AZZUNIQE CRM & ERP — Backend Architecture & Deployment Guide
+# AZZUNIQUE CRM & ERP — Backend Architecture & Deployment Guide
 
 ## 1. Architectural Overview
 
-AZZUNIQE CRM & ERP backend is structured with clean separation of concerns designed for high scalability, maintainability, and multi-tenant security.
+AZZUNIQUE CRM & ERP backend is structured with clean separation of concerns designed for high scalability, maintainability, and multi-tenant security.
 
 ### Layered Architecture
 

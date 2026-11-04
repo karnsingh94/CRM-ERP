@@ -12,7 +12,7 @@ if (!dbUrl.includes('crm_erp_test_db')) {
 
 export async function runPhase6ContractManufacturingTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Phase 6: Contract Manufacturing Test Suite');
+  console.log('AZZUNIQUE CRM & ERP — Phase 6: Contract Manufacturing Test Suite');
   console.log('Target Database: crm_erp_test_db (ISOLATED TEST DATABASE)');
   console.log('Testing: JWO Creation, Approval SoD, Immutability, FIFO Dispatch,');
   console.log('         Vendor Custody, Acknowledgement, Material Returns, Milestones,');

@@ -6,7 +6,7 @@ const API_BASE = process.env.API_BASE || 'http://127.0.0.1:5000/api';
 
 export async function runPermissionPropagationTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Full Permission Propagation & Dynamic Navigation Suite');
+  console.log('AZZUNIQUE CRM & ERP — Full Permission Propagation & Dynamic Navigation Suite');
   console.log('Target API:', API_BASE);
   console.log('========================================================================\n');
 
@@ -40,7 +40,7 @@ export async function runPermissionPropagationTests() {
   };
 
   // Find or create dedicated isolated test company
-  const testEmail = `perm_test_${Date.now()}@azzuniqe.com`;
+  const testEmail = `perm_test_${Date.now()}@azzunique.com`;
   let testCompany = await prisma.clientAdmin.create({
     data: {
       organizationName: 'Perm Propagation Test Co',

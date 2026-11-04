@@ -3,7 +3,7 @@ import purchaseService from '../../src/services/purchase/purchase.service.js';
 
 export async function runPhase3PurchaseVendorTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Phase 3: Purchase & Vendor Management Test Suite');
+  console.log('AZZUNIQUE CRM & ERP — Phase 3: Purchase & Vendor Management Test Suite');
   console.log('Testing: Vendor KYC, PR Indents, 5-Quote Landed Cost, Dual Artwork,');
   console.log('         Partial GRN, QC Deviations, Full Invoice Payment Hold');
   console.log('========================================================================\n');

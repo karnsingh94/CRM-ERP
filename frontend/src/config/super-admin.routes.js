@@ -1,5 +1,5 @@
 /**
- * AZZUNIQE CRM & ERP — Super Admin Route Configuration & Metadata
+ * AZZUNIQUE CRM & ERP — Super Admin Route Configuration & Metadata
  * Centralized, scalable route directory for Platform Super Admin.
  */
 

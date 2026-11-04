@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Purchase Requests (PR) — AZZUNIQE Company Admin',
+  title: 'Purchase Requests (PR) — AZZUNIQUE Company Admin',
   description: 'Internal purchase requisitions awaiting management authorization',
 };
 

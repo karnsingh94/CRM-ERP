@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import env from '../config/env.js';
 
 // Secret key for signing tokens
-const JWT_SECRET = process.env.JWT_SECRET || 'azzuniqe_enterprise_jwt_secret_2026_crm_erp_platform';
+const JWT_SECRET = process.env.JWT_SECRET || 'azzunique_enterprise_jwt_secret_2026_crm_erp_platform';
 
 /**
  * Base64URL encoding helper
@@ -118,7 +118,9 @@ export function extractToken(req) {
       return acc;
     }, {});
 
+    if (cookies['azzunique_session']) return cookies['azzunique_session'];
     if (cookies['azzuniqe_session']) return cookies['azzuniqe_session'];
+    if (cookies['azzunique_super_session']) return cookies['azzunique_super_session'];
     if (cookies['azzuniqe_super_session']) return cookies['azzuniqe_super_session'];
     if (cookies['auth_token']) return cookies['auth_token'];
   }
@@ -137,7 +139,7 @@ export function extractToken(req) {
 /**
  * Set HTTP-only session cookie
  */
-export function setAuthCookie(res, token, name = 'azzuniqe_session', maxAgeSeconds = 86400) {
+export function setAuthCookie(res, token, name = 'azzunique_session', maxAgeSeconds = 86400) {
   const isProd = env.isProduction;
 
   // Manual cookie header to avoid third-party cookie-parser dependency
@@ -158,7 +160,7 @@ export function setAuthCookie(res, token, name = 'azzuniqe_session', maxAgeSecon
 /**
  * Clear session cookie
  */
-export function clearAuthCookie(res, name = 'azzuniqe_session') {
+export function clearAuthCookie(res, name = 'azzunique_session') {
   const clearedCookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`;
   const existingCookies = res.getHeader('Set-Cookie');
   const cookies = existingCookies

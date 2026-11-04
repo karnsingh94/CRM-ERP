@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Document Vault — AZZUNIQE Company Admin',
+  title: 'Document Vault — AZZUNIQUE Company Admin',
   description: 'Staff document vault and compliance verifications',
 };
 

@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Payment Receipts & Vouchers — AZZUNIQE Company Admin',
+  title: 'Payment Receipts & Vouchers — AZZUNIQUE Company Admin',
   description: 'Bank transfers, NEFT/RTGS receipts, and reconciliation vouchers',
 };
 

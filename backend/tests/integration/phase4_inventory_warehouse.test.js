@@ -4,7 +4,7 @@ import purchaseService from '../../src/services/purchase/purchase.service.js';
 
 export async function runPhase4InventoryWarehouseTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Phase 4: Inventory & Warehouse Management Test Suite');
+  console.log('AZZUNIQUE CRM & ERP — Phase 4: Inventory & Warehouse Management Test Suite');
   console.log('Testing: 8 Buckets, Batches/Lots, FIFO Engine, Reservations, Sampling,');
   console.log('         Gate Pass, Fortnightly Audits, Maker-Checker Adjustments, GRN Integration');
   console.log('========================================================================\n');

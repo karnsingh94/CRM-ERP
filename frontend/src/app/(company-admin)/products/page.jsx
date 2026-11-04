@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Products Directory — AZZUNIQE Company Admin',
+  title: 'Products Directory — AZZUNIQUE Company Admin',
   description: 'Finished goods, raw materials, SKUs, and inventory specifications',
 };
 

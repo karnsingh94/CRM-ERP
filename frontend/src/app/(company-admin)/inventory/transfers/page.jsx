@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Stock Transfers — AZZUNIQE Company Admin',
+  title: 'Stock Transfers — AZZUNIQUE Company Admin',
   description: 'Inter-warehouse transfers, bin-to-bin movements, and in-transit logs',
 };
 

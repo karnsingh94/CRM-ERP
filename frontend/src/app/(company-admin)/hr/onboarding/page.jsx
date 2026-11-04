@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Employee Onboarding & KYC — AZZUNIQE Company Admin',
+  title: 'Employee Onboarding & KYC — AZZUNIQUE Company Admin',
   description: 'Candidate onboarding workflow and KYC compliance',
 };
 

@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Stock Adjustments — AZZUNIQE Company Admin',
+  title: 'Stock Adjustments — AZZUNIQUE Company Admin',
   description: 'Physical audit write-offs, variance logs, and stock reconciliation',
 };
 

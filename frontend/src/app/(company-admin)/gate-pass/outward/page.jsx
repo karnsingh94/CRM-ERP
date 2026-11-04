@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Outward Gate Passes — AZZUNIQE Company Admin',
+  title: 'Outward Gate Passes — AZZUNIQUE Company Admin',
   description: 'Material dispatch clearance and outward vehicle security exit tracking',
 };
 

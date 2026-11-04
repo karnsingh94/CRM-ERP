@@ -14,7 +14,7 @@ export const authController = {
       setAuthCookie(
         res,
         result.token,
-        'azzuniqe_session',
+        'azzunique_session',
         rememberMe === true ? result.expiresInSeconds : null
       );
 
@@ -58,7 +58,7 @@ export const authController = {
       setAuthCookie(
         res,
         result.token,
-        'azzuniqe_session',
+        'azzunique_session',
         rememberMe === true ? result.expiresInSeconds : null
       );
 
@@ -124,8 +124,8 @@ export const authController = {
    * Terminate session and invalidate auth cookies
    */
   async logout(req, res) {
-    clearAuthCookie(res, 'azzuniqe_session');
-    clearAuthCookie(res, 'azzuniqe_super_session');
+    clearAuthCookie(res, 'azzunique_session');
+    clearAuthCookie(res, 'azzunique_super_session');
 
     res.json({
       success: true,

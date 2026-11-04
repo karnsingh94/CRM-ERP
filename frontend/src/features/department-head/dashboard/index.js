@@ -85,7 +85,7 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard', por
     || '#7f22fe';
   const userName = currentUser?.name || roleLabel;
   const preferencesScope = isEmployee ? 'employee' : isTeamLeader ? 'team_leader' : 'department';
-  const preferencesKey = `azzuniqe_${preferencesScope}_preferences_${currentUser?.id || activeCompany?.id || 'default'}`;
+  const preferencesKey = `azzunique_${preferencesScope}_preferences_${currentUser?.id || activeCompany?.id || 'default'}`;
   const [preferences, setPreferences] = useState({
     themeMode: 'system',
     accentColor: companyAccent,
@@ -135,7 +135,7 @@ export default function DepartmentHeadDashboardFeature({ view = 'dashboard', por
   useEffect(() => {
     if (!loadedPreferencesKey || loadedPreferencesKey !== preferencesKey) return;
     localStorage.setItem(preferencesKey, JSON.stringify(preferences));
-    window.dispatchEvent(new CustomEvent('azzuniqe-preferences-changed', {
+    window.dispatchEvent(new CustomEvent('azzunique-preferences-changed', {
       detail: { key: preferencesKey, preferences },
     }));
   }, [loadedPreferencesKey, preferences, preferencesKey]);

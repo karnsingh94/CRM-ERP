@@ -85,7 +85,7 @@ function scopeAccessToEmployeeService(access, service, permissions = null, isPer
 const BOOTSTRAP_SUPER_ADMIN = {
   id: '1',
   name: 'Platform Super Admin',
-  email: 'admin@azzuniqe.com',
+  email: 'admin@azzunique.com',
   password: 'SuperAdmin@2026!',
   role: 'SUPER_ADMIN',
 };

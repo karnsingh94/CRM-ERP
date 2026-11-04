@@ -1,7 +1,7 @@
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
 
 export const metadata = {
-  title: 'Employee Settings — AZZUNIQE CRM & ERP',
+  title: 'Employee Settings — AZZUNIQUE CRM & ERP',
   description: 'Employee workspace appearance, account security, profile, and notification preferences',
 };
 

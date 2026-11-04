@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Leave Management — AZZUNIQE Company Admin',
+  title: 'Leave Management — AZZUNIQUE Company Admin',
   description: 'Employee leave requests, approvals and balance entitlements',
 };
 

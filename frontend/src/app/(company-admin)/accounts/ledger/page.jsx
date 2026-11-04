@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Receivables & Payables Ledger — AZZUNIQE Company Admin',
+  title: 'Receivables & Payables Ledger — AZZUNIQUE Company Admin',
   description: 'Aging analysis, party financial ledgers, and cashflow positions',
 };
 

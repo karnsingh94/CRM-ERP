@@ -1,5 +1,5 @@
 /**
- * AZZUNIQE CRM & ERP — Company Admin API Client
+ * AZZUNIQUE CRM & ERP — Company Admin API Client
  * Centralized HTTP client reusing the existing backend API conventions.
  */
 
@@ -11,7 +11,7 @@ const inFlightGetRequests = new Map();
 const readResponseCache = new Map();
 const CACHE_TTL_MS = 15000; // 15 seconds safe TTL for eligible read cache
 let isRedirectingToLogin = false;
-const LOGIN_REDIRECT_KEY = 'azzuniqe_login_redirect_pending';
+const LOGIN_REDIRECT_KEY = 'azzunique_login_redirect_pending';
 
 function normalizeUrlKey(rawUrl) {
   try {

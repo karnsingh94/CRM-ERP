@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Vendor Invoices & Bills — AZZUNIQE Company Admin',
+  title: 'Vendor Invoices & Bills — AZZUNIQUE Company Admin',
   description: 'Supplier invoice matching, three-way GRN match, and accounts payable queue',
 };
 

@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Product Categories — AZZUNIQE Company Admin',
+  title: 'Product Categories — AZZUNIQUE Company Admin',
   description: 'Classification hierarchy and category taxonomies',
 };
 

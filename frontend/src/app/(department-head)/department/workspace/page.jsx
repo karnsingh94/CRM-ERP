@@ -1,7 +1,7 @@
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
 
 export const metadata = {
-  title: 'Department Workspace — AZZUNIQE CRM & ERP',
+  title: 'Department Workspace — AZZUNIQUE CRM & ERP',
   description: 'Department team, member, and work management',
 };
 

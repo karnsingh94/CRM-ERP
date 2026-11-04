@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Employee Payslips — AZZUNIQE Company Admin',
+  title: 'Employee Payslips — AZZUNIQUE Company Admin',
   description: 'Monthly payslip distribution and downloads',
 };
 

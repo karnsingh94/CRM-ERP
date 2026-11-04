@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Solar Monitoring — AZZUNIQE Company Admin',
+  title: 'Solar Monitoring — AZZUNIQUE Company Admin',
   description: 'Solar power plant setup, inverter telemetry and PR tracking',
 };
 

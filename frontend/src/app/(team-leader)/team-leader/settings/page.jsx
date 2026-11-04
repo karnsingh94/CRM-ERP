@@ -1,7 +1,7 @@
 import DepartmentHeadDashboardFeature from '@/features/department-head/dashboard';
 
 export const metadata = {
-  title: 'Team Leader Settings — AZZUNIQE CRM & ERP',
+  title: 'Team Leader Settings — AZZUNIQUE CRM & ERP',
   description: 'Team Leader workspace preferences and account security',
 };
 

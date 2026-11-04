@@ -5,7 +5,7 @@ const API_BASE = process.env.API_BASE || 'http://127.0.0.1:5000/api';
 
 async function runActivationTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Leads Sub-Module & Feature Activation Test Suite');
+  console.log('AZZUNIQUE CRM & ERP — Leads Sub-Module & Feature Activation Test Suite');
   console.log('Target API:', API_BASE);
   console.log('========================================================================\n');
 

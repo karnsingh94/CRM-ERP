@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Bin Locations — AZZUNIQE Company Admin',
+  title: 'Bin Locations — AZZUNIQUE Company Admin',
   description: 'Warehouse rack, aisle, and bin location configuration',
 };
 

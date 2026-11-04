@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Vendor Master Directory — AZZUNIQE Company Admin',
+  title: 'Vendor Master Directory — AZZUNIQUE Company Admin',
   description: 'Approved suppliers, procurement partners, and banking details',
 };
 

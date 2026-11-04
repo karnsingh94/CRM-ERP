@@ -12,7 +12,7 @@ if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.includes('crm_erp_tes
 
 export async function runPhase5ManufacturingTests() {
   console.log('\n========================================================================');
-  console.log('AZZUNIQE CRM & ERP — Phase 5: Manufacturing & Production Test Suite');
+  console.log('AZZUNIQUE CRM & ERP — Phase 5: Manufacturing & Production Test Suite');
   console.log('Target Database: crm_erp_test_db (ISOLATED TEST DATABASE)');
   console.log('Testing: BOM 100% Formula, Immutability, Revisions, Costing Simulation,');
   console.log('         Production Plans, Orders, FIFO RM Issue (WIP), Sequential Mixing,');

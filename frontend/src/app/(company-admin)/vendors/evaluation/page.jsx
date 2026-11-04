@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Supplier Ratings & Evaluation — AZZUNIQE Company Admin',
+  title: 'Supplier Ratings & Evaluation — AZZUNIQUE Company Admin',
   description: 'On-time delivery performance, quality audit scores, and supplier ratings',
 };
 

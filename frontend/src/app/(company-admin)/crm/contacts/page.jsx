@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Contact Persons — AZZUNIQE Company Admin',
+  title: 'Contact Persons — AZZUNIQUE Company Admin',
   description: 'Direct stakeholder directory and communication channels',
 };
 

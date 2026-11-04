@@ -106,7 +106,7 @@ async function apiFetch(endpoint, options = {}, token = tokenCompany1) {
 
 async function runBenchmarks() {
   console.log('========================================================================');
-  console.log('AZZUNIQE CRM & ERP — API & Caching Performance Honest Benchmark');
+  console.log('AZZUNIQUE CRM & ERP — API & Caching Performance Honest Benchmark');
   console.log('Testing against active backend: ' + API_URL);
   console.log('========================================================================\n');
 

@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Stock Overview & Inventory — AZZUNIQE Company Admin',
+  title: 'Stock Overview & Inventory — AZZUNIQUE Company Admin',
   description: 'On-hand quantity balances, bin locations, and re-order thresholds',
 };
 

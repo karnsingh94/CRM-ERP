@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Department Roles & Permissions — AZZUNIQE Company Admin',
+  title: 'Department Roles & Permissions — AZZUNIQUE Company Admin',
   description: 'Role-based access control templates and department permission matrices',
 };
 

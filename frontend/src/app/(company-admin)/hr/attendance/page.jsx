@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Daily Attendance — AZZUNIQE Company Admin',
+  title: 'Daily Attendance — AZZUNIQUE Company Admin',
   description: 'Shift punches and biometric sync attendance records',
 };
 

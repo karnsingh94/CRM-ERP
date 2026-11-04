@@ -465,7 +465,7 @@ export default function Sidebar({
               }}
               title={activeCompany?.organizationName || 'Company Portal'}
             >
-              {activeCompany?.organizationName || 'AZZUNIQE'}
+              {activeCompany?.organizationName || 'AZZUNIQUE'}
             </h2>
             <div
               style={{

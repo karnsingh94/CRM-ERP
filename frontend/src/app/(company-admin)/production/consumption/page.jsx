@@ -1,7 +1,7 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Material Consumption — AZZUNIQE Company Admin',
+  title: 'Material Consumption — AZZUNIQUE Company Admin',
   description: 'Batch scrap tracking, yield variance, and raw material reconciliation',
 };
 
