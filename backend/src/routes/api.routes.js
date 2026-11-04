@@ -16,6 +16,11 @@ import notificationRoutes from './notification.routes.js';
 import integrationRoutes from './integration.routes.js';
 import productionRoutes from './production.routes.js';
 import jobWorkRoutes from './jobWork.routes.js';
+import dispatchRoutes from './dispatch.routes.js';
+import accountingRoutes from './accounting.routes.js';
+import hrmsRoutes from './hrms.routes.js';
+import { solarWebhookRouter, solarProtectedRouter } from './solar.routes.js';
+import reportRoutes from './reports.routes.js';
 
 import { publicWebhookRouter, protectedIntegrationRouter } from './lead-integration.routes.js';
 
@@ -24,10 +29,12 @@ const router = Router();
 // Automatically attach IP & UserAgent metadata to all incoming API requests
 router.use(auditMetaMiddleware);
 
-// Public routes: Auth, System health, and Inbound Lead Webhooks
+// Public routes: Auth, System health, Inbound Lead Webhooks, Solar Webhooks, and HRMS Public Payslips
 router.use(authRoutes);
 router.use(systemRoutes);
 router.use(publicWebhookRouter);
+router.use(solarWebhookRouter);
+router.use(hrmsRoutes);
 
 // Every application API below this point requires a valid bearer token or session cookie.
 router.use(requireAuth);
@@ -37,6 +44,8 @@ router.use(inventoryRoutes);
 router.use(purchaseRoutes);
 router.use(productionRoutes);
 router.use(jobWorkRoutes);
+router.use(dispatchRoutes);
+router.use(accountingRoutes);
 router.use(departmentRoutes);
 router.use(auditRoutes);
 router.use(approvalRoutes);
@@ -45,5 +54,7 @@ router.use(attachmentRoutes);
 router.use(notificationRoutes);
 router.use(integrationRoutes);
 router.use(protectedIntegrationRouter);
+router.use(solarProtectedRouter);
+router.use(reportRoutes);
 
 export default router;

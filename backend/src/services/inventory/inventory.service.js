@@ -568,6 +568,196 @@ export const inventoryService = {
   },
 
   // ====================================================================
+  // 4b. FIFO STOCK CONSUMPTION / ISSUE ENGINE
+  // ====================================================================
+  /**
+   * Directly consumes stock from active batches using FIFO (manufacturingDate ASC, receivedDate ASC, createdAt ASC).
+   * Enforces row-level locking (FOR UPDATE) & conditional updates to prevent negative stock and race conditions.
+   */
+  async consumeStockFIFO(companyId, { sku: rawSku, quantity: rawQty, warehouse, referenceType, referenceId, referenceNo, reason }, actor, externalTx = null) {
+    const sku = cleanSku(rawSku);
+    const quantity = positiveInt(rawQty, 'Required consumption quantity');
+    const whName = warehouse ? String(warehouse).trim() : null;
+
+    const executeInTx = async (tx) => {
+      // 1. Concurrency Protection: Lock InventoryStock row for this SKU and warehouse
+      if (whName) {
+        await tx.$queryRawUnsafe(
+          'SELECT id, stock, available_qty FROM inventory_stocks WHERE company_id = ? AND sku = ? AND warehouse = ? FOR UPDATE;',
+          companyId,
+          sku,
+          whName
+        );
+      } else {
+        await tx.$queryRawUnsafe(
+          'SELECT id, stock, available_qty FROM inventory_stocks WHERE company_id = ? AND sku = ? FOR UPDATE;',
+          companyId,
+          sku
+        );
+      }
+
+      // 2. Query eligible active, accepted batches ordered by Phase 4 FIFO standard:
+      // manufacturingDate ASC, receivedDate ASC, createdAt ASC
+      const batchWhere = {
+        companyId,
+        sku,
+        status: 'ACTIVE',
+        qualityStatus: 'ACCEPTED',
+        availableQty: { gt: 0 },
+      };
+      if (whName) batchWhere.warehouse = whName;
+
+      const eligibleBatches = await tx.inventoryBatch.findMany({
+        where: batchWhere,
+        orderBy: [
+          { manufacturingDate: 'asc' },
+          { receivedDate: 'asc' },
+          { createdAt: 'asc' },
+        ],
+      });
+
+      const now = new Date();
+      const nonExpiredBatches = eligibleBatches.filter((b) => !b.expiryDate || new Date(b.expiryDate) > now);
+      const totalAvailable = nonExpiredBatches.reduce((sum, b) => sum + b.availableQty, 0);
+
+      if (totalAvailable < quantity) {
+        throw inventoryError(
+          `Insufficient eligible available stock for ${sku}. Total available via FIFO: ${totalAvailable}, Requested: ${quantity}. Excluded Quality Hold, Rejected, and Expired batches.`,
+          409
+        );
+      }
+
+      let remainingNeeded = quantity;
+      const allocations = [];
+      let totalCost = 0;
+
+      for (const batch of nonExpiredBatches) {
+        if (remainingNeeded <= 0) break;
+        const take = Math.min(batch.availableQty, remainingNeeded);
+        const unitCost = Number(batch.unitCost) || 0;
+        const lineCost = take * unitCost;
+
+        // 3. Conditional decrement on Batch to ensure quantity never becomes negative
+        const batchUpdateResult = await tx.inventoryBatch.updateMany({
+          where: {
+            id: batch.id,
+            availableQty: { gte: take },
+          },
+          data: {
+            availableQty: { decrement: take },
+          },
+        });
+
+        if (batchUpdateResult.count === 0) {
+          throw inventoryError(
+            `Concurrent stock allocation conflict for batch ${batch.batchNo}. Available quantity changed.`,
+            409
+          );
+        }
+
+        // 4. Update InventoryStock header conditionally
+        const stockRecord = await tx.inventoryStock.findFirst({
+          where: { companyId, sku, warehouse: batch.warehouse },
+        });
+
+        if (stockRecord) {
+          const stockUpdateResult = await tx.inventoryStock.updateMany({
+            where: {
+              id: stockRecord.id,
+              availableQty: { gte: take },
+              stock: { gte: take },
+            },
+            data: {
+              stock: { decrement: take },
+              availableQty: { decrement: take },
+            },
+          });
+
+          if (stockUpdateResult.count === 0) {
+            throw inventoryError(
+              `Concurrent stock allocation conflict for SKU ${sku} in warehouse ${batch.warehouse}.`,
+              409
+            );
+          }
+
+          const updatedStock = await tx.inventoryStock.findUnique({
+            where: { id: stockRecord.id },
+            select: { stock: true, availableQty: true },
+          });
+
+          // 5. Create immutable InventoryMovement record of type CONSUMPTION
+          const movCount = await tx.inventoryMovement.count({ where: { companyId } });
+          const movementNo = `MOV-SOL-${Date.now().toString().slice(-6)}-${String(movCount + 1).padStart(4, '0')}`;
+
+          const movement = await tx.inventoryMovement.create({
+            data: {
+              companyId,
+              stockId: stockRecord.id,
+              batchId: batch.id,
+              batchNo: batch.batchNo,
+              movementNo,
+              movementType: 'CONSUMPTION',
+              sku,
+              itemName: stockRecord.name,
+              warehouse: batch.warehouse,
+              quantity: take,
+              balanceAfter: updatedStock.stock,
+              sourceBucket: 'AVAILABLE',
+              destinationBucket: 'CONSUMED',
+              uom: stockRecord.uom || 'PCS',
+              unitCost,
+              referenceType: referenceType || 'CONSUMPTION',
+              referenceId: referenceId || null,
+              referenceNo: referenceNo || null,
+              reason: reason || `Consumed for ${referenceNo || referenceType || 'order'}`,
+              createdBy: actorName(actor),
+            },
+          });
+
+          allocations.push({
+            movementId: movement.id,
+            movementNo: movement.movementNo,
+            batchId: batch.id,
+            batchNo: batch.batchNo,
+            warehouse: batch.warehouse,
+            quantity: take,
+            unitCost,
+            lineCost,
+            manufacturingDate: batch.manufacturingDate,
+            receivedDate: batch.receivedDate,
+          });
+        }
+
+        totalCost += lineCost;
+        remainingNeeded -= take;
+      }
+
+      // Sync Product stock
+      await syncProductStock(tx, companyId, sku);
+
+      const product = await tx.product.findFirst({
+        where: { companyId, sku },
+        select: { name: true, uom: true },
+      });
+
+      return {
+        success: true,
+        sku,
+        itemName: product?.name || sku,
+        uom: product?.uom || 'PCS',
+        consumedQty: quantity,
+        totalCost,
+        allocations,
+      };
+    };
+
+    if (externalTx) {
+      return executeInTx(externalTx);
+    }
+    return prisma.$transaction(executeInTx);
+  },
+
+  // ====================================================================
   // 5. STOCK RESERVATIONS
   // ====================================================================
   async createReservation(companyId, data, actor) {

@@ -18,6 +18,7 @@ import {
   IconBuilding,
   IconUsers,
   IconSun,
+  IconFileText,
 } from '../ui/Icons';
 import { getHierarchyFromPathname } from '@/config/routes.config';
 import { MODULE_ALIASES, SUBMODULE_ALIASES } from '../../hooks/useCompanyAccess';
@@ -536,6 +537,38 @@ export default function Sidebar({
                 <IconDashboard size={18} />
               </span>
               {!isCollapsed && <span>Dashboard</span>}
+            </Link>
+          );
+        })()}
+
+        {/* Reports Portal Link */}
+        {(() => {
+          const isReportsActive = pathname === '/reports' || pathname.startsWith('/reports');
+          return (
+            <Link
+              href="/reports"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.62rem 0.8rem',
+                borderRadius: '8px',
+                color: isReportsActive ? '#ffffff' : '#a1a1aa',
+                background: isReportsActive ? brandColor : 'transparent',
+                boxShadow: isReportsActive ? `0 4px 14px ${brandGlow}` : 'none',
+                fontWeight: isReportsActive ? 700 : 500,
+                fontSize: '0.85rem',
+                width: '100%',
+                textDecoration: 'none',
+                transition: 'all 0.15s ease',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+              }}
+              title="Reports & Analytics Hub"
+            >
+              <span style={{ color: isReportsActive ? '#ffffff' : '#a78bfa', flexShrink: 0 }}>
+                <IconFileText size={18} />
+              </span>
+              {!isCollapsed && <span>Reports & Analytics</span>}
             </Link>
           );
         })()}

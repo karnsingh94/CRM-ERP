@@ -1,5 +1,10 @@
-import { redirect } from 'next/navigation';
+import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
-export default function AccountsIndexPage() {
-  redirect('/accounts/invoices');
+export const metadata = {
+  title: 'Accounts & Banking Workspace — AZZUNIQE Company Admin',
+  description: 'Financial dashboard, chart of accounts, sales invoicing, receipts, payables, GL, bank reconciliation and Tally integration',
+};
+
+export default function AccountsPage() {
+  return <CompanyAdminPortal initialTab="accounts_banking:accounts_banking" initialSubTab="dashboard" />;
 }

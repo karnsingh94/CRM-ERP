@@ -28,6 +28,17 @@ export const COMPANY_ADMIN_ROUTES = [
     icon: 'IconSettings',
     isNav: true,
   },
+  {
+    path: '/reports',
+    label: 'Reports & Analytics',
+    title: 'Reports & Business Intelligence Portal',
+    description: 'Centralized financial statements, operational metrics, and cross-module audit reconciliation',
+    parent: '/dashboard',
+    serviceCode: null,
+    moduleCode: null,
+    icon: 'IconFileText',
+    isNav: true,
+  },
 
   // 2. CRM & Sales (crm_sales)
   // 2.1 CRM Management (crm)
@@ -1041,6 +1052,18 @@ export function getHierarchyFromPathname(pathname) {
       isDashboard: false,
       isSettings: true,
       activePath: '/settings',
+    };
+  }
+
+  if (pathname === '/reports' || pathname.startsWith('/reports')) {
+    return {
+      serviceCode: null,
+      moduleCode: null,
+      isDepartmentRoute: false,
+      isDashboard: false,
+      isSettings: false,
+      isReports: true,
+      activePath: '/reports',
     };
   }
 

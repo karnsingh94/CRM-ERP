@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function AccountsBillsPage() {
-  return <CompanyAdminPortal initialTab="accounts_banking:accounts_banking" />;
+  return <CompanyAdminPortal initialTab="accounts_banking:accounts_banking" initialSubTab="payables" />;
 }

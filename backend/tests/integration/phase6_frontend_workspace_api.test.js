@@ -113,7 +113,7 @@ export async function runPhase6FrontendWorkspaceApiTests() {
       sku: `SKU-RM-UI-${timestamp}`,
       category: 'RAW_MATERIAL',
       uom: 'KG',
-      sellingPrice: 200.0,
+      sellingPrice: 250.0,
       status: 'ACTIVE',
     },
   });
@@ -131,7 +131,7 @@ export async function runPhase6FrontendWorkspaceApiTests() {
         quantity: 100.0,
         percentage: 100.0,
         scrapTolerancePct: 5.0, // 5% permissible scrap
-        standardCost: 80.0,
+        standardCost: 250.0,
         uom: 'KG',
       },
     ],
@@ -153,7 +153,7 @@ export async function runPhase6FrontendWorkspaceApiTests() {
       rejectedQty: 0,
       qualityStatus: 'ACCEPTED',
       status: 'ACTIVE',
-      unitCost: 80.0,
+      unitCost: 250.0,
     },
   });
 
@@ -339,10 +339,11 @@ export async function runPhase6FrontendWorkspaceApiTests() {
     if (bItem.actualScrapQty !== 10.0) throw new Error(`Expected actual scrap 10, got ${bItem.actualScrapQty}`);
     if (bItem.varianceQty !== 5.0) throw new Error(`Expected variance 5, got ${bItem.varianceQty}`);
 
-    // Permissible scrap = 80 * 0.05 = 4 KG; Excess scrap = 10 - 4 = 6 KG; Excess debit = 6 * 200 (sellingPrice) = Rs 1200
+    // Permissible scrap = 80 * 0.05 = 4 KG; Excess scrap = 10 - 4 = 6 KG; Excess debit = 6 * 250 (unitCost) = Rs 1500
+    if (bItem.unitCost !== 250.0) throw new Error(`Expected unitCost 250, got ${bItem.unitCost}`);
     if (bItem.permissibleScrapQty !== 4.0) throw new Error(`Expected permissible scrap 4, got ${bItem.permissibleScrapQty}`);
     if (bItem.excessScrapQty !== 6.0) throw new Error(`Expected excess scrap 6, got ${bItem.excessScrapQty}`);
-    if (preview.excessWastageDebit !== 1200.0) throw new Error(`Expected excess debit 1200, got ${preview.excessWastageDebit}`);
+    if (preview.excessWastageDebit !== 1500.0) throw new Error(`Expected excess debit 1500, got ${preview.excessWastageDebit}`);
 
     const finalRecon = await jobWorkService.finalizeReconciliation(companyId, jwoId, {
       notes: 'Final reconciled with subcontractor Arvind Shah',
