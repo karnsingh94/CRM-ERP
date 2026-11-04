@@ -1,10 +1,10 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Receivables & Payables Ledger — AZZUNIQE Company Admin',
-  description: 'Aging analysis, party financial ledgers, and cashflow positions',
+  title: 'General Ledger & Journal Vouchers — AZZUNIQE Company Admin',
+  description: 'Authoritative double-entry vouchers, account debits, and balance records',
 };
 
 export default function AccountsLedgerPage() {
-  return <CompanyAdminPortal initialTab="accounts_banking:accounts_banking" />;
+  return <CompanyAdminPortal initialTab="accounts_banking:accounts_banking" initialSubTab="gl" />;
 }

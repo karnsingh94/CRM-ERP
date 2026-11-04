@@ -96,7 +96,10 @@ export const bomService = {
 
         const pct = round4(item.percentage);
         const qtyPerBatch = round4((pct / 100) * batchSize);
-        const stdCost = Number(item.standardUnitCost) >= 0 ? Number(item.standardUnitCost) : Number(compProduct.purchasePrice || 0);
+        const rawStdCost = item.standardUnitCost !== undefined ? item.standardUnitCost : (item.standardCost !== undefined ? item.standardCost : item.unitCost);
+        const stdCost = rawStdCost !== undefined && !isNaN(Number(rawStdCost)) && Number(rawStdCost) >= 0
+          ? Number(rawStdCost)
+          : Number(compProduct.purchasePrice || compProduct.sellingPrice || 0);
         const liveCost = Number(compProduct.purchasePrice || 0);
 
         calculatedStandardCost += qtyPerBatch * stdCost;
@@ -201,7 +204,10 @@ export const bomService = {
 
           const pct = round4(item.percentage);
           const qtyPerBatch = round4((pct / 100) * batchSize);
-          const stdCost = Number(item.standardUnitCost) >= 0 ? Number(item.standardUnitCost) : Number(compProduct.purchasePrice || 0);
+          const rawStdCost = item.standardUnitCost !== undefined ? item.standardUnitCost : (item.standardCost !== undefined ? item.standardCost : item.unitCost);
+        const stdCost = rawStdCost !== undefined && !isNaN(Number(rawStdCost)) && Number(rawStdCost) >= 0
+          ? Number(rawStdCost)
+          : Number(compProduct.purchasePrice || compProduct.sellingPrice || 0);
           const liveCost = Number(compProduct.purchasePrice || 0);
 
           calculatedStandardCost += qtyPerBatch * stdCost;

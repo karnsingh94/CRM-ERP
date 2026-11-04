@@ -40,12 +40,14 @@ const AccountsModule = lazyFeature(() => import('@/components/modules/AccountsMo
 const TeamModule = lazyFeature(() => import('@/components/modules/TeamModule'));
 const HrmsModule = lazyFeature(() => import('@/components/modules/HrmsModule'));
 const SolarModule = lazyFeature(() => import('@/components/modules/SolarModule'));
+const ReportsModule = lazyFeature(() => import('@/components/modules/reports/ReportsModule'));
 const SettingsModule = lazyFeature(() => import('@/components/modules/SettingsModule'));
 const ServiceDepartments = lazyFeature(() => import('@/components/departments/ServiceDepartments'));
 
 export function resolveTabFromPathname(pathname) {
   if (!pathname || pathname === '/' || pathname === '/dashboard') return 'dashboard';
   if (pathname === '/settings') return 'settings';
+  if (pathname.startsWith('/reports')) return 'reports';
 
   const serviceDeptMatch = pathname.match(/^\/services\/([^\/]+)(\/(?:department-head|service-team|departments))?$/);
   if (serviceDeptMatch) {
@@ -720,6 +722,17 @@ function CompanyAdminPortalInner({ initialTab, initialSubTab, children }) {
       case 'solar_monitoring':
         if (!hasServiceAccess('solar_monitoring')) return renderModuleRestricted('Solar Monitoring');
         return <SolarModule key="module-solar" activeCompany={activeCompany} showToast={showToast} initialSubTab={initialSubTab} hasSubModuleAccess={hasSubModuleAccess} pathname={pathname} />;
+
+      case 'reports':
+        return (
+          <ReportsModule
+            key="module-reports"
+            activeCompany={activeCompany}
+            currentUser={currentUser}
+            showToast={showToast}
+            initialSubTab={initialSubTab}
+          />
+        );
 
       default:
         return (

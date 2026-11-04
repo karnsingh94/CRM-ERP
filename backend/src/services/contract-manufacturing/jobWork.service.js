@@ -277,7 +277,11 @@ export const jobWorkService = {
         const itemQty = Number(bItem.quantityPerBatch !== undefined ? bItem.quantityPerBatch : bItem.quantity) || 0;
         const requiredQuantity = round4(itemQty * multiplier);
         const scrapTolerance = Number(bItem.scrapTolerancePct || bItem.scrapPercentage || 0);
-        const standardCost = Number(bItem.standardCost || bItem.product?.sellingPrice || bItem.product?.unitPrice || 0);
+        const standardCost = Number(
+          bItem.standardUnitCost !== undefined && Number(bItem.standardUnitCost) > 0
+            ? bItem.standardUnitCost
+            : (bItem.standardCost || bItem.product?.purchasePrice || bItem.product?.costPrice || bItem.product?.sellingPrice || bItem.product?.unitPrice || 0)
+        );
 
         await tx.jobWorkOrderItem.create({
           data: {
@@ -1650,7 +1654,7 @@ export const jobWorkService = {
 
       // Excess scrap beyond permissible scrap: Excess Wastage Debit = MAX(0, Actual Scrap - Permissible Scrap) * Standard Material Cost
       const excessScrapQty = Math.max(0, round4(actualScrapQty - permissibleScrapQty));
-      const unitCost = Number(item.standardUnitCost) || 0.0;
+      const unitCost = Number(item.standardUnitCost) > 0 ? Number(item.standardUnitCost) : Number(item.product?.purchasePrice || item.product?.costPrice || item.product?.sellingPrice || 0);
       const debitAmount = round2(excessScrapQty * unitCost);
 
       totalExcessWastageDebit += debitAmount;

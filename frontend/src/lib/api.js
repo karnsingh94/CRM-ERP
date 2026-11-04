@@ -211,3 +211,6 @@ export const api = {
   delete: (endpoint, options) => apiRequest(endpoint, { method: 'DELETE', ...options }),
   invalidateCache: invalidateApiCache,
 };
+
+export default api;
+

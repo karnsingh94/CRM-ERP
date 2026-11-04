@@ -1,10 +1,10 @@
 import CompanyAdminPortal from '@/components/company-admin/CompanyAdminPortal';
 
 export const metadata = {
-  title: 'Payment Receipts & Vouchers — AZZUNIQE Company Admin',
-  description: 'Bank transfers, NEFT/RTGS receipts, and reconciliation vouchers',
+  title: 'Customer Receipts & Payments — AZZUNIQE Company Admin',
+  description: 'Inward cash/bank receipts, customer advance collections, and allocation matching',
 };
 
 export default function AccountsPaymentsPage() {
-  return <CompanyAdminPortal initialTab="accounts_banking:accounts_banking" />;
+  return <CompanyAdminPortal initialTab="accounts_banking:accounts_banking" initialSubTab="receipts" />;
 }
