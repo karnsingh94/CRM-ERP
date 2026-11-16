@@ -162,6 +162,10 @@ export const productService = {
       if (file?.path) deleteStoredImageFile(file.path);
       throw coreError(`Category "${category}" does not exist. Please create it first in the Categories tab.`, 400);
     }
+    if (existingCat.status !== 'ACTIVE') {
+      if (file?.path) deleteStoredImageFile(file.path);
+      throw coreError(`Category "${category}" is inactive. Activate it before assigning it to a product.`, 400);
+    }
 
     let imageUrl = null;
     if (file) {
@@ -312,6 +316,10 @@ export const productService = {
       if (!existingCat) {
         if (file?.path) deleteStoredImageFile(file.path);
         throw coreError(`Category "${category}" does not exist. Please create it first in the Categories tab.`, 400);
+      }
+      if (existingCat.status !== 'ACTIVE' && category !== existing.category) {
+        if (file?.path) deleteStoredImageFile(file.path);
+        throw coreError(`Category "${category}" is inactive. Activate it before assigning it to a product.`, 400);
       }
       updateData.category = category;
     }

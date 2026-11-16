@@ -719,6 +719,7 @@ model ProductCategory {
   companyId   String      @map("company_id") @db.Char(36)
   name        String      @db.VarChar(100)
   description String?     @db.VarChar(255)
+  status      String      @default("ACTIVE") @db.VarChar(30)
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 

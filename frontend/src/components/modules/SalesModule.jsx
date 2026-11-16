@@ -125,6 +125,18 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
   });
 
   const handleOrderItemChange = (index, field, value) => {
+    if (field === 'item') {
+      const inactiveProduct = catalogProducts.find(
+        (product) =>
+          product.status === 'INACTIVE' &&
+          [product.name, product.sku].some((identifier) => identifier?.toLowerCase() === value.trim().toLowerCase())
+      );
+      if (inactiveProduct) {
+        showToast('Product Inactive', `"${inactiveProduct.name}" is inactive and cannot be added to an order.`, 'danger');
+        return;
+      }
+    }
+
     setOrderForm((prev) => {
       const updated = [...prev.items];
       const target = { ...updated[index], [field]: value };
@@ -256,6 +268,18 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
   });
 
   const handleQuoteItemChange = (index, field, value) => {
+    if (field === 'item') {
+      const inactiveProduct = catalogProducts.find(
+        (product) =>
+          product.status === 'INACTIVE' &&
+          [product.name, product.sku].some((identifier) => identifier?.toLowerCase() === value.trim().toLowerCase())
+      );
+      if (inactiveProduct) {
+        showToast('Product Inactive', `"${inactiveProduct.name}" is inactive and cannot be added to a quotation.`, 'danger');
+        return;
+      }
+    }
+
     setQuoteForm((prev) => {
       const updated = [...prev.items];
       const target = { ...updated[index], [field]: value };
@@ -1663,8 +1687,8 @@ export default function SalesModule({ activeCompany, showToast, initialSubTab })
       {/* Datalist for autocomplete if products exist */}
       <datalist id="sales-catalog-products">
         {catalogProducts.map((p) => (
-          <option key={p.id} value={p.name}>
-            {p.sku} • ₹{p.sellingPrice}
+          <option key={p.id} value={p.name} disabled={p.status === 'INACTIVE'}>
+            {p.sku} • ₹{p.sellingPrice}{p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
           </option>
         ))}
       </datalist>

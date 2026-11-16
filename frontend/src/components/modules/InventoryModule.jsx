@@ -1992,7 +1992,9 @@ export default function InventoryModule({ activeCompany, showToast, initialSubTa
             >
               <option value="">Manual Raw Material / Packing Item</option>
               {products.map((p) => (
-                <option key={p.id} value={p.id}>{p.sku} — {p.name}</option>
+                <option key={p.id} value={p.id} disabled={p.status === 'INACTIVE'}>
+                  {p.sku} — {p.name}{p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
+                </option>
               ))}
             </select>
           </FormField>

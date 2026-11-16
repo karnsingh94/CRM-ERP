@@ -1421,7 +1421,9 @@ export default function ContractManufacturingModule({ activeCompany, showToast, 
                 >
                   <option value="">Select Product...</option>
                   {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.sku} — {p.name}</option>
+                    <option key={p.id} value={p.id} disabled={p.status === 'INACTIVE'}>
+                      {p.sku} — {p.name}{p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -2005,4 +2007,3 @@ export default function ContractManufacturingModule({ activeCompany, showToast, 
     </div>
   );
 }
-

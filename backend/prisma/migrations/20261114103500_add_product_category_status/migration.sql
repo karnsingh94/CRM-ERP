@@ -1,0 +1,2 @@
+ALTER TABLE `product_categories`
+ADD COLUMN `status` VARCHAR(30) NOT NULL DEFAULT 'ACTIVE';

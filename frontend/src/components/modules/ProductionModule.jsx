@@ -2543,8 +2543,8 @@ export default function ProductionModule({ activeCompany, showToast, initialSubT
               >
                 <option value="">-- Select Output Product --</option>
                 {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.sku}) [{p.category}]
+                  <option key={p.id} value={p.id} disabled={p.status === 'INACTIVE'}>
+                    {p.name} ({p.sku}) [{p.category}]{p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
                   </option>
                 ))}
               </select>
@@ -2619,8 +2619,8 @@ export default function ProductionModule({ activeCompany, showToast, initialSubT
                       >
                         <option value="">-- Choose RM / PKG --</option>
                         {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.sku})
+                          <option key={p.id} value={p.id} disabled={p.status === 'INACTIVE'}>
+                            {p.name} ({p.sku}){p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
                           </option>
                         ))}
                       </select>
@@ -2827,7 +2827,9 @@ export default function ProductionModule({ activeCompany, showToast, initialSubT
               >
                 <option value="">-- Choose Product --</option>
                 {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                  <option key={p.id} value={p.id} disabled={p.status === 'INACTIVE'}>
+                    {p.name} ({p.sku}){p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
+                  </option>
                 ))}
               </select>
             </div>
@@ -2942,7 +2944,9 @@ export default function ProductionModule({ activeCompany, showToast, initialSubT
               >
                 <option value="">-- Choose Product --</option>
                 {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                  <option key={p.id} value={p.id} disabled={p.status === 'INACTIVE'}>
+                    {p.name} ({p.sku}){p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
+                  </option>
                 ))}
               </select>
             </div>
