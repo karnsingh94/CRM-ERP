@@ -6,6 +6,14 @@ function coreError(message, statusCode = 400) {
   return error;
 }
 
+function validateStatus(status) {
+  const normalized = String(status || 'ACTIVE').trim().toUpperCase();
+  if (normalized !== 'ACTIVE' && normalized !== 'INACTIVE') {
+    throw coreError('Category status must be ACTIVE or INACTIVE.');
+  }
+  return normalized;
+}
+
 export const categoryService = {
   async listCategories(companyId, options = {}) {
     const { search } = options;
@@ -61,6 +69,7 @@ export const categoryService = {
         companyId,
         name,
         description: data.description?.trim() || null,
+        status: validateStatus(data.status),
       },
     });
   },
@@ -95,6 +104,10 @@ export const categoryService = {
 
     if (data.description !== undefined) {
       updateData.description = data.description?.trim() || null;
+    }
+
+    if (data.status !== undefined) {
+      updateData.status = validateStatus(data.status);
     }
 
     return prisma.$transaction(async (tx) => {
@@ -142,4 +155,3 @@ export const categoryService = {
 };
 
 export default categoryService;
-

@@ -385,6 +385,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
   const [productToView, setProductToView] = useState(null);
   const [productToEdit, setProductToEdit] = useState(null);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
+  const [updatingProductStatusId, setUpdatingProductStatusId] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
 
   // Product Image States
@@ -574,6 +575,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
           stock: productToEdit.stock !== undefined && productToEdit.stock !== '' ? parseInt(productToEdit.stock, 10) : 0,
           status: productToEdit.status,
         };
+
         if (editImageRemoved) {
           payload.removeImage = true;
         }
@@ -589,6 +591,24 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
       showToast('Update Failed', err.message || 'Could not update product.', 'danger');
     } finally {
       setIsUpdatingProduct(false);
+    }
+  };
+
+  const handleToggleProductStatus = async (product) => {
+    const status = product.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setUpdatingProductStatusId(product.id);
+    try {
+      const res = await api.patch(`/companies/${activeCompany.id}/products/${product.id}`, { status });
+      setProducts((current) => current.map((item) => (item.id === product.id ? res.data : item)));
+      showToast(
+        'Product Status Updated',
+        `"${product.name}" is now ${status.toLowerCase()}.`,
+        'success'
+      );
+    } catch (err) {
+      showToast('Update Failed', err.message || 'Could not update product status.', 'danger');
+    } finally {
+      setUpdatingProductStatusId(null);
     }
   };
 
@@ -624,11 +644,12 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
   // ---------------------------------------------------------------------------
   const [categorySearch, setCategorySearch] = useState('');
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
-  const [categoryForm, setCategoryForm] = useState({ name: '', description: '' });
+  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', status: 'ACTIVE' });
   const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   const [categoryToEdit, setCategoryToEdit] = useState(null);
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [updatingCategoryStatusId, setUpdatingCategoryStatusId] = useState(null);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [categoryDeleteBlocked, setCategoryDeleteBlocked] = useState(null);
 
@@ -643,10 +664,11 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
       const res = await api.post(`/companies/${activeCompany.id}/products/categories`, {
         name: categoryForm.name.trim(),
         description: categoryForm.description?.trim() || '',
+        status: categoryForm.status,
       });
       setCategories([...categories, { ...res.data, productCount: 0 }]);
       setShowAddCategoryModal(false);
-      setCategoryForm({ name: '', description: '' });
+      setCategoryForm({ name: '', description: '', status: 'ACTIVE' });
       showToast('Category Created! 🏷️', `Category "${res.data.name}" added to master taxonomy.`, 'success');
       loadProducts();
     } catch (err) {
@@ -666,6 +688,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
         {
           name: categoryToEdit.name.trim(),
           description: categoryToEdit.description?.trim() || '',
+          status: categoryToEdit.status || 'ACTIVE',
         }
       );
       setCategories(
@@ -680,6 +703,27 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
       showToast('Update Failed', err.message || 'Could not update category.', 'danger');
     } finally {
       setIsUpdatingCategory(false);
+    }
+  };
+
+  const handleToggleCategoryStatus = async (category) => {
+    const status = category.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setUpdatingCategoryStatusId(category.id);
+    try {
+      const res = await api.patch(
+        `/companies/${activeCompany.id}/products/categories/${category.id}`,
+        { status }
+      );
+      setCategories((current) =>
+        current.map((item) =>
+          item.id === category.id ? { ...res.data, productCount: item.productCount } : item
+        )
+      );
+      showToast('Category Status Updated', `"${category.name}" is now ${status.toLowerCase()}.`, 'success');
+    } catch (err) {
+      showToast('Update Failed', err.message || 'Could not update category status.', 'danger');
+    } finally {
+      setUpdatingCategoryStatusId(null);
     }
   };
 
@@ -918,7 +962,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
             <button
               type="button"
               onClick={() => {
-                setCategoryForm({ name: '', description: '' });
+                setCategoryForm({ name: '', description: '', status: 'ACTIVE' });
                 setShowAddCategoryModal(true);
               }}
               style={{
@@ -1180,7 +1224,7 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 </thead>
                 <tbody>
                   {filteredProducts.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                    <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap', opacity: p.status === 'INACTIVE' ? 0.72 : 1 }}>
                       <td style={{ padding: '0.65rem 0.75rem', width: '56px' }}>
                         <ProductThumbnail
                           product={p}
@@ -1287,6 +1331,26 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                           </button>
                           <button
                             type="button"
+                            onClick={() => handleToggleProductStatus(p)}
+                            disabled={updatingProductStatusId === p.id}
+                            aria-label={`${p.status === 'ACTIVE' ? 'Deactivate' : 'Activate'} ${p.name}`}
+                            aria-pressed={p.status === 'ACTIVE'}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              color: p.status === 'ACTIVE' ? '#b45309' : '#047857',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              background: p.status === 'ACTIVE' ? '#fffbeb' : '#ecfdf5',
+                              border: `1px solid ${p.status === 'ACTIVE' ? '#fde68a' : '#a7f3d0'}`,
+                              cursor: updatingProductStatusId === p.id ? 'not-allowed' : 'pointer',
+                              opacity: updatingProductStatusId === p.id ? 0.6 : 1,
+                            }}
+                          >
+                            {updatingProductStatusId === p.id ? 'Saving...' : p.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setProductToDelete(p)}
                             style={{
                               padding: '4px 8px',
@@ -1381,17 +1445,18 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
               description="Categories help structure your inventory and catalogue. Add categories to organize materials and finished goods."
               actionLabel="Add Category"
               onAction={() => {
-                setCategoryForm({ name: '', description: '' });
+                setCategoryForm({ name: '', description: '', status: 'ACTIVE' });
                 setShowAddCategoryModal(true);
               }}
             />
           ) : (
             <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-              <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+              <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: 700, whiteSpace: 'nowrap' }}>
                     <th style={{ padding: '0.85rem 1.25rem', whiteSpace: 'nowrap' }}>Category Name</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Description</th>
+                    <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Status</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Linked Products</th>
                     <th style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>Created Date</th>
                     <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
@@ -1399,12 +1464,24 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 </thead>
                 <tbody>
                   {filteredCategories.map((c) => (
-                    <tr key={c.id || c.name} style={{ borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                    <tr key={c.id || c.name} style={{ borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap', opacity: c.status === 'INACTIVE' ? 0.72 : 1 }}>
                       <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
                         {c.name}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#64748b', whiteSpace: 'nowrap' }}>
                         {c.description || '—'}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          background: c.status === 'INACTIVE' ? '#f1f5f9' : '#ecfdf5',
+                          color: c.status === 'INACTIVE' ? '#64748b' : '#047857',
+                        }}>
+                          {c.status || 'ACTIVE'}
+                        </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
                         <span
@@ -1442,6 +1519,26 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                             }}
                           >
                             Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCategoryStatus(c)}
+                            disabled={updatingCategoryStatusId === c.id}
+                            aria-label={`${c.status === 'ACTIVE' ? 'Deactivate' : 'Activate'} ${c.name}`}
+                            aria-pressed={c.status === 'ACTIVE'}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              color: c.status === 'ACTIVE' ? '#b45309' : '#047857',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              background: c.status === 'ACTIVE' ? '#fffbeb' : '#ecfdf5',
+                              border: `1px solid ${c.status === 'ACTIVE' ? '#fde68a' : '#a7f3d0'}`,
+                              cursor: updatingCategoryStatusId === c.id ? 'not-allowed' : 'pointer',
+                              opacity: updatingCategoryStatusId === c.id ? 0.6 : 1,
+                            }}
+                          >
+                            {updatingCategoryStatusId === c.id ? 'Saving...' : c.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                           </button>
                           <button
                             type="button"
@@ -1521,8 +1618,8 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 >
                   <option value="ALL">All Products</option>
                   {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.sku} — {p.name}
+                    <option key={p.id} value={p.id} disabled={p.status === 'INACTIVE'}>
+                      {p.sku} — {p.name}{p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
                     </option>
                   ))}
                 </select>
@@ -1760,8 +1857,8 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 >
                   <option value="">-- Select Category --</option>
                   {categories.map((c) => (
-                    <option key={c.id || c.name} value={c.name}>
-                      {c.name}
+                    <option key={c.id || c.name} value={c.name} disabled={c.status === 'INACTIVE'}>
+                      {c.name}{c.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
                     </option>
                   ))}
                 </select>
@@ -1970,8 +2067,12 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 >
                   <option value="">-- Select Category --</option>
                   {categories.map((c) => (
-                    <option key={c.id || c.name} value={c.name}>
-                      {c.name}
+                    <option
+                      key={c.id || c.name}
+                      value={c.name}
+                      disabled={c.status === 'INACTIVE' && c.name !== productToEdit.category}
+                    >
+                      {c.name}{c.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
                     </option>
                   ))}
                 </select>
@@ -2320,6 +2421,20 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
             />
           </div>
 
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              Status
+            </label>
+            <select
+              value={categoryForm.status}
+              onChange={(e) => setCategoryForm({ ...categoryForm, status: e.target.value })}
+              style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff' }}
+            >
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
             <button
               type="button"
@@ -2366,6 +2481,20 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
                 onChange={(e) => setCategoryToEdit({ ...categoryToEdit, description: e.target.value })}
                 style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
               />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                Status
+              </label>
+              <select
+                value={categoryToEdit.status || 'ACTIVE'}
+                onChange={(e) => setCategoryToEdit({ ...categoryToEdit, status: e.target.value })}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff' }}
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
             </div>
 
             <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.78rem', color: '#64748b' }}>
@@ -2448,8 +2577,8 @@ export default function ProductsModule({ activeCompany, showToast, initialSubTab
             >
               <option value="">Select a product from catalogue...</option>
               {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.sku} — {p.name} ({p.category})
+                <option key={p.id} value={p.id} disabled={p.status === 'INACTIVE'}>
+                  {p.sku} — {p.name} ({p.category}){p.status === 'INACTIVE' ? ' (INACTIVE)' : ''}
                 </option>
               ))}
             </select>
